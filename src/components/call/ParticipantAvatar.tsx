@@ -1,8 +1,8 @@
 import type React from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import type { Participant } from "../types/call"
-import { colors } from "../styles/colors"
+import type { Participant } from "@/types/call"
+import { colors } from "@/styles/colors"
 
 interface ParticipantAvatarProps {
   participant: Participant

@@ -1,13 +1,13 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import type { VoiceCallProps, CallState } from "../types/call"
+import type { VoiceCallProps, CallState } from "@/types/call"
 import ParticipantAvatar from "./ParticipantAvatar"
 import CountdownTimer from "./CountdownTimer"
 import ConversationPrompts from "./ConversationPrompts"
 import CallControls from "./CallControls"
 import RatingOverlay from "./RatingOverlay"
-import { utils } from "../styles/utils"
+import { utils } from "@/styles/utils"
 
 const VoiceCallScreen: React.FC<VoiceCallProps> = ({
   callType,

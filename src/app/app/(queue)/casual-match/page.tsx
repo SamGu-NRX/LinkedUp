@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import MatchQueueLobby from "../../../components/queue/MatchQueueLobby";
+import MatchQueueLobby from "@/components/queue/MatchQueueLobby";
 import { useRouter } from "next/navigation";
 
 export default function MatchQueuePage() {

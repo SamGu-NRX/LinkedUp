@@ -1,8 +1,8 @@
 import type React from "react"
 import { motion } from "framer-motion"
 import { Mic, MicOff, PhoneOff, Clock } from "lucide-react"
-import { utils } from "../styles/utils"
-import { colors } from "../styles/colors"
+import { utils } from "@/styles/utils"
+import { colors } from "@/styles/colors"
 
 interface CallControlsProps {
   isMuted: boolean

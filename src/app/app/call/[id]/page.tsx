@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import VoiceCallScreen from "@/components/VoiceCallScreen"
+import VoiceCallScreen from "@/components/call/VoiceCallScreen"
 import type { CallType } from "@/types/call"
 
 export default function CallPage() {

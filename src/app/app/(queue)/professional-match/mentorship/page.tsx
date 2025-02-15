@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter } from "next/navigation"
-import ProfessionalQueue from "@/components/ProfessionalQueue"
+import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
 export default function MentorshipPage() {
   const router = useRouter()

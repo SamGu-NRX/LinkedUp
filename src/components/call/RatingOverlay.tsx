@@ -1,8 +1,8 @@
 import type React from "react"
 import { motion } from "framer-motion"
 import { Star } from "lucide-react"
-import { utils } from "../styles/utils"
-import { colors } from "../styles/colors"
+import { utils } from "@/styles/utils"
+import { colors } from "@/styles/colors"
 
 interface RatingOverlayProps {
   onRate: (rating: number) => void

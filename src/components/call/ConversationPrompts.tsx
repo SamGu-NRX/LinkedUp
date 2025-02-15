@@ -1,8 +1,8 @@
 import type React from "react"
 import { useState } from "react"
 import { motion } from "framer-motion"
-import type { CallType } from "../types/call"
-import { utils } from "../styles/utils"
+import type { CallType } from "@/types/call"
+import { utils } from "@/styles/utils"
 
 interface ConversationPromptsProps {
   callType: CallType
