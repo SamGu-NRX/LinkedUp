@@ -8,6 +8,7 @@ import ConversationPrompts from "./ConversationPrompts"
 import CallControls from "./CallControls"
 import RatingOverlay from "./RatingOverlay"
 import { utils } from "@/styles/utils"
+import { useConnectedUser } from "@stream-io/video-react-sdk"
 
 const VoiceCallScreen: React.FC<VoiceCallProps> = ({
   callType,
