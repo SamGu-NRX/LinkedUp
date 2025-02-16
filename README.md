@@ -1,4 +1,4 @@
-<h1 align="center">LinkUp</h1>
+![image](https://github.com/user-attachments/assets/9f30068f-a540-4ebb-aea2-47d13c3534d4)<h1 align="center">LinkUp</h1>
 
 <p align="center">
   <strong>Professional connections, without the BS.</strong><br>
@@ -19,24 +19,36 @@ LinkedUp was born out of the frustration with platforms like LinkedIn – clutte
 
 ---
 
+<h3 align="center">Lander Page</h3>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f5ac64e0-747b-4f27-b7c6-8d4c2a8fd751" alt="Lander Page">
+</p>
+
+<h3 align="center">Smooth Onboarding</h3>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/75b0f718-e8fb-42e4-bf39-0fed942ffb38" alt="Smooth Onboarding">
+</p>
+
+---
+
 ## Features
 
 ### Authentic Real-Time Connections
 Engage in live voice and video calls that bypass endless text exchanges.
 <p align="center">
-  <img src="https://via.placeholder.com/600x350?text=Real-Time+Call+Interface" alt="Real-Time Call Interface" width="600">
+  <img src="https://github.com/user-attachments/assets/0199e27e-8b1f-4ff1-8b69-ce046c0a012a" alt="Real-Time Call Interface" width="600">
 </p>
 
 ### Intelligent Matchmaking
 Our ML-driven system pairs you with professionals who share your interests and ambitions.
 <p align="center">
-  <img src="https://via.placeholder.com/600x350?text=Smart+Matching+Dashboard" alt="Smart Matching Dashboard" width="600">
+  <img src="https://github.com/user-attachments/assets/fee31d22-e144-4896-b655-ef38437475e4" alt="Smart Matching Dashboard" width="600">
 </p>
 
 ### Sleek, Minimalist UI
 A clean, distraction-free environment that lets you focus on building meaningful connections.
 <p align="center">
-  <img src="https://via.placeholder.com/600x350?text=Minimalist+UI" alt="Minimalist UI" width="600">
+  <img src="https://github.com/user-attachments/assets/57167d18-050c-46d6-bcc4-0e5ca0d6f237" alt="Minimalist UI" width="600">
 </p>
 
 ---
