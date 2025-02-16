@@ -43,6 +43,7 @@
     "@svgr/webpack": "^8.1.0",
     "@types/node": "20.6.2",
     "@types/react-dom": "18.2.7",
+    "@vercel/analytics": "^1.5.0",
     "autoprefixer": "10.4.15",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.0",
@@ -76,6 +77,8 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18",
     "drizzle-kit": "^0.30.4",
+    "prettier": "^3.5.1",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "tsx": "^4.19.2",
     "typescript": "5.2.2"
   },
