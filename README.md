@@ -1,9 +1,9 @@
-![image](https://github.com/user-attachments/assets/9f30068f-a540-4ebb-aea2-47d13c3534d4)<h1 align="center">LinkUp</h1>
+<h1 align="center">LinkUp</h1>
 
 <p align="center">
   <strong>Professional connections, without the BS.</strong><br>
   The antithesis of LinkedIn – real-time, genuine professional connections via sleek UI, effective matching, and live voice/video calls.<br>
-  <a href="https://devpost.com/software/linkup">HackTAMS Project</a>
+  <a href="https://devpost.com/software/linkedup-d5slpu?ref_content=user-portfolio&ref_feature=in_progress">HackTAMS Project</a>
 </p>
 
 ---
