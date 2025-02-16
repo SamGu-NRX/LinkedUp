@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { CallState, useConnectedUser, useStreamVideoClient, Call } from "@stream-io/video-react-sdk";
 import { useRouter } from "next/navigation";
@@ -16,7 +16,7 @@ const Meeting = () => {
     })
     const [callDetails, setCallDetails] = useState<Call>()
     
-    const createMeeting = () => {
+    const createMeeting = async () => {
         if(!client || !user) return;
         try {
             const id = crypto.randomUUID();
