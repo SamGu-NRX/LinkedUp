@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import SmartConnectionEngine from "../components/SmartConnectionEngine"
+import SmartConnectionEngine from "@/components/queue/SmartConnectionEngine"
 
 export default function SmartConnectionPage() {
   const router = useRouter()

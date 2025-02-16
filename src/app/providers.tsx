@@ -1,14 +1,25 @@
 "use client";
 
 import { Toaster } from "sonner";
-import { ModalProvider } from "@/components/modal/provider";
+import { ThemeProvider } from '@/components/theme-provider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <div className="min-h-screen bg-background">
+        <main
+        // className="container mx-auto px-4 py-6"
+        >
+          {children}
+        </main>
+      </div>
       <Toaster className="dark:hidden" />
       <Toaster theme="dark" className="hidden dark:block" />
-      <ModalProvider>{children}</ModalProvider>
-    </SessionProvider>
+    </ThemeProvider>
   );
 }

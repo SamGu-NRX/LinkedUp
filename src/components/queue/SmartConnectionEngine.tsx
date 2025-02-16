@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import QueueStatus from "./QueueStatus"
 import MatchNotification from "./MatchNotification"
-import ErrorState from "./ErrorState"
+import ErrorState from "@/components/ErrorState"
 import { Button } from "@/components/ui/button"
 
 interface SmartConnectionEngineProps {
