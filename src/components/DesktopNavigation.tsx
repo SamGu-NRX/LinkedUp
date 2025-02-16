@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import React from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Home, BarChart2, User, Settings, LogOut } from "lucide-react"
-import { cn } from "@/lib/shadcn"
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Home, BarChart2, User, Settings, LogOut } from "lucide-react";
+import { cn } from "@/lib/shadcn";
 
 const navItems = [
   { name: "Home", href: "/app/", icon: Home },
@@ -14,37 +14,46 @@ const navItems = [
 ];
 
 export function DesktopNavigation() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
-    <nav className="flex h-full flex-col bg-gray-900 text-white">
-      <div className="flex h-16 shrink-0 items-center px-6">
-        <h1 className="text-2xl font-bold">LinkUp</h1>
-      </div>
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="space-y-1 px-2 py-4">
+    <nav className="flex h-full flex-col border-r border-gray-100 bg-white">
+      <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-5">
+        <div className="space-y-1 px-3">
           {navItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
               className={cn(
-                "group flex items-center rounded-md px-2 py-2 text-sm font-medium",
-                pathname === item.href ? "bg-gray-800 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white",
+                "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200",
+                pathname === item.href
+                  ? "bg-blue-50 text-blue-600"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-blue-600",
               )}
             >
-              <item.icon className="mr-3 h-6 w-6 flex-shrink-0" aria-hidden="true" />
+              <item.icon
+                className={cn(
+                  "mr-3 h-5 w-5 flex-shrink-0 transition-colors duration-200",
+                  pathname === item.href
+                    ? "text-blue-600"
+                    : "text-gray-400 group-hover:text-blue-600",
+                )}
+                aria-hidden="true"
+              />
               {item.name}
             </Link>
           ))}
         </div>
       </div>
-      <div className="shrink-0 px-4 py-4">
-        <button className="group flex w-full items-center rounded-md px-2 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-          <LogOut className="mr-3 h-6 w-6 flex-shrink-0" aria-hidden="true" />
+      <div className="shrink-0 px-3 pb-5">
+        <button className="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-50 hover:text-red-600">
+          <LogOut
+            className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 transition-colors duration-200 group-hover:text-red-600"
+            aria-hidden="true"
+          />
           Log out
         </button>
       </div>
     </nav>
-  )
+  );
 }
-

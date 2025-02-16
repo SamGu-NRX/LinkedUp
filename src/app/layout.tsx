@@ -1,11 +1,9 @@
-import type React from "react"
 import "@/styles/globals.css"
 import { cal, inter } from "@/styles/fonts"
 import { Analytics } from "@vercel/analytics/react"
 import { Providers } from "./providers"
 import type { Metadata } from "next"
 import { cn } from "@/lib/shadcn"
-import Layout from "@/components/dashboard/Layout"
 
 const title = "LinkUp – Professional Networking Without the BS"
 const description =
@@ -37,11 +35,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body className={cn(cal.variable, inter.variable)}>
         <Providers>
-          <Layout>{children}</Layout>
-          {/* TODO: enable this <Analytics /> */}
+          {children}
+          {/* TODO: make<Analytics /> */}
         </Providers>
       </body>
     </html>

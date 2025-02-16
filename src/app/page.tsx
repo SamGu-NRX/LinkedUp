@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { handleTransition } from '@/utils/TransitionLink';
 import { useRouter } from 'next/navigation';
+import { SignedOut, SignInButton, SignUpButton, SignedIn, UserButton } from '@clerk/nextjs';
 
 const retentionData = [
   { month: 'Jan', rate: 85 },
@@ -79,21 +80,38 @@ const LandingPage = () => {
   };
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
-      <div className="bg-white dark:bg-gray-900 transition-colors duration-300">
+    <div className={`min-h-screen ${theme === "dark" ? "dark" : ""}`}>
+      <div className="bg-white transition-colors duration-300 dark:bg-gray-900">
         {/* Nav */}
-        <nav className="fixed top-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-50 border-b border-gray-200 dark:border-gray-800">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">LinkUp</span>
+        <nav className="fixed top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/80">
+          <div className="container mx-auto flex items-center justify-between px-4 py-4">
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">
+              LinkUp
+            </span>
             <div className="flex items-center gap-6">
-              <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-                {theme === 'light' ?
-                  <Moon className="w-5 h-5" /> :
-                  <Sun className="w-5 h-5 text-white" />
-                }
+              <button
+                onClick={toggleTheme}
+                className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                {theme === "light" ? (
+                  <Moon className="h-5 w-5" />
+                ) : (
+                  <Sun className="h-5 w-5 text-white" />
+                )}
               </button>
-              <a href="/app" className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:opacity-90"
-              onClick={(e) => handleTransition(e, '/app', router)}>
+              {/* <SignedOut>
+                <SignInButton />
+                <SignUpButton />
+              </SignedOut>
+              <SignedIn>
+                <UserButton />
+              </SignedIn> */}
+
+              <a
+                href="/app"
+                className="rounded-lg bg-black px-4 py-2 text-white hover:opacity-90 dark:bg-white dark:text-black"
+                onClick={(e) => handleTransition(e, "/app", router)}
+              >
                 Start Connecting
               </a>
             </div>
@@ -101,42 +119,44 @@ const LandingPage = () => {
         </nav>
 
         {/* Hero */}
-        <section className="min-h-screen flex items-center relative overflow-hidden">
+        <section className="relative flex min-h-screen items-center overflow-hidden">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="container mx-auto px-4 py-20 relative"
+            className="container relative mx-auto px-4 py-20"
           >
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="max-w-4xl mx-auto text-center"
+              className="mx-auto max-w-4xl text-center"
             >
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 text-gray-900 dark:text-white">
+              <h1 className="mb-6 text-5xl font-bold text-gray-900 dark:text-white md:text-7xl">
                 Professional Networking
                 <br />
                 <span className="text-blue-600">Without the BS.</span>
               </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-                Where professionals come to actually connect, not to share inspirational quotes or humble brag about their morning routines.
+              <p className="mx-auto mb-8 max-w-2xl text-xl text-gray-600 dark:text-gray-300">
+                Where professionals come to actually connect, not to share
+                inspirational quotes or humble brag about their morning
+                routines.
               </p>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={(e) => handleTransition(e, '/app', router)}
-                className="px-8 py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                onClick={(e) => handleTransition(e, "/app", router)}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-4 font-medium text-white transition-colors hover:bg-blue-700"
               >
-                Start Real Networking <ArrowRight className="w-5 h-5" />
+                Start Real Networking <ArrowRight className="h-5 w-5" />
               </motion.button>
             </motion.div>
           </motion.div>
         </section>
 
         {/* Stats */}
-        <section className="py-20 bg-gray-50 dark:bg-gray-800">
+        <section className="bg-gray-50 py-20 dark:bg-gray-800">
           <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-4 gap-6">
+            <div className="grid gap-6 md:grid-cols-4">
               <StatCard
                 icon={UserCheck}
                 value="50K+"
@@ -168,46 +188,52 @@ const LandingPage = () => {
         {/* Features */}
         <section className="py-20">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-16">
-              <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+            <div className="mx-auto mb-16 max-w-3xl text-center">
+              <h2 className="mb-6 text-3xl font-bold text-gray-900 dark:text-white">
                 Features That Actually Matter
               </h2>
               <p className="text-xl text-gray-600 dark:text-gray-300">
                 No fluff. No filler. Just real connection tools.
               </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid gap-8 md:grid-cols-3">
               {[
                 {
                   icon: Timer,
                   title: "5-Minute Calls",
-                  description: "Because 'quick coffee chats' are never quick. Get straight to the point."
+                  description:
+                    "Because 'quick coffee chats' are never quick. Get straight to the point.",
                 },
                 {
                   icon: Users,
                   title: "Smart Matching",
-                  description: "Like dating apps, but for people who want to talk about more than their Myers-Briggs."
+                  description:
+                    "Like dating apps, but for people who want to talk about more than their Myers-Briggs.",
                 },
                 {
                   icon: Shield,
                   title: "BS Detection",
-                  description: "Our AI flags corporate buzzwords faster than you can say 'synergy'."
+                  description:
+                    "Our AI flags corporate buzzwords faster than you can say 'synergy'.",
                 },
                 {
                   icon: MessageSquare,
                   title: "Real Talk Only",
-                  description: "Save the weather small talk for your next awkward elevator ride."
+                  description:
+                    "Save the weather small talk for your next awkward elevator ride.",
                 },
                 {
                   icon: Award,
                   title: "Trust Score",
-                  description: "Earned by being interesting, not by posting motivational quotes."
+                  description:
+                    "Earned by being interesting, not by posting motivational quotes.",
                 },
                 {
                   icon: TrendingUp,
                   title: "Actual Growth",
-                  description: "Track connections that matter, not your endorsement count."
-                }
+                  description:
+                    "Track connections that matter, not your endorsement count.",
+                },
               ].map((feature, index) => (
                 <motion.div
                   key={index}
@@ -223,53 +249,62 @@ const LandingPage = () => {
         </section>
 
         {/* Social Proof */}
-        <section className="py-20 bg-gray-50 dark:bg-gray-800">
+        <section className="bg-gray-50 py-20 dark:bg-gray-800">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-16">
-              <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+            <div className="mx-auto mb-16 max-w-3xl text-center">
+              <h2 className="mb-6 text-3xl font-bold text-gray-900 dark:text-white">
                 What Real Humans Say
               </h2>
               <p className="text-xl text-gray-600 dark:text-gray-300">
                 No paid testimonials. Just honest feedback.
               </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid gap-8 md:grid-cols-3">
               {[
                 {
                   name: "Sarah K.",
                   role: "Reformed LinkedIn Influencer",
                   text: "Found my co-founder in 5 minutes. My LinkedIn connection requests are still pending.",
-                  rating: 5
+                  rating: 5,
                 },
                 {
                   name: "Alex T.",
                   role: "Professional Human",
                   text: "Finally, networking that doesn't feel like a bad LinkedIn post.",
-                  rating: 5
+                  rating: 5,
                 },
                 {
                   name: "Mike R.",
                   role: "Ex-Corporate Buzzword Expert",
                   text: "Turns out, real conversations work better than 'touching base' emails.",
-                  rating: 5
-                }
+                  rating: 5,
+                },
               ].map((testimonial, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.2 }}
-                  className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-lg"
+                  className="rounded-xl bg-white p-6 shadow-lg dark:bg-gray-900"
                 >
-                  <div className="flex gap-1 mb-4">
+                  <div className="mb-4 flex gap-1">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                      <Star
+                        key={i}
+                        className="h-5 w-5 fill-current text-yellow-400"
+                      />
                     ))}
                   </div>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">&quot;{testimonial.text}&quot;</p>
+                  <p className="mb-4 text-gray-600 dark:text-gray-300">
+                    &quot;{testimonial.text}&quot;
+                  </p>
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{testimonial.name}</p>
-                    <p className="text-gray-500 dark:text-gray-400">{testimonial.role}</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {testimonial.name}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      {testimonial.role}
+                    </p>
                   </div>
                 </motion.div>
               ))}
@@ -283,29 +318,31 @@ const LandingPage = () => {
             <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
-              className="max-w-4xl mx-auto text-center"
+              className="mx-auto max-w-4xl text-center"
             >
-              <h2 className="text-4xl font-bold mb-6 text-gray-900 dark:text-white">
+              <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
                 Ready for Real Professional Growth?
               </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-                Join thousands of professionals building meaningful connections through authentic conversations.
+              <p className="mb-8 text-xl text-gray-600 dark:text-gray-300">
+                Join thousands of professionals building meaningful connections
+                through authentic conversations.
               </p>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-8 py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-4 font-medium text-white transition-colors hover:bg-blue-700"
               >
-                Start Your Journey <ArrowRight className="w-5 h-5" />
+                Start Your Journey <ArrowRight className="h-5 w-5" />
               </motion.button>
             </motion.div>
           </div>
         </section>
 
         {/* Footer */}
-        <footer className="py-12 border-t border-gray-200 dark:border-gray-800">
+        <footer className="border-t border-gray-200 py-12 dark:border-gray-800">
           <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-300">
-            © {new Date().getFullYear()} LinkUp. All rights reserved. No corporate jargon was harmed in the making of this site.
+            © {new Date().getFullYear()} LinkUp. All rights reserved. No
+            corporate jargon was harmed in the making of this site.
           </div>
         </footer>
       </div>

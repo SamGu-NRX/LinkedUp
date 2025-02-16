@@ -3,7 +3,6 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,6 +152,23 @@ const initialMessages: Record<string, Message[]> = {
   "4": [],
 };
 
+type InitialMessages = Record<string, Message[]>;
+
+// Define some gradient classes
+const gradientClasses = [
+  "bg-gradient-to-r from-red-500 to-yellow-500",
+  "bg-gradient-to-r from-blue-500 to-purple-500",
+  "bg-gradient-to-r from-green-500 to-blue-500",
+  "bg-gradient-to-r from-pink-500 to-red-500",
+  "bg-gradient-to-r from-indigo-500 to-green-500",
+];
+
+// Return a gradient based on the profile id so that it's consistent
+const getProfileGradient = (id: string) => {
+  const index = parseInt(id, 10) % gradientClasses.length;
+  return gradientClasses[index];
+};
+
 const ModernChatApp: React.FC = () => {
   const [activeProfile, setActiveProfile] = useState(profiles[0]);
   const [messages, setMessages] = useState(initialMessages);
@@ -243,21 +259,22 @@ const ModernChatApp: React.FC = () => {
         <motion.div
           className="w-64 border-r bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
           initial={false}
-          animate={{ width: showProfiles ? 256 : 72 }}
+          animate={{ width: showProfiles ? 256 : 100 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
           <div className="mb-6 flex items-center justify-between">
             <Button
               variant="ghost"
-              className="p-2"
+              className="p-2 ml-4"
               onClick={() => setShowProfiles(!showProfiles)}
             >
-              <Users className="h-5 w-5" />
+              <Users className=" h-5 w-5" />
             </Button>
           </div>
 
           <div className="space-y-2">
             {sortedProfiles.map((profile, index) => (
+              // Sidebar Profile Button
               <motion.div
                 key={profile.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -275,16 +292,26 @@ const ModernChatApp: React.FC = () => {
                   }}
                 >
                   <div className="relative">
-                    <Image
-                      src={profile.avatar || "/placeholder.svg"}
-                      alt={profile.name}
-                      width={32}
-                      height={32}
-                      className="rounded-full"
-                    />
+                    {showProfiles ? (
+                      // When expanded, show the gradient avatar.
+                      <div
+                        className={`h-8 w-8 rounded-full ${getProfileGradient(profile.id)}`}
+                      />
+                    ) : (
+                      // When retracted, render a transparent circle.
+                      <div className="h-8 w-8 rounded-full bg-transparent" />
+                    )}
                     <div
-                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full ${getStatusColor(profile.status)} border-2 border-white`}
-                    ></div>
+                      className={`absolute ${
+                        showProfiles
+                          ? "bottom-0 right-0"
+                          : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                      } h-3 w-3 rounded-full ${getStatusColor(profile.status)} border-2 border-white`}
+                    />
+                    {/* If minimized and there are unread messages, overlay a red dot */}
+                    {!showProfiles && unreadCounts[profile.id] > 0 && (
+                      <div className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-white bg-red-500" />
+                    )}
                   </div>
                   <AnimatePresence>
                     {showProfiles && (
@@ -301,7 +328,8 @@ const ModernChatApp: React.FC = () => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  {unreadCounts[profile.id] > 0 && (
+                  {/* When expanded, show the unread count badge */}
+                  {showProfiles && unreadCounts[profile.id] > 0 && (
                     <Badge variant="destructive" className="ml-auto">
                       {unreadCounts[profile.id]}
                     </Badge>
@@ -323,12 +351,11 @@ const ModernChatApp: React.FC = () => {
                   className="p-0"
                   onClick={() => setShowUserProfile(true)}
                 >
-                  <Image
-                    src={activeProfile.avatar || "/placeholder.svg"}
-                    alt={activeProfile.name}
-                    width={40}
-                    height={40}
-                    className="rounded-full"
+                  {/* Always show the gradient avatar in the header */}
+                  <div
+                    className={`h-10 w-10 rounded-full ${getProfileGradient(
+                      activeProfile.id,
+                    )}`}
                   />
                 </Button>
                 <div>
@@ -370,7 +397,11 @@ const ModernChatApp: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className={`flex ${message.senderId === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${
+                    message.senderId === "user"
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
                 >
                   <motion.div
                     whileHover={{ scale: 1.02 }}
