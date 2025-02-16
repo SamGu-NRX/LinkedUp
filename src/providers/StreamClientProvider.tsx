@@ -1,12 +1,14 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { StreamVideoClient, StreamVideo } from "@stream-io/video-react-sdk";
-import { createClient } from "@/utils/supabase/server";
-import { tokenProvider } from "@/actions/stream.actions";
+import dynamic from "next/dynamic";
+import { StreamVideoClient } from "@stream-io/video-react-sdk";
 import Loader from "@/components/Loader";
 
-const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY as string;
+const DynamicStreamVideo = dynamic(
+  () => import("@stream-io/video-react-sdk").then((mod) => mod.StreamVideo),
+  { ssr: false },
+);
 
 const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(
@@ -14,41 +16,46 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
-    createClient().then((supabase) => {
-      // Only wrap the getUser call in an async function.
-      (async () => {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) {
-          console.error(error);
-          return;
-        }
-        const user = data?.user;
-        if (!user) {
-          console.warn("No authenticated user found.");
+    async function initClient() {
+      try {
+        const res = await fetch("/api/stream-token");
+
+        if (!res.ok) {
+          // Differentiate between an authentication issue and another error.
+          if (res.status === 401 || res.status === 403) {
+            console.error("User is not authenticated.");
+            // Optionally, you can set some state to redirect the user to a login page.
+          } else {
+            console.error(`Failed to fetch stream token. Status: ${res.status}`);
+          }
           return;
         }
 
-        if (!API_KEY) {
-          throw new Error("Stream API key is missing");
+        const { apiKey, user, token } = await res.json();
+
+        if (!apiKey || !user || !token) {
+          console.error("Missing required stream data");
+          return;
         }
 
+        // Now create the client on the client side using the plain objects.
         const client = new StreamVideoClient({
-          apiKey: API_KEY,
-          user: {
-            id: user.id,
-            name: user.username || user.id,
-            image: user.imageUrl,
-          },
-          tokenProvider,
+          apiKey,
+          user,
+          token,
         });
         setVideoClient(client);
-      })();
-    });
+      } catch (error) {
+        console.error("An unexpected error occurred while initializing the stream client:", error);
+      }
+    }
+    initClient();
   }, []);
 
   if (!videoClient) return <Loader />;
-
-  return <StreamVideo client={videoClient}>{children}</StreamVideo>;
+  return (
+    <DynamicStreamVideo client={videoClient}>{children}</DynamicStreamVideo>
+  );
 };
 
 export default StreamVideoProvider;

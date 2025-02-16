@@ -26,7 +26,8 @@ export async function middleware(request: NextRequest) {
 
   // 3. Securely fetch the user by revalidating the auth token.
   const {
-    data: { user }, error
+    data: { user },
+    error,
   } = await supabase.auth.getUser();
 
   if (error) {
@@ -58,24 +59,20 @@ export async function middleware(request: NextRequest) {
   // a. For the "app" subdomain, protect pages with SSR authentication.
   if (hostname === `app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`) {
     if (!user && path !== "/login") {
-      // If not authenticated, redirect to login.
+      // If not authenticated, redirect to the login page.
       finalResponse = NextResponse.redirect(new URL("/login", request.url));
     } else if (user && path === "/login") {
-      // If authenticated, prevent showing the login page.
+      // If authenticated, redirect away from the login page.
       finalResponse = NextResponse.redirect(new URL("/", request.url));
     } else {
       // Rewrite to serve pages from the `/app` folder.
+      // For example, a request to app.xxx.com/profile rewrites to /app/profile.
       finalResponse = NextResponse.rewrite(
         new URL(`/app${path === "/" ? "" : path}`, request.url),
       );
     }
   }
-  // // b. Special case: redirect requests for a specific domain (e.g. vercel.pub).
-  // else if (hostname === "vercel.pub") {
-  //   finalResponse = NextResponse.redirect(
-  //     "https://vercel.com/blog/platforms-starter-kit",
-  //   );
-  // }
+
   // c. For the landing page (root domain or localhost) serve pages from `/home`.
   else if (
     hostname === "localhost:3000" ||

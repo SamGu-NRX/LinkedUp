@@ -13,6 +13,9 @@ export function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
 }
 
+export const capitalize = (str: string) =>
+  str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+
 
 // TODO: Make this, add a link, link to modal
 // export const CTALink = ({ href, children }) => {

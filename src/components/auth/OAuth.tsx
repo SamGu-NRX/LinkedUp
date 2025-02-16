@@ -7,7 +7,7 @@ import {
   IconBrandDiscord,
 } from "@tabler/icons-react";
 import { BottomGradient } from "./utils";
-import { capitalize } from "@/lib/shadcn";
+import { capitalize } from "@/utils";
 
 interface OAuthProvider {
   name: string;

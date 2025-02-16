@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -12,35 +15,57 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// -------------------------------------------------------------------
+// 1. Schema & Types
+// -------------------------------------------------------------------
+
+const basicInfoSchema = z.object({
+  age: z
+    .number({ required_error: "Age is required" })
+    .min(13, "You must be at least 13")
+    .max(100, "Age must be 100 or below"),
+  gender: z.enum(["male", "female", "non-binary", "prefer-not-to-say"], {
+    required_error: "Gender is required",
+  }),
+});
+
+export type BasicInfoFormData = z.infer<typeof basicInfoSchema>;
+
 interface BasicInfoProps {
-  data: any;
-  onUpdate: (data: any) => void;
+  data: Partial<BasicInfoFormData>;
+  onUpdate: (data: BasicInfoFormData) => void;
   onNext: () => void;
 }
 
+// -------------------------------------------------------------------
+// 2. Component
+// -------------------------------------------------------------------
+
 export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const {
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<BasicInfoFormData>({
+    resolver: zodResolver(basicInfoSchema),
+    defaultValues: {
+      age: data.age ?? 18, // default age if not set
+      gender: data.gender ?? undefined,
+    },
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
+  // Watch the age and gender values to update the UI
+  const age = watch("age");
+  const gender = watch("gender");
 
-    if (!data.age) {
-      newErrors.age = "Age is required";
-    }
-    if (!data.gender) {
-      newErrors.gender = "Gender is required";
-    }
-
-    if (Object.keys(newErrors).length === 0) {
-      onNext();
-    } else {
-      setErrors(newErrors);
-    }
+  const onSubmit = (formData: BasicInfoFormData) => {
+    onUpdate(formData);
+    onNext();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Tell us about yourself</h2>
         <p className="text-muted-foreground">
@@ -52,16 +77,21 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
           <Label>Age</Label>
           <div className="pt-6">
             <Slider
-              value={[data.age]}
-              onValueChange={(value) => onUpdate({ age: value[0] })}
+              value={[age]}
+              onValueChange={(value) =>
+                setValue("age", value[0], { shouldValidate: true })
+              }
               min={13}
               max={100}
               step={1}
               className="w-full"
             />
-            <p className="text-center text-2xl font-semibold mt-4">
-              {data.age} years old
+            <p className="mt-4 text-center text-2xl font-semibold">
+              {age} years old
             </p>
+            {errors.age && (
+              <p className="text-sm text-destructive">{errors.age.message}</p>
+            )}
           </div>
         </div>
 
@@ -69,8 +99,10 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
         <div className="space-y-2">
           <Label>Gender</Label>
           <Select
-            value={data.gender}
-            onValueChange={(value) => onUpdate({ gender: value })}
+            value={gender}
+            onValueChange={(value: BasicInfoFormData["gender"]) =>
+              setValue("gender", value, { shouldValidate: true })
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Select your gender" />
@@ -85,7 +117,7 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
             </SelectContent>
           </Select>
           {errors.gender && (
-            <p className="text-sm text-destructive">{errors.gender}</p>
+            <p className="text-sm text-destructive">{errors.gender.message}</p>
           )}
         </div>
       </div>

@@ -1,18 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
+// -------------------------------------------------------------------
+// 1. Schema & Types
+// -------------------------------------------------------------------
+
+const bioSchema = z.object({
+  bio: z
+    .string()
+    .min(10, "Please write at least 10 characters")
+    .max(150, "Maximum 150 characters"),
+});
+
+export type BioFormData = z.infer<typeof bioSchema>;
+
 interface BioSectionProps {
-  data: any;
-  onUpdate: (data: any) => void;
+  data: Partial<BioFormData>;
+  onUpdate: (data: BioFormData) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 const MAX_CHARS = 150;
+
+// -------------------------------------------------------------------
+// 2. Component
+// -------------------------------------------------------------------
 
 export default function BioSection({
   data,
@@ -20,24 +40,33 @@ export default function BioSection({
   onNext,
   onBack,
 }: BioSectionProps) {
-  const [charCount, setCharCount] = useState(0);
-  const [error, setError] = useState("");
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<BioFormData>({
+    resolver: zodResolver(bioSchema),
+    defaultValues: {
+      bio: data.bio || "",
+    },
+  });
+
+  // Watch the bio value and update the character count
+  const bioValue = watch("bio", "");
+  const [charCount, setCharCount] = useState(bioValue.length);
 
   useEffect(() => {
-    setCharCount(data.bio?.length || 0);
-  }, [data.bio]);
+    setCharCount(bioValue.length);
+  }, [bioValue]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!data.bio || data.bio.trim().length < 10) {
-      setError("Please write at least 10 characters");
-      return;
-    }
+  const onSubmit = (formData: BioFormData) => {
+    onUpdate(formData);
     onNext();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">About You</h2>
         <p className="text-muted-foreground">
@@ -48,20 +77,20 @@ export default function BioSection({
           <Label htmlFor="bio">Bio</Label>
           <Textarea
             id="bio"
-            value={data.bio}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value.length <= MAX_CHARS) {
-                onUpdate({ bio: value });
-                setError("");
-              }
-            }}
+            {...register("bio")}
             placeholder="I'm passionate about technology and love discussing new ideas..."
-            className={`h-32 resize-none ${error ? "border-destructive" : ""}`}
+            className={`h-32 resize-none ${errors.bio ? "border-destructive" : ""}`}
+            maxLength={MAX_CHARS}
           />
           <div className="flex justify-between text-sm">
-            <span className={error ? "text-destructive" : "text-muted-foreground"}>
-              {error || `${charCount}/${MAX_CHARS} characters`}
+            <span
+              className={
+                errors.bio ? "text-destructive" : "text-muted-foreground"
+              }
+            >
+              {errors.bio
+                ? errors.bio.message
+                : `${charCount}/${MAX_CHARS} characters`}
             </span>
           </div>
         </div>

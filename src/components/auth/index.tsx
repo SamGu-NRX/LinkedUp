@@ -14,7 +14,7 @@ interface AuthProps {
   redirectTo?: string;
 }
 
-export function Auth({ mode, className, redirectTo = "/" }: AuthProps) {
+export function Auth({ mode, className, redirectTo = "/app" }: AuthProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();

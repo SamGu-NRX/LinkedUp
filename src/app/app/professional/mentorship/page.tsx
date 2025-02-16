@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import ProfessionalQueue from "@/app/components/ProfessionalQueue"
+import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
 export default function MentorshipPage() {
   const router = useRouter()
@@ -11,12 +11,12 @@ export default function MentorshipPage() {
   const description = searchParams.get("description") || ""
 
   const handleLeaveQueue = () => {
-    router.push("/dashboard")
+    router.push("/app/dashboard")
   }
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted mentorship match with ID: ${matchId}`)
-    router.push(`/call/${matchId}?type=mentorship`)
+    router.push(`/app/call/${matchId}?type=mentorship`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -25,7 +25,7 @@ export default function MentorshipPage() {
 
   const handleScheduleCall = (userId: string) => {
     console.log(`Scheduling mentorship call with user ID: ${userId}`)
-    router.push(`/schedule/${userId}?type=mentorship`)
+    router.push(`/app/schedule/${userId}?type=mentorship`)
   }
 
   return (

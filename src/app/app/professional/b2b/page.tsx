@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import ProfessionalQueue from "@/app/components/ProfessionalQueue"
+import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
 export default function B2BNetworkingPage() {
   const router = useRouter()
@@ -11,12 +11,12 @@ export default function B2BNetworkingPage() {
   const description = searchParams.get("description") || ""
 
   const handleLeaveQueue = () => {
-    router.push("/dashboard")
+    router.push("/app/dashboard")
   }
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted B2B match with ID: ${matchId}`)
-    router.push(`/call/${matchId}?type=b2b`)
+    router.push(`/app/call/${matchId}?type=b2b`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -25,7 +25,7 @@ export default function B2BNetworkingPage() {
 
   const handleScheduleCall = (userId: string) => {
     console.log(`Scheduling B2B call with user ID: ${userId}`)
-    router.push(`/schedule/${userId}?type=b2b`)
+    router.push(`/app/schedule/${userId}?type=b2b`)
   }
 
   return (

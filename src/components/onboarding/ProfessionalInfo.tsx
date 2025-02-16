@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +22,7 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/shadcn";
 
+// Define available fields
 const fields = [
   { value: "software", label: "Software Development" },
   { value: "design", label: "Design" },
@@ -35,52 +39,64 @@ const fields = [
   { value: "arts", label: "Arts & Entertainment" },
   { value: "science", label: "Science" },
   { value: "student", label: "Student" },
-];
+] as const;
 
-interface ProfessionalInfoProps {
-  data: any;
-  onUpdate: (data: any) => void;
+// Define the Zod schema for our form.
+// Fields like linkedinUrl are optional and use a transform to convert nullish values to undefined.
+const professionalInfoSchema = z.object({
+  field: z.string().nonempty("Field is required"),
+  jobTitle: z.string().nonempty("Job title is required"),
+  company: z.string().nonempty("Company is required"),
+  linkedinUrl: z
+    .string()
+    .url("Invalid URL")
+    .optional()
+    .nullable()
+    .transform((val) => val ?? undefined),
+});
+
+export type ProfessionalInfoFormData = z.infer<typeof professionalInfoSchema>;
+
+interface ProfessionalInfoFormProps {
+  data: Partial<ProfessionalInfoFormData>;
+  onUpdate: (data: ProfessionalInfoFormData) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function ProfessionalInfo({
+export default function ProfessionalInfoForm({
   data,
   onUpdate,
   onNext,
   onBack,
-}: ProfessionalInfoProps) {
-  const [open, setOpen] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+}: ProfessionalInfoFormProps) {
+  // Initialize react-hook-form with Zod schema validation.
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<ProfessionalInfoFormData>({
+    resolver: zodResolver(professionalInfoSchema),
+    defaultValues: data,
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
+  // Popover state for the field selection dropdown.
+  const [open, setOpen] = React.useState(false);
 
-    if (!data.field) {
-      newErrors.field = "Field is required";
-    }
-    if (!data.jobTitle) {
-      newErrors.jobTitle = "Job title or role is required";
-    }
-    if (!data.company) {
-      newErrors.company = "Company or school is required";
-    }
-
-    if (Object.keys(newErrors).length === 0) {
-      onNext();
-    } else {
-      setErrors(newErrors);
-    }
+  const onSubmit = (formData: ProfessionalInfoFormData) => {
+    // formData already has the proper types and transformations applied.
+    onUpdate(formData);
+    onNext();
   };
 
-  const isStudent = data.age >= 14 && data.age <= 30;
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Professional Information</h2>
-        <p className="text-muted-foreground">Tell us about your work or studies</p>
+        <p className="text-muted-foreground">
+          Tell us about your work or studies
+        </p>
 
         <div className="space-y-4">
           {/* Field Selection */}
@@ -95,7 +111,7 @@ export default function ProfessionalInfo({
                   className="w-full justify-between"
                 >
                   {data.field
-                    ? fields.find((field) => field.value === data.field)?.label
+                    ? fields.find((f) => f.value === data.field)?.label
                     : "Select field..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -105,23 +121,23 @@ export default function ProfessionalInfo({
                   <CommandInput placeholder="Search field..." />
                   <CommandEmpty>No field found.</CommandEmpty>
                   <CommandGroup>
-                    {fields.map((field) => (
+                    {fields.map((fieldItem) => (
                       <CommandItem
-                        key={field.value}
+                        key={fieldItem.value}
                         onSelect={() => {
-                          onUpdate({ field: field.value });
+                          setValue("field", fieldItem.value);
                           setOpen(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            data.field === field.value
+                            data.field === fieldItem.value
                               ? "opacity-100"
-                              : "opacity-0"
+                              : "opacity-0",
                           )}
                         />
-                        {field.label}
+                        {fieldItem.label}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -129,45 +145,37 @@ export default function ProfessionalInfo({
               </PopoverContent>
             </Popover>
             {errors.field && (
-              <p className="text-sm text-destructive">{errors.field}</p>
+              <p className="text-sm text-destructive">{errors.field.message}</p>
             )}
           </div>
 
-          {/* Job Title/Role */}
+          {/* Job Title */}
           <div className="space-y-2">
-            <Label>
-              {isStudent ? "Role/Position or Year of Study" : "Job Title"}
-            </Label>
+            <Label>Job Title</Label>
             <Input
-              value={data.jobTitle}
-              onChange={(e) => onUpdate({ jobTitle: e.target.value })}
-              placeholder={
-                isStudent
-                  ? "e.g., Computer Science Student, 2nd Year"
-                  : "e.g., Senior Developer"
-              }
+              {...register("jobTitle")}
+              placeholder="e.g., Senior Developer"
               className={errors.jobTitle ? "border-destructive" : ""}
             />
             {errors.jobTitle && (
-              <p className="text-sm text-destructive">{errors.jobTitle}</p>
+              <p className="text-sm text-destructive">
+                {errors.jobTitle.message}
+              </p>
             )}
           </div>
 
-          {/* Company/School */}
+          {/* Company */}
           <div className="space-y-2">
-            <Label>{isStudent ? "School/Company" : "Company"}</Label>
+            <Label>Company</Label>
             <Input
-              value={data.company}
-              onChange={(e) => onUpdate({ company: e.target.value })}
-              placeholder={
-                isStudent
-                  ? "e.g., Stanford University or Tech Corp"
-                  : "e.g., Tech Corp"
-              }
+              {...register("company")}
+              placeholder="e.g., Tech Corp"
               className={errors.company ? "border-destructive" : ""}
             />
             {errors.company && (
-              <p className="text-sm text-destructive">{errors.company}</p>
+              <p className="text-sm text-destructive">
+                {errors.company.message}
+              </p>
             )}
           </div>
 
@@ -175,11 +183,16 @@ export default function ProfessionalInfo({
           <div className="space-y-2">
             <Label>LinkedIn URL (Optional)</Label>
             <Input
-              value={data.linkedinUrl}
-              onChange={(e) => onUpdate({ linkedinUrl: e.target.value })}
+              {...register("linkedinUrl")}
               placeholder="https://linkedin.com/in/username"
               type="url"
+              className={errors.linkedinUrl ? "border-destructive" : ""}
             />
+            {errors.linkedinUrl && (
+              <p className="text-sm text-destructive">
+                {errors.linkedinUrl.message}
+              </p>
+            )}
           </div>
         </div>
       </div>

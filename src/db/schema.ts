@@ -1,7 +1,6 @@
 // db/schema.ts
 import {
   pgTable,
-  serial,
   text,
   integer,
   timestamp,
@@ -11,14 +10,22 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(), // use Supabase's uuid generation
-  bio: text("bio").notNull(),
-  field: varchar("field", { length: 255 }).notNull(),
-  jobTitle: varchar("job_title", { length: 255 }).notNull(),
-  company: varchar("company", { length: 255 }).notNull(),
+  id: uuid("id").primaryKey().defaultRandom(), // Use Supabase's uuid generation
+  // Authentication-related fields:
+  email: text("email").notNull(),
+  fullName: text("full_name").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  imageUrl: text("image_url"),
+
+  // Additional profile fields (fields are nullable by default if you don't chain .notNull())
+  bio: text("bio"),
+  field: varchar("field", { length: 255 }),
+  jobTitle: varchar("job_title", { length: 255 }),
+  company: varchar("company", { length: 255 }),
   linkedinUrl: varchar("linkedin_url", { length: 512 }),
   resumeUrl: varchar("resume_url", { length: 512 }),
-  interests: text("interests").notNull(), // store as JSON string or comma-separated values
+  interests: text("interests"),
   score: integer("score").default(0).notNull(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 });

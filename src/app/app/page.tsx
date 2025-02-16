@@ -14,9 +14,9 @@ export default function HomePage() {
 
   const handleStartQueue = (type: string) => {
     if (type === "casual") {
-      router.push(`/smart-connection?type=${type}`)
+      router.push(`app/smart-connection?type=${type}`)
     } else {
-      router.push(`/professional/${type}`)
+      router.push(`app/professional/${type}`)
     }
   }
 
@@ -88,7 +88,7 @@ export default function HomePage() {
                   <CardDescription>View and manage your connections</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full" onClick={() => router.push("/dashboard")}>
+                  <Button variant="outline" className="w-full" onClick={() => router.push("app/dashboard")}>
                     <Users className="mr-2 h-4 w-4" /> View Network
                   </Button>
                 </CardContent>
@@ -105,7 +105,7 @@ export default function HomePage() {
                   <CardDescription>Your scheduled voice calls</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full" onClick={() => router.push("/schedule")}>
+                  <Button variant="outline" className="w-full" onClick={() => router.push("app/schedule")}>
                     <Calendar className="mr-2 h-4 w-4" /> View Schedule
                   </Button>
                 </CardContent>

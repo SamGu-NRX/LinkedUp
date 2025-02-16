@@ -11,12 +11,12 @@ export default function SmartConnectionPage() {
   const purpose = searchParams.get("purpose")
 
   const handleLeaveQueue = () => {
-    router.push("/dashboard")
+    router.push("/app/dashboard")
   }
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted match with ID: ${matchId}`)
-    router.push(`/call/${matchId}`)
+    router.push(`/app/call/${matchId}`)
   }
 
   const handleDeclineMatch = (matchId: string) => {

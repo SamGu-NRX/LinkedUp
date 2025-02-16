@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <main>
-      <StreamVideoProvider>
+      {/* <StreamVideoProvider> */}
         <html lang="en">
           <body className={inter.className}>
             <div className="flex h-screen">
@@ -34,9 +34,9 @@ export default function RootLayout({
             </div>
           </body>
         </html>
-      </StreamVideoProvider>
+      {/* </StreamVideoProvider> */}
     </main>
-    
+
   )
 }
 

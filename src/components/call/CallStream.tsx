@@ -49,11 +49,11 @@ const Meeting = async () => {
                 }
             })
 
-            call.camera.disable();
+            call.camera.disable(); // TODO - check
             setCallDetails(call);
 
             if(!values.description) {
-                router.push('/meeting/${call.id}') // TODO
+                router.push('/app/meeting/${call.id}') // TODO
             }
 
             toast({ title: "Meeting Created" })

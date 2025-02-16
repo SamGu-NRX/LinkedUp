@@ -1,20 +1,20 @@
 "use client"
 
 import React from "react"
-import MatchQueueLobby from "../components/MatchQueueLobby"
+import MatchQueueLobby from "@/components/queue/MatchQueueLobby"
 import { useRouter } from "next/navigation"
 
 export default function MatchQueuePage() {
   const router = useRouter()
 
   const handleLeaveQueue = () => {
-    router.push("/dashboard")
+    router.push("/app/dashboard")
   }
 
   const handleAcceptMatch = (matchId: string) => {
     // In a real application, you would initiate the call here
     console.log(`Accepted match with ID: ${matchId}`)
-    router.push(`/call/${matchId}`)
+    router.push(`/app/call/${matchId}`)
   }
 
   const handleDeclineMatch = (matchId: string) => {

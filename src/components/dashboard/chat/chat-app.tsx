@@ -1,47 +1,38 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Send, Users, Phone, Calendar } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { ScheduleCallForm } from "./chat/schedule-call-form";
-import UserCard from "./chat/user-card";
+import type React from "react"
+import { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import Image from "next/image"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Send, Users, Phone, Calendar } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { ScheduleCallForm } from "./schedule-call-form"
+import UserCard from "./user-card"
 
 interface Profile {
-  id: string;
-  name: string;
-  avatar: string;
-  status: "online" | "away" | "offline";
-  lastCallDate: string;
-  bio: string;
-  profession: string;
-  company: string;
-  school: string;
-  experience: number;
-  sharedInterests: Array<{
-    type: "academic" | "industry" | "skill";
-    name: string;
-  }>;
-  connectionType: "b2b" | "collaboration" | "mentorship" | "investment";
+  id: string
+  name: string
+  avatar: string
+  status: "online" | "away" | "offline"
+  lastCallDate: string
+  bio: string
+  profession: string
+  company: string
+  school: string
+  experience: number
+  sharedInterests: Array<{ type: "academic" | "industry" | "skill"; name: string }>
+  connectionType: "b2b" | "collaboration" | "mentorship" | "investment"
 }
 
 interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  timestamp: number;
+  id: string
+  content: string
+  senderId: string
+  timestamp: number
 }
 
 const profiles: Profile[] = [
@@ -117,81 +108,56 @@ const profiles: Profile[] = [
     ],
     connectionType: "collaboration",
   },
-];
+]
 
 const initialMessages: Record<string, Message[]> = {
   "1": [
-    {
-      id: "1",
-      content: "Hey! How are you?",
-      senderId: "1",
-      timestamp: Date.now() - 3000,
-    },
-    {
-      id: "2",
-      content: "I am good, thanks!",
-      senderId: "user",
-      timestamp: Date.now() - 2000,
-    },
+    { id: "1", content: "Hey! How are you?", senderId: "1", timestamp: Date.now() - 3000 },
+    { id: "2", content: "I am good, thanks!", senderId: "user", timestamp: Date.now() - 2000 },
   ],
-  "2": [
-    {
-      id: "3",
-      content: "Did you see the latest update?",
-      senderId: "2",
-      timestamp: Date.now() - 1000,
-    },
-  ],
-  "3": [
-    {
-      id: "4",
-      content: "Meeting at 3pm tomorrow?",
-      senderId: "3",
-      timestamp: Date.now(),
-    },
-  ],
+  "2": [{ id: "3", content: "Did you see the latest update?", senderId: "2", timestamp: Date.now() - 1000 }],
+  "3": [{ id: "4", content: "Meeting at 3pm tomorrow?", senderId: "3", timestamp: Date.now() }],
   "4": [],
-};
+}
 
 const ModernChatApp: React.FC = () => {
-  const [activeProfile, setActiveProfile] = useState(profiles[0]);
-  const [messages, setMessages] = useState(initialMessages);
-  const [newMessage, setNewMessage] = useState("");
-  const [showProfiles, setShowProfiles] = useState(false);
-  const [showScheduleCall, setShowScheduleCall] = useState(false);
-  const [showUserProfile, setShowUserProfile] = useState(false);
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [activeProfile, setActiveProfile] = useState(profiles[0])
+  const [messages, setMessages] = useState(initialMessages)
+  const [newMessage, setNewMessage] = useState("")
+  const [showProfiles, setShowProfiles] = useState(false)
+  const [showScheduleCall, setShowScheduleCall] = useState(false)
+  const [showUserProfile, setShowUserProfile] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const randomProfileId =
-        profiles[Math.floor(Math.random() * profiles.length)].id;
+      const randomProfileId = profiles[Math.floor(Math.random() * profiles.length)].id
       if (randomProfileId !== activeProfile.id) {
         setUnreadCounts((prev) => ({
           ...prev,
           [randomProfileId]: (prev[randomProfileId] || 0) + 1,
-        }));
+        }))
       }
-    }, 30000); // Simulate a new message every 30 seconds
+    }, 30000) // Simulate a new message every 30 seconds
 
-    return () => clearInterval(interval);
-  }, [activeProfile]);
+    return () => clearInterval(interval)
+  }, [activeProfile])
 
   const handleSend = () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim()) return
 
     const newMsg: Message = {
       id: Date.now().toString(),
       content: newMessage,
       senderId: "user",
       timestamp: Date.now(),
-    };
+    }
 
     setMessages((prev) => ({
       ...prev,
       [activeProfile.id]: [...(prev[activeProfile.id] || []), newMsg],
-    }));
-    setNewMessage("");
+    }))
+    setNewMessage("")
 
     // Simulate response
     setTimeout(() => {
@@ -201,58 +167,54 @@ const ModernChatApp: React.FC = () => {
         "Tell me more about that",
         "Sounds good to me",
         "Got it, thanks!",
-      ];
+      ]
 
       const responseMsg: Message = {
         id: Date.now().toString(),
         content: responses[Math.floor(Math.random() * responses.length)],
         senderId: activeProfile.id,
         timestamp: Date.now(),
-      };
+      }
 
       setMessages((prev) => ({
         ...prev,
         [activeProfile.id]: [...(prev[activeProfile.id] || []), responseMsg],
-      }));
-    }, 1000);
-  };
+      }))
+    }, 1000)
+  }
 
   const getStatusColor = (status: Profile["status"]) => {
     switch (status) {
       case "online":
-        return "bg-green-500";
+        return "bg-green-500"
       case "away":
-        return "bg-yellow-500";
+        return "bg-yellow-500"
       case "offline":
-        return "bg-gray-500";
+        return "bg-gray-500"
       default:
-        return "bg-gray-500";
+        return "bg-gray-500"
     }
-  };
+  }
 
   const sortedProfiles = [...profiles].sort((a, b) => {
-    const aUnread = unreadCounts[a.id] || 0;
-    const bUnread = unreadCounts[b.id] || 0;
-    return bUnread - aUnread;
-  });
+    const aUnread = unreadCounts[a.id] || 0
+    const bUnread = unreadCounts[b.id] || 0
+    return bUnread - aUnread
+  })
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4">
-      <Card className="flex h-[600px] w-full">
+    <div className="w-full max-w-5xl mx-auto p-4">
+      <Card className="w-full h-[600px] flex">
         {/* Profiles Sidebar */}
         <motion.div
-          className="w-64 border-r bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900"
+          className="w-64 border-r dark:border-gray-800 p-4 bg-gray-50 dark:bg-gray-900"
           initial={false}
           animate={{ width: showProfiles ? 256 : 72 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          <div className="mb-6 flex items-center justify-between">
-            <Button
-              variant="ghost"
-              className="p-2"
-              onClick={() => setShowProfiles(!showProfiles)}
-            >
-              <Users className="h-5 w-5" />
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" className="p-2" onClick={() => setShowProfiles(!showProfiles)}>
+              <Users className="w-5 h-5" />
             </Button>
           </div>
 
@@ -265,13 +227,11 @@ const ModernChatApp: React.FC = () => {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
                 <Button
-                  variant={
-                    activeProfile.id === profile.id ? "default" : "ghost"
-                  }
-                  className="relative w-full justify-start gap-2 overflow-hidden"
+                  variant={activeProfile.id === profile.id ? "default" : "ghost"}
+                  className="w-full justify-start gap-2 overflow-hidden relative"
                   onClick={() => {
-                    setActiveProfile(profile);
-                    setUnreadCounts((prev) => ({ ...prev, [profile.id]: 0 }));
+                    setActiveProfile(profile)
+                    setUnreadCounts((prev) => ({ ...prev, [profile.id]: 0 }))
                   }}
                 >
                   <div className="relative">
@@ -283,7 +243,7 @@ const ModernChatApp: React.FC = () => {
                       className="rounded-full"
                     />
                     <div
-                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full ${getStatusColor(profile.status)} border-2 border-white`}
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${getStatusColor(profile.status)} border-2 border-white`}
                     ></div>
                   </div>
                   <AnimatePresence>
@@ -292,12 +252,10 @@ const ModernChatApp: React.FC = () => {
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: "auto" }}
                         exit={{ opacity: 0, width: 0 }}
-                        className="flex flex-col items-start truncate"
+                        className="truncate flex flex-col items-start"
                       >
                         <span className="font-medium">{profile.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {profile.status}
-                        </span>
+                        <span className="text-xs text-gray-500">{profile.status}</span>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -313,16 +271,12 @@ const ModernChatApp: React.FC = () => {
         </motion.div>
 
         {/* Chat Area */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex-1 flex flex-col">
           {/* Chat Header */}
-          <div className="border-b p-4 dark:border-gray-800">
+          <div className="p-4 border-b dark:border-gray-800">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  className="p-0"
-                  onClick={() => setShowUserProfile(true)}
-                >
+                <Button variant="ghost" className="p-0" onClick={() => setShowUserProfile(true)}>
                   <Image
                     src={activeProfile.avatar || "/placeholder.svg"}
                     alt={activeProfile.name}
@@ -333,28 +287,26 @@ const ModernChatApp: React.FC = () => {
                 </Button>
                 <div>
                   <h3 className="font-medium">{activeProfile.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {activeProfile.status}
-                  </p>
+                  <p className="text-sm text-gray-500">{activeProfile.status}</p>
                 </div>
               </div>
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-green-600 text-green-600 hover:bg-green-50"
+                  className="text-green-600 border-green-600 hover:bg-green-50"
                   disabled={activeProfile.status !== "online"}
                 >
-                  <Phone className="mr-2 h-4 w-4" />
+                  <Phone className="w-4 h-4 mr-2" />
                   Call
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
                   onClick={() => setShowScheduleCall(true)}
                 >
-                  <Calendar className="mr-2 h-4 w-4" />
+                  <Calendar className="w-4 h-4 mr-2" />
                   Schedule
                 </Button>
               </div>
@@ -362,7 +314,7 @@ const ModernChatApp: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <AnimatePresence mode="popLayout">
               {(messages[activeProfile.id] || []).map((message) => (
                 <motion.div
@@ -374,10 +326,10 @@ const ModernChatApp: React.FC = () => {
                 >
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className={`max-w-[70%] rounded-lg p-3 ${
+                    className={`max-w-[70%] p-3 rounded-lg ${
                       message.senderId === "user"
-                        ? "rounded-br-none bg-blue-500 text-white"
-                        : "rounded-bl-none bg-gray-100 dark:bg-gray-800"
+                        ? "bg-blue-500 text-white rounded-br-none"
+                        : "bg-gray-100 dark:bg-gray-800 rounded-bl-none"
                     }`}
                   >
                     {message.content}
@@ -388,7 +340,7 @@ const ModernChatApp: React.FC = () => {
           </div>
 
           {/* Input Area */}
-          <div className="border-t p-4 dark:border-gray-800">
+          <div className="p-4 border-t dark:border-gray-800">
             <div className="flex gap-2">
               <Input
                 value={newMessage}
@@ -398,7 +350,7 @@ const ModernChatApp: React.FC = () => {
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
               />
               <Button onClick={handleSend} size="icon">
-                <Send className="h-4 w-4" />
+                <Send className="w-4 h-4" />
                 <span className="sr-only">Send</span>
               </Button>
             </div>
@@ -411,9 +363,7 @@ const ModernChatApp: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Schedule a Call with {activeProfile.name}</DialogTitle>
-            <DialogDescription>
-              Choose a date and time for your call.
-            </DialogDescription>
+            <DialogDescription>Choose a date and time for your call.</DialogDescription>
           </DialogHeader>
           <ScheduleCallForm onSchedule={() => setShowScheduleCall(false)} />
         </DialogContent>
@@ -429,7 +379,8 @@ const ModernChatApp: React.FC = () => {
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
+  )
+}
 
-export default ModernChatApp;
+export default ModernChatApp
+

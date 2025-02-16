@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import ProfessionalQueue from "@/app/components/ProfessionalQueue"
+import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
 export default function InvestmentPage() {
   const router = useRouter()
@@ -11,12 +11,12 @@ export default function InvestmentPage() {
   const description = searchParams.get("description") || ""
 
   const handleLeaveQueue = () => {
-    router.push("/dashboard")
+    router.push("/app/dashboard")
   }
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted investment match with ID: ${matchId}`)
-    router.push(`/call/${matchId}?type=investment`)
+    router.push(`/app/call/${matchId}?type=investment`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -25,7 +25,7 @@ export default function InvestmentPage() {
 
   const handleScheduleCall = (userId: string) => {
     console.log(`Scheduling investment call with user ID: ${userId}`)
-    router.push(`/schedule/${userId}?type=investment`)
+    router.push(`/app/schedule/${userId}?type=investment`)
   }
 
   return (

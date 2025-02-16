@@ -1,3 +1,5 @@
+"use client"
+
 import React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -5,11 +7,11 @@ import { Home, BarChart2, User, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/shadcn"
 
 const navItems = [
-  { name: "Home", href: "/", icon: Home },
-  { name: "Dashboard", href: "/dashboard", icon: BarChart2 },
-  { name: "Profile", href: "/profile", icon: User },
-  { name: "Settings", href: "/settings", icon: Settings },
-]
+  { name: "Home", href: "/app/", icon: Home },
+  { name: "Dashboard", href: "/app/dashboard", icon: BarChart2 },
+  { name: "Profile", href: "/app/profile", icon: User },
+  { name: "Settings", href: "/app/settings", icon: Settings },
+];
 
 export function DesktopNavigation() {
   const pathname = usePathname()
