@@ -5,7 +5,6 @@
 import withSvgr from "@svgr/webpack";
 
 const nextConfig = {
-  output: "export",
   eslint: {
     ignoreDuringBuilds: true,
   },

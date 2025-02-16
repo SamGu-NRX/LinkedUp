@@ -1,20 +1,21 @@
-import "@/styles/globals.css";
-import { cal, inter } from "@/styles/fonts";
-import { Analytics } from "@vercel/analytics/react";
-import { Providers } from "./providers";
-import { Metadata } from "next";
-import { cn } from "@/lib/shadcn";
+import type React from "react"
+import "@/styles/globals.css"
+import { cal, inter } from "@/styles/fonts"
+import { Analytics } from "@vercel/analytics/react"
+import { Providers } from "./providers"
+import type { Metadata } from "next"
+import { cn } from "@/lib/shadcn"
+import Layout from "@/components/dashboard/Layout"
 
-const title =
-  "Platforms Starter Kit – The all-in-one starter kit for building multi-tenant applications.";
+const title = "LinkUp – Professional Networking Without the BS"
 const description =
-  "The Platforms Starter Kit is a full-stack Next.js app with multi-tenancy and custom domain support. Built with Next.js App Router, Vercel Postgres and the Vercel Domains API.";
-const image = "https://vercel.pub/thumbnail.png";
+  "LinkUp is a professional networking platform that focuses on authentic connections and meaningful conversations."
+const image = "https://linkup.com/thumbnail.png" // Replace with your actual image URL
 
 export const metadata: Metadata = {
   title,
   description,
-  icons: ["https://vercel.pub/favicon.ico"],
+  icons: ["https://linkup.com/favicon.ico"], // Replace with your actual favicon URL
   openGraph: {
     title,
     description,
@@ -25,24 +26,25 @@ export const metadata: Metadata = {
     title,
     description,
     images: [image],
-    creator: "@vercel",
+    creator: "@linkup",
   },
-  metadataBase: new URL("https://vercel.pub"),
-};
+  metadataBase: new URL("https://linkup.com"), // Replace with your actual URL
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn(cal.variable, inter.variable)}>
         <Providers>
-          {children}
-          <Analytics />
+          <Layout>{children}</Layout>
+          {/* TODO: enable this <Analytics /> */}
         </Providers>
       </body>
     </html>
-  );
+  )
 }
+
