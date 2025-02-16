@@ -1,5 +1,14 @@
 // db/schema.ts
-import { pgTable, serial, text, integer, timestamp, boolean, varchar, uuid } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  text,
+  integer,
+  timestamp,
+  boolean,
+  varchar,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(), // use Supabase's uuid generation
@@ -7,8 +16,8 @@ export const users = pgTable("users", {
   field: varchar("field", { length: 255 }).notNull(),
   jobTitle: varchar("job_title", { length: 255 }).notNull(),
   company: varchar("company", { length: 255 }).notNull(),
-  linkedinUrl: varchar("linkedin_url", { length: 512 }).nullable(),
-  resumeUrl: varchar("resume_url", { length: 512 }).nullable(),
+  linkedinUrl: varchar("linkedin_url", { length: 512 }),
+  resumeUrl: varchar("resume_url", { length: 512 }),
   interests: text("interests").notNull(), // store as JSON string or comma-separated values
   score: integer("score").default(0).notNull(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
@@ -18,7 +27,7 @@ export const meetings = pgTable("meetings", {
   id: uuid("id").primaryKey().defaultRandom(),
   user1Id: uuid("user1_id").notNull(),
   user2Id: uuid("user2_id").notNull(),
-  scheduledAt: timestamp("scheduled_at", { mode: "string" }).nullable(),
+  scheduledAt: timestamp("scheduled_at", { mode: "string" }),
   isRandom: boolean("is_random").default(true).notNull(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 });

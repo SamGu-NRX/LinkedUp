@@ -1,34 +1,50 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from 'react';
-import { StreamVideoClient, StreamVideo } from '@stream-io/video-react-sdk';
-import { useUser } from '@clerk/nextjs'; // TODO - change clerk
+import { ReactNode, useEffect, useState } from "react";
+import { StreamVideoClient, StreamVideo } from "@stream-io/video-react-sdk";
+import { createClient } from "@/utils/supabase/server";
+import { tokenProvider } from "@/actions/stream.actions";
+import Loader from "@/components/Loader";
 
-import { tokenProvider } from '@/actions/stream.actions';
-import Loader from '@/components/Loader';
-
-const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY as string;
 
 const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
-  const [videoClient, setVideoClient] = useState<StreamVideoClient>();
-  const { user, isLoaded } = useUser();
+  const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
-    if (!API_KEY) throw new Error('Stream API key is missing');
+    createClient().then((supabase) => {
+      // Only wrap the getUser call in an async function.
+      (async () => {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error(error);
+          return;
+        }
+        const user = data?.user;
+        if (!user) {
+          console.warn("No authenticated user found.");
+          return;
+        }
 
-    const client = new StreamVideoClient({
-      apiKey: API_KEY,
-      user: {
-        id: user?.id,
-        name: user?.username || user?.id,
-        image: user?.imageUrl,
-      },
-      tokenProvider,
+        if (!API_KEY) {
+          throw new Error("Stream API key is missing");
+        }
+
+        const client = new StreamVideoClient({
+          apiKey: API_KEY,
+          user: {
+            id: user.id,
+            name: user.username || user.id,
+            image: user.imageUrl,
+          },
+          tokenProvider,
+        });
+        setVideoClient(client);
+      })();
     });
-
-    setVideoClient(client);
-  }, [user, isLoaded]);
+  }, []);
 
   if (!videoClient) return <Loader />;
 

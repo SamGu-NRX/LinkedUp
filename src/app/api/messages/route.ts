@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 // Set up the Postgres connection using your DATABASE_URL
-const { Pool } = await import('pg');
+const { Pool } = await import("pg");
 const dbPool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -27,15 +27,21 @@ export async function POST(req: Request) {
   `);
 
   if (!connection) {
-    return NextResponse.json({ error: "Invalid connection or unauthorized" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Invalid connection or unauthorized" },
+      { status: 403 },
+    );
   }
 
   // Insert the new message
-  const [message] = await db.insert(messages).values({
-    connectionId,
-    senderId,
-    content,
-  }).returning();
+  const [message] = await db
+    .insert(messages)
+    .values({
+      connectionId,
+      senderId,
+      content,
+    })
+    .returning();
 
   return NextResponse.json({ message });
 }
@@ -49,13 +55,22 @@ export async function GET(req: Request) {
   const connectionId = searchParams.get("connectionId");
 
   if (!connectionId) {
-    return NextResponse.json({ error: "Missing connectionId" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing connectionId" },
+      { status: 400 },
+    );
   }
 
   // Retrieve messages for this connection
-  const msgs = await db.select().from(messages).where(sql`
+  const msgs = await db
+    .select()
+    .from(messages)
+    .where(
+      sql`
     connectionId = ${connectionId}
-  `).orderBy(sql`createdAt ASC`);
+  `,
+    )
+    .orderBy(sql`createdAt ASC`);
 
   return NextResponse.json({ messages: msgs });
 }

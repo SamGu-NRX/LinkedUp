@@ -43,6 +43,7 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.1",
     "@svgr/webpack": "^8.1.0",
+    "@tabler/icons-react": "^3.30.0",
     "@types/node": "20.6.2",
     "@types/react-dom": "18.2.7",
     "@vercel/analytics": "^1.5.0",
