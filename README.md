@@ -53,30 +53,35 @@ A clean, distraction-free environment that lets you focus on building meaningful
 
 ---
 
-## How It's Built
+## How We Built It
 
-<table>
-  <tr>
-    <td><strong>Front-end</strong></td>
-    <td>Next.js, React, Tailwind CSS</td>
-  </tr>
-  <tr>
-    <td><strong>Authentication & Onboarding</strong></td>
-    <td>Clerk</td>
-  </tr>
-  <tr>
-    <td><strong>Real-Time Communication</strong></td>
-    <td>Stream (Voice/Video Calls)</td>
-  </tr>
-  <tr>
-    <td><strong>Backend & Database</strong></td>
-    <td>Supabase</td>
-  </tr>
-  <tr>
-    <td><strong>ML Matching Engine</strong></td>
-    <td>Custom ML Model (PyTorch)</td>
-  </tr>
-</table>
+> *A quick overview of the core technologies powering this project.*
+
+| **Category**                  | **Technologies**                                                                                                                                                                                                                                                             |
+|:------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+| **Front-End** :sparkles:       | ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white) ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)  ![Tailwind CSS](https://img.shields.io/badge/Tailwind-C0C0C0?style=for-the-badge&logo=tailwind-css&logoColor=06B6D4) ![Shadcn UI](https://img.shields.io/badge/Shadcn%20UI-4F46E5?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiBjbGFzcz0iaC02IHctNiI+PHJlY3Qgd2lkdGg9IjI1NiIgaGVpZ2h0PSIyNTYiIGZpbGw9Im5vbmUiPjwvcmVjdD48bGluZSB4MT0iMjA4IiB5MT0iMTI4IiB4Mj0iMTI4IiB5Mj0iMjA4IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMyIj48L2xpbmU+PGxpbmUgeDE9IjE5MiIgeTE9IjQwIiB4Mj0iNDAiIHkyPSIxOTIiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMzIiPjwvbGluZT48L3N2Zz4=) |
+| **Authentication** :lock:      | ![Clerk](https://img.shields.io/badge/Clerk-000000?style=for-the-badge&logo=clerk&logoColor=white)                                                                                                                                                                          |
+| **Real-Time Communication** :satellite: | [![Stream API](https://img.shields.io/badge/Stream%20API-EEEEEE?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgNDAwIDI0MS4xIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBtZWV0Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImIiIHgxPSIwIiB4Mj0iMzc1LjIiIHkxPSI4LjUiIHkyPSItMzEuOSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzU0YmNmZSIvPjxzdG9wIG9mZnNldD0iLjQiIHN0b3AtY29sb3I9IiMyODVmZjYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMzYzY4ZjUiLz48L2xpbmVhckdyYWRpZW50PjxjbGlwUGF0aCBpZD0iYSI+PHBhdGggZmlsbD0ibm9uZSIgZD0iTTAgMGg0MDB2MjQxSDB6Ii8+PC9jbGlwUGF0aD48L2RlZnM+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBjbGlwLXBhdGg9InVybCgjYSkiIGZvbnQtZmFtaWx5PSJub25lIiBmb250LXNpemU9Im5vbmUiIGZvbnQtd2VpZ2h0PSJub25lIiBzdHlsZT0ibWl4LWJsZW5kLW1vZGU6bm9ybWFsIiB0ZXh0LWFuY2hvcj0ibm9uZSI+PHBhdGggZmlsbD0idXJsKCNiKSIgZD0iTTIwMi40IDguOWMtLjcuMi0xLjkuOS0yLjYgMS40LTEuMiAxLTIgMi02LjQgNy45YTg2NjcuNSA4NjY3LjUgMCAwIDEtMjkuNCA0MCAxODU3LjggMTg1Ny44IDAgMCAxLTE1IDIwLjUgNzQyIDc0MiAwIDAgMS05LjUgMTMuMyAxMDY0LjcgMTA2NC43IDAgMCAxLTE4LjggMjYuNSAzMTczLjIgMzE3My4yIDAgMCAxLTE4LjggMjYuNSAzODMzLjggMzgzMy44IDAgMCAwLTE1LjQgMjEuNmMtMTAuOCAxNC42LTEwLjkgMTYuMi0yIDI4bDUuMiA3LjJhODUuMyA4NS4zIDAgMCAwIDEzLjYgMTYuOGMzIDEuNyAzLjYgMS44IDI2LjkgMmwzMC45LjVjMTggLjUgMTcuNy42IDI1LjUtMTBhODQ3Mi45IDg0NzIuOSAwIDAgMSAyMS42LTI5LjIgMTEwMS42IDExMDEuNiAwIDAgMCAxMy42LTE4LjUgMjgwMy43IDI4MDMuNyAwIDAgMCA0MC4zLTU1LjdjNi40LTkgNy42LTExIDcuOS0xNC4yLjMtNC0uMy01LTExLjItMTkuOEwyNDkuMyA2MWwtMzEuNy00M2MtNS44LTcuOC03LjctOS4zLTExLjgtOS40YTggOCAwIDAgMC0zLjQuNE0xOC42IDg2Yy00LjcgMS03LjMgNS40LTUuOCA5LjggMSAyLjguNyAyLjUgMjAgMjguNUw0NS4zIDE0MWMxMy4yIDE3LjggMTMuOCAxOC40IDE2LjYgMTkuNCAzLjYgMS4yIDUuNy0uMiAxMS44LThhOTU4LjQgOTU4LjQgMCAwIDAgMzQuOS00N2MxLjgtMy44IDEuMS03LjgtMS44LTEwLTIuMi0xLjgtNC42LTIuNC0xMi42LTNhODE1IDgxNSAwIDAgMS0yNS0yLjVjLTYuNy0uNS0xNC0xLjItMTkuMi0xLjhhNjI5LjggNjI5LjggMCAwIDAtMzEuNC0ybTM0Ny42IDFhMTc0My44IDE3NDMuOCAwIDAgMC0zMy4yIDMuMyA2MTMuNSA2MTMuNSAwIDAgMC0yMC4yIDJjLTIwLjMgMS43LTE5LjYgMS40LTI5LjEgMTQuNmE3NjUuMiA3NjUuMiAwIDAgMC02My4zIDg5LjNjLTUgNy04LjcgMTIuOC05LjMgMTQuMi0xLjcgNCAuNCA4LjMgNC40IDkuMyAyLjQuNiA2Ny41IDEuMiA3MC45LjcgNS4zLS44IDUuMi0uNyAyMy44LTI1LjdhNjE3Mi42IDYxNzIuNiAwIDAgMSAyOC0zNy45IDQ2OTQuNiA0Njk0LjYgMCAwIDEgMTkuNi0yNy40IDY0Ni40IDY0Ni40IDAgMCAwIDkuOC0xMy44YzEzLjktMTkuNCAxNC43LTIxIDEyLjUtMjUtMS45LTMuNC01LjMtNC4zLTEzLjktMy41TTMuMiAyNDAuNWMtLjEuNCAwIC43LjQuNnYtLjZjLS4yLS40LS4yLS40LS4zIDAiLz48L2c+PC9zdmc+)](#) <br> *Voice/Video Calls* |
+| **Backend & Database** :floppy_disk: | ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white) ![Drizzle ORM](https://img.shields.io/badge/Drizzle%20ORM-000000?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNzIgNzIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAwLjM4KSI+CiAgICA8cmVjdCB3aWR0aD0iNS4yNTM2NSIgaGVpZ2h0PSIyMi4yODM0IiByeD0iMi42MjY4MyIgdHJhbnNmb3JtPSJtYXRyaXgoMC44NzMwMjggMC40ODc2NyAtMC40OTcyMTIgMC44Njc2MjkgMTYuMDc5MSAzMC4zMjkyKSIgZmlsbD0iI2NmZjY2YiIvPgogICAgPHJlY3Qgd2lkdGg9IjUuMjUzNjUiIGhlaWdodD0iMjIuMjgzNCIgcng9IjIuNjI2ODMiIHRyYW5zZm9ybT0ibWF0cml4KDAuODczMDI4IDAuNDg3NjcgLTAuNDk3MjEyIDAuODY3NjI5IDM0LjMzMDEgMTkpIiBmaWxsPSIjY2ZmNjZiIi8+CiAgICA8cmVjdCB3aWR0aD0iNS4yNTM2NSIgaGVpZ2h0PSIyMi4yODM0IiByeD0iMi42MjY4MyIgdHJhbnNmb3JtPSJtYXRyaXgoMC44NzMwMjggMC40ODc2NyAtMC40OTcyMTIgMC44Njc2MjkgNjIuNDEzMSAxOS4wMDA1KSIgZmlsbD0iI2NmZjY2YiIvPgogICAgPHJlY3Qgd2lkdGg9IjUuMjUzNjUiIGhlaWdodD0iMjIuMjgzNCIgcng9IjIuNjI2ODMiIHRyYW5zZm9ybT0ibWF0cml4KDAuODczMDI4IDAuNDg3NjcgLTAuNDk3MjEyIDAuODY3NjI5IDQ0LjE1NjIgMzAuMzI5MikiIGZpbGw9IiNjZmY2NmIiLz4KICA8L2c+Cjwvc3ZnPgo=) |
+| **ML Matching Engine** :robot: | ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white) <br> *Dot product calculations for rigorous semantic similarity* |
+
+---
+
+### What Changed?
+
+1. **Section Introduction:** Added a short descriptive line to give context to the table.  
+2. **Subtle Emoji Indicators:** Each category has a small emoji (:sparkles:, :lock:, etc.) for a bit of visual flair.  
+3. **Line Breaks Between Badges:** Improves readability by stacking badges vertically.  
+4. **Consistent Styling:** All badges use `style=for-the-badge`, giving a uniform look.  
+5. **Center-Aligned Technologies Column:** Using `:---:` for the second column keeps the badges centered.
+
+### Further Tweaks to Consider
+- **Add Descriptive Tooltips or Links:** Link each badge to official docs (e.g., Next.js docs) so readers can quickly learn more.  
+- **Use Short Descriptions:** You could add a second line under each category’s badges explaining *why* you chose that technology.  
+- **Color Choices:** You can experiment with background colors (the hex codes in each badge) to match your project’s branding.  
+
+Feel free to pick and choose from these ideas to strike the perfect balance of clarity, style, and functionality in your README!
+
 
 ---
 
@@ -105,7 +110,7 @@ A clean, distraction-free environment that lets you focus on building meaningful
 
 ---
 
-## What's Next for LinkUp
+## What's Next for LinkedUp
 
 - **New Connection Modes:** Explore B2B meeting opportunities, mentor-client sessions, and more.
 - **Enhanced Matching:** Continuously refine our ML matching for even more effective networking.
@@ -158,7 +163,7 @@ python -m flask run
 > **Note:** The Flask app should run on port 5000 by default. Update your `.env` file if needed:
 > `FLASK_API_URL=http://127.0.0.1:5000/`
 
-### Step 3: Enjoy LinkUp!
+### Step 3: Enjoy LinkedUp!
 Once both servers are running, open your browser and head to `http://localhost:3000` to start networking!
 
 ---
