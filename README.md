@@ -67,24 +67,6 @@ A clean, distraction-free environment that lets you focus on building meaningful
 
 ---
 
-### What Changed?
-
-1. **Section Introduction:** Added a short descriptive line to give context to the table.  
-2. **Subtle Emoji Indicators:** Each category has a small emoji (:sparkles:, :lock:, etc.) for a bit of visual flair.  
-3. **Line Breaks Between Badges:** Improves readability by stacking badges vertically.  
-4. **Consistent Styling:** All badges use `style=for-the-badge`, giving a uniform look.  
-5. **Center-Aligned Technologies Column:** Using `:---:` for the second column keeps the badges centered.
-
-### Further Tweaks to Consider
-- **Add Descriptive Tooltips or Links:** Link each badge to official docs (e.g., Next.js docs) so readers can quickly learn more.  
-- **Use Short Descriptions:** You could add a second line under each category’s badges explaining *why* you chose that technology.  
-- **Color Choices:** You can experiment with background colors (the hex codes in each badge) to match your project’s branding.  
-
-Feel free to pick and choose from these ideas to strike the perfect balance of clarity, style, and functionality in your README!
-
-
----
-
 ## Project Status
 
 ### In Progress
