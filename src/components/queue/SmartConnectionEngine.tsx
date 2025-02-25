@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import QueueStatus from "./QueueStatus"
-import MatchNotification from "./MatchNotification"
-import ErrorState from "@/components/ErrorState"
-import { Button } from "@/components/ui/button"
+import React, { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import QueueStatus from "./QueueStatus";
+import MatchNotification from "./MatchNotification";
+import ErrorState from "@/components/app/ErrorState";
+import { Button } from "@/components/ui/button";
 
 interface SmartConnectionEngineProps {
-  userId: string
-  queueType: "professional" | "casual"
-  onLeaveQueue: () => void
-  onAcceptMatch: (matchId: string) => void
-  onDeclineMatch: (matchId: string) => void
+  userId: string;
+  queueType: "professional" | "casual";
+  onLeaveQueue: () => void;
+  onAcceptMatch: (matchId: string) => void;
+  onDeclineMatch: (matchId: string) => void;
 }
 
 const humorousTips = [
@@ -21,7 +21,7 @@ const humorousTips = [
   "If you run out of things to say, just yell 'PLOT TWIST!' and end the call.",
   "In case of awkward silence, discuss the socioeconomic impact of rubber ducks.",
   "If all else fails, pretend your internet connection is breaking up. Kzzt... Can't hear... Kzzt...",
-]
+];
 
 export default function SmartConnectionEngine({
   userId,
@@ -30,21 +30,23 @@ export default function SmartConnectionEngine({
   onAcceptMatch,
   onDeclineMatch,
 }: SmartConnectionEngineProps) {
-  const [queueStatus, setQueueStatus] = useState<"searching" | "match_found" | "error">("searching")
-  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(60) // in seconds
-  const [matchData, setMatchData] = useState<any>(null)
-  const [errorMessage, setErrorMessage] = useState<string>("")
-  const [currentTip, setCurrentTip] = useState(0)
+  const [queueStatus, setQueueStatus] = useState<
+    "searching" | "match_found" | "error"
+  >("searching");
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(60); // in seconds
+  const [matchData, setMatchData] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [currentTip, setCurrentTip] = useState(0);
 
   useEffect(() => {
     // Simulating queue updates
     const timer = setInterval(() => {
-      setEstimatedWaitTime((prev) => Math.max(0, prev - 1))
-    }, 1000)
+      setEstimatedWaitTime((prev) => Math.max(0, prev - 1));
+    }, 1000);
 
     // Simulating a match found after 10 seconds
     const matchTimer = setTimeout(() => {
-      setQueueStatus("match_found")
+      setQueueStatus("match_found");
       setMatchData({
         id: "match123",
         name: "Jane Doe",
@@ -58,42 +60,47 @@ export default function SmartConnectionEngine({
           { type: "hobby", name: "Hiking" },
         ],
         upvotes: 42,
-      })
-    }, 10000)
+      });
+    }, 10000);
 
     // Rotate tips every 5 seconds
     const tipRotationTimer = setInterval(() => {
-      setCurrentTip((prev) => (prev + 1) % humorousTips.length)
-    }, 5000)
+      setCurrentTip((prev) => (prev + 1) % humorousTips.length);
+    }, 5000);
 
     return () => {
-      clearInterval(timer)
-      clearTimeout(matchTimer)
-      clearInterval(tipRotationTimer)
-    }
-  }, [])
+      clearInterval(timer);
+      clearTimeout(matchTimer);
+      clearInterval(tipRotationTimer);
+    };
+  }, []);
 
   const handleAcceptMatch = () => {
     if (matchData) {
-      onAcceptMatch(matchData.id)
+      onAcceptMatch(matchData.id);
     }
-  }
+  };
 
   const handleDeclineMatch = () => {
     if (matchData) {
-      onDeclineMatch(matchData.id)
-      setQueueStatus("searching")
-      setMatchData(null)
-      setEstimatedWaitTime(30) // Reset wait time
+      onDeclineMatch(matchData.id);
+      setQueueStatus("searching");
+      setMatchData(null);
+      setEstimatedWaitTime(30); // Reset wait time
     }
-  }
+  };
 
   if (queueStatus === "error") {
-    return <ErrorState message={errorMessage} onRetry={() => setQueueStatus("searching")} />
+    return (
+      <ErrorState
+        message={errorMessage}
+        onRetry={() => setQueueStatus("searching")}
+      />
+    );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="from-background to-secondary/20 flex min-h-screen flex-col items-center justify-center bg-gradient-to-b p-4">
       <AnimatePresence mode="wait">
         {queueStatus === "searching" && (
           <motion.div
@@ -104,7 +111,10 @@ export default function SmartConnectionEngine({
             transition={{ duration: 0.3 }}
             className="text-center"
           >
-            <QueueStatus queueType={queueType} estimatedWaitTime={estimatedWaitTime} />
+            <QueueStatus
+              queueType={queueType}
+              estimatedWaitTime={estimatedWaitTime}
+            />
             <Button onClick={onLeaveQueue} variant="outline" className="mt-4">
               Leave Queue
             </Button>
@@ -114,7 +124,7 @@ export default function SmartConnectionEngine({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className="mt-8 text-sm text-muted-foreground max-w-md"
+              className="text-muted-foreground mt-8 max-w-md text-sm"
             >
               {humorousTips[currentTip]}
             </motion.p>
@@ -129,11 +139,14 @@ export default function SmartConnectionEngine({
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.3 }}
           >
-            <MatchNotification matchData={matchData} onAccept={handleAcceptMatch} onDecline={handleDeclineMatch} />
+            <MatchNotification
+              matchData={matchData}
+              onAccept={handleAcceptMatch}
+              onDecline={handleDeclineMatch}
+            />
           </motion.div>
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
-

@@ -1,7 +1,7 @@
 import type React from "react";
 import { Inter } from "next/font/google";
-import { MobileNavigation } from "@/components/MobileNavigation";
-import { DesktopNavigation } from "@/components/DesktopNavigation";
+import { MobileNavigation } from "@/components/app/MobileNavigation";
+import { DesktopNavigation } from "@/components/app/DesktopNavigation";
 import StreamVideoProvider from "@/providers/StreamClientProvider";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export default function RootLayout({
       <Providers>
         <html lang="en" suppressHydrationWarning>
           <body className={inter.className}>
-            <header className="flex h-14 items-center gap-4 border-b bg-gray-100/40 px-6 dark:bg-gray-800/40 lg:h-[60px]">
+            <header className="flex h-14 items-center gap-4 border-b bg-gray-100/40 px-6 lg:h-[60px] dark:bg-gray-800/40">
               <h1 className="text-lg font-semibold text-gray-900">
                 LinkedUp Dashboard
               </h1>
