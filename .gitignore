@@ -1,20 +1,21 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
-/.pnp
+node_modules
+.pnp
 .pnp.js
-/.yarn
+.yarn
 
 # testing
-/coverage
+coverage
 
 # next.js
-/.next/
-/out/
-
+.next/
+out/
 # production
-/build
+build
+.swc/
+
 
 # misc
 .DS_Store
@@ -36,5 +37,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
-# monorepo
+# monorepo (turbo)
 .turbo
+
+# ui
+dist/

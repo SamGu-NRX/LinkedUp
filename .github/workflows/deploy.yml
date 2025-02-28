@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [ "apps/web", "apps/ml-service" ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        if: matrix.app == 'apps/web'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: |
+          if [ -f package.json ]; then
+            npm install
+          fi
+      - name: Build app
+        working-directory: ${{ matrix.app }}
+        run: |
+          if [ -f package.json ]; then
+            npm run build
+          else
+            echo "No Node app here"
+          fi
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      # For Render deployments, you can trigger a redeploy via their API or simply push Docker images.
+      - name: Deploy ML Service to Render
+        run: |
+          echo "Deploying ML service (ensure Render auto-deploys on push)"
+      - name: Deploy Web Service to Render
+        run: |
+          echo "Deploying Next.js app (ensure Render auto-deploys on push)"

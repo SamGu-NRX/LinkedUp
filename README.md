@@ -151,8 +151,8 @@ Once both servers are running, open your browser and head to `http://localhost:3
 ---
 
 <p align="center">
-  <a href="https://nextjs.org/">Next.js</a> • 
-  <a href="https://reactjs.org/">React</a> • 
-  <a href="https://clerk.dev/">Clerk</a> • 
+  <a href="https://nextjs.org/">Next.js</a> •
+  <a href="https://reactjs.org/">React</a> •
+  <a href="https://clerk.dev/">Clerk</a> •
   <a href="https://getstream.io/">Stream</a>
 </p>
