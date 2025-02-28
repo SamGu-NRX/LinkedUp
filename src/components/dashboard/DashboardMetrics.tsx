@@ -2,114 +2,163 @@ import type React from "react"
 import { Bar, Doughnut } from "react-chartjs-2"
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js"
 import { motion } from "framer-motion"
-import { utils } from "@/styles/utils"
-import { colors } from "@/styles/colors"
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const DashboardMetrics: React.FC = () => {
+  // Chart configurations with more minimal design
   const callData = {
-    labels: ["Total Calls", "Successful Connections", "Avg. Duration (min)"],
+    labels: ["Total Calls", "Connections", "Avg. Duration"],
     datasets: [
       {
         data: [50, 35, 20],
-        backgroundColor: [colors.primary, colors.secondary, colors.accent],
-        borderColor: [colors.primary, colors.secondary, colors.accent],
-        borderWidth: 1,
+        backgroundColor: ["rgba(99, 102, 241, 0.8)", "rgba(16, 185, 129, 0.8)", "rgba(250, 204, 21, 0.8)"],
+        borderWidth: 0,
+        borderRadius: 4,
       },
     ],
   }
-
+  
   const ratingData = {
-    labels: ["5 Stars", "4 Stars", "3 Stars", "2 Stars", "1 Star"],
+    labels: ["5★", "4★", "3★", "2★", "1★"],
     datasets: [
       {
         data: [20, 15, 10, 3, 2],
-        backgroundColor: [colors.status.success, colors.primary, colors.secondary, colors.accent, colors.status.error],
-        borderColor: colors.text.primary,
-        borderWidth: 1,
+        backgroundColor: [
+          "rgba(16, 185, 129, 0.8)",
+          "rgba(99, 102, 241, 0.8)",
+          "rgba(250, 204, 21, 0.8)",
+          "rgba(251, 146, 60, 0.8)",
+          "rgba(239, 68, 68, 0.8)"
+        ],
+        borderWidth: 0,
+        cutout: '70%'
       },
     ],
   }
+  
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        padding: 10,
+        cornerRadius: 4,
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: {
+            size: 12
+          }
+        }
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: {
+            size: 12
+          }
+        }
+      },
+    },
+  }
+  
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right' as const,
+        labels: {
+          boxWidth: 10,
+          padding: 15,
+          font: {
+            size: 12
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        padding: 10,
+        cornerRadius: 4,
+      }
+    },
+  }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h3 className="text-xl font-semibold mb-4">Call Statistics</h3>
-        <Bar
-          data={callData}
-          options={{
-            responsive: true,
-            plugins: {
-              legend: {
-                display: false,
-              },
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  color: colors.text.secondary,
-                },
-              },
-              x: {
-                ticks: {
-                  color: colors.text.secondary,
-                },
-              },
-            },
-          }}
-        />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <h3 className="text-xl font-semibold mb-4">Rating Distribution</h3>
-        <Doughnut
-          data={ratingData}
-          options={{
-            responsive: true,
-            plugins: {
-              legend: {
-                position: "right" as const,
-                labels: {
-                  color: colors.text.secondary,
-                },
-              },
-            },
-          }}
-        />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-        className="md:col-span-2"
-      >
-        <div className={`${utils.cardBg} rounded-lg p-4 flex justify-between items-center`}>
-          <div>
-            <h3 className="text-lg font-semibold">Trust Score</h3>
-            <p className="text-3xl font-bold text-green-400">92%</p>
+    <div className="space-y-8">
+      <div className="grid grid-cols-3 gap-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">Trust Score</div>
+          <div className="text-2xl font-medium mt-1 text-emerald-500">92%</div>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">Total Connections</div>
+          <div className="text-2xl font-medium mt-1 text-indigo-500">127</div>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">Avg. Rating</div>
+          <div className="text-2xl font-medium mt-1 text-amber-500">4.7★</div>
+        </motion.div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Call Statistics</h3>
+          <div className="h-64">
+            <Bar data={callData} options={chartOptions} />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold">Total Connections</h3>
-            <p className="text-3xl font-bold text-blue-400">127</p>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Rating Distribution</h3>
+          <div className="h-64">
+            <Doughnut data={ratingData} options={doughnutOptions} />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold">Avg. Call Rating</h3>
-            <p className="text-3xl font-bold text-yellow-400">4.7</p>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   )
 }
 
 export default DashboardMetrics
-

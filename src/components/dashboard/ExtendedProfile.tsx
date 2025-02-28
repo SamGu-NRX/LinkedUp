@@ -2,84 +2,98 @@ import type React from "react"
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Award, Briefcase, Globe, Link } from "lucide-react"
-import { utils } from "@/styles/utils"
+import { Switch } from "@/components/ui/switch"
 
 const ExtendedProfile: React.FC = () => {
   const [showPersonalDetails, setShowPersonalDetails] = useState(true)
 
-  const togglePersonalDetails = () => {
-    setShowPersonalDetails(!showPersonalDetails)
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h3 className="text-xl font-semibold mb-4">Accolades & Badges</h3>
-        <div className="flex flex-wrap gap-2">
-          <span className={`${utils.buttonPrimary} px-3 py-1 rounded-full text-sm flex items-center`}>
-            <Award size={16} className="mr-1" /> Top Connector
-          </span>
-          <span className={`${utils.buttonSecondary} px-3 py-1 rounded-full text-sm flex items-center`}>
-            <Briefcase size={16} className="mr-1" /> Industry Expert
-          </span>
-          <span className={`${utils.buttonAccent} px-3 py-1 rounded-full text-sm flex items-center`}>
-            <Globe size={16} className="mr-1" /> Global Networker
-          </span>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Badges</h3>
+          <div className="flex flex-wrap gap-2">
+            <span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full text-xs flex items-center">
+              <Award size={14} className="mr-1.5" /> Top Connector
+            </span>
+            <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs flex items-center">
+              <Briefcase size={14} className="mr-1.5" /> Industry Expert
+            </span>
+            <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-3 py-1 rounded-full text-xs flex items-center">
+              <Globe size={14} className="mr-1.5" /> Global Networker
+            </span>
+          </div>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        >
+          <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Skills</h3>
+          <div className="flex flex-wrap gap-2">
+            <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1 rounded-full text-xs">JavaScript</span>
+            <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1 rounded-full text-xs">React</span>
+            <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1 rounded-full text-xs">Node.js</span>
+            <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1 rounded-full text-xs">UX Design</span>
+            <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1 rounded-full text-xs">Project Management</span>
+          </div>
+        </motion.div>
+      </div>
+      
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+        className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+      >
+        <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Privacy</h3>
+        <div className="flex items-center justify-between">
+          <span className="text-sm">Show personal details to matches</span>
+          <Switch
+            checked={showPersonalDetails}
+            onCheckedChange={setShowPersonalDetails}
+          />
         </div>
       </motion.div>
+      
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+        className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
       >
-        <h3 className="text-xl font-semibold mb-4">Skills & Expertise</h3>
-        <div className="flex flex-wrap gap-2">
-          <span className={`${utils.cardBg} px-3 py-1 rounded-full text-sm`}>JavaScript</span>
-          <span className={`${utils.cardBg} px-3 py-1 rounded-full text-sm`}>React</span>
-          <span className={`${utils.cardBg} px-3 py-1 rounded-full text-sm`}>Node.js</span>
-          <span className={`${utils.cardBg} px-3 py-1 rounded-full text-sm`}>UX Design</span>
-          <span className={`${utils.cardBg} px-3 py-1 rounded-full text-sm`}>Project Management</span>
-        </div>
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-        className="md:col-span-2"
-      >
-        <h3 className="text-xl font-semibold mb-4">Privacy Settings</h3>
-        <div className="flex items-center justify-between mb-4">
-          <span>Show Personal Details to Matches</span>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={showPersonalDetails}
-              onChange={togglePersonalDetails}
+        <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">External Links</h3>
+        <div className="space-y-3">
+          <div className="flex items-center">
+            <Link size={16} className="text-zinc-400 mr-3" />
+            <input 
+              type="text" 
+              placeholder="Personal Website" 
+              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-none focus:border-indigo-500"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-        className="md:col-span-2"
-      >
-        <h3 className="text-xl font-semibold mb-4">External Links</h3>
-        <div className="space-y-2">
-          <div className="flex items-center">
-            <Link size={20} className="mr-2" />
-            <input type="text" placeholder="Personal Website" className={`${utils.cardBg} rounded px-3 py-2 w-full`} />
           </div>
           <div className="flex items-center">
-            <Link size={20} className="mr-2" />
-            <input type="text" placeholder="LinkedIn Profile" className={`${utils.cardBg} rounded px-3 py-2 w-full`} />
+            <Link size={16} className="text-zinc-400 mr-3" />
+            <input 
+              type="text" 
+              placeholder="LinkedIn Profile" 
+              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-none focus:border-indigo-500"
+            />
           </div>
           <div className="flex items-center">
-            <Link size={20} className="mr-2" />
-            <input type="text" placeholder="GitHub Profile" className={`${utils.cardBg} rounded px-3 py-2 w-full`} />
+            <Link size={16} className="text-zinc-400 mr-3" />
+            <input 
+              type="text" 
+              placeholder="GitHub Profile" 
+              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-none focus:border-indigo-500"
+            />
           </div>
         </div>
       </motion.div>
@@ -88,4 +102,3 @@ const ExtendedProfile: React.FC = () => {
 }
 
 export default ExtendedProfile
-

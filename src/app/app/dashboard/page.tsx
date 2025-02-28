@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DashboardMetrics from "@/components/dashboard/DashboardMetrics"
 import MyConnections from "@/components/dashboard/MyConnections"
@@ -10,59 +10,60 @@ import ExtendedProfile from "@/components/dashboard/ExtendedProfile"
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false)
-
+  
   useEffect(() => {
     setIsClient(true)
   }, [])
-
+  
   if (!isClient) {
-    return null // or a loading spinner
+    return null
   }
-
+  
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
-      <div className="container mx-auto p-4 md:p-8">
-        <motion.h1
-          className="text-3xl font-bold mb-8"
-          initial={{ opacity: 0, y: -20 }}
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="container mx-auto p-6">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3 }}
+          className="mb-8"
         >
-          Dashboard
-        </motion.h1>
-        <Tabs defaultValue="metrics" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="metrics">Metrics</TabsTrigger>
-            <TabsTrigger value="connections">Connections</TabsTrigger>
-            <TabsTrigger value="profile">Extended Profile</TabsTrigger>
+          <h1 className="text-2xl font-medium tracking-tight">Dashboard</h1>
+        </motion.div>
+        
+        <Tabs defaultValue="metrics" className="space-y-6">
+          <TabsList className="bg-background border border-border">
+            <TabsTrigger value="metrics" className="text-sm">Metrics</TabsTrigger>
+            <TabsTrigger value="connections" className="text-sm">Connections</TabsTrigger>
+            <TabsTrigger value="profile" className="text-sm">Profile</TabsTrigger>
           </TabsList>
+          
           <TabsContent value="metrics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Metrics Summary</CardTitle>
-                <CardDescription>Your call statistics and performance metrics</CardDescription>
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium">Performance Metrics</CardTitle>
               </CardHeader>
               <CardContent>
                 <DashboardMetrics />
               </CardContent>
             </Card>
           </TabsContent>
+          
           <TabsContent value="connections">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Connections</CardTitle>
-                <CardDescription>Your recent connections and quick actions</CardDescription>
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium">Network</CardTitle>
               </CardHeader>
               <CardContent>
                 <MyConnections />
               </CardContent>
             </Card>
           </TabsContent>
+          
           <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle>Extended Profile</CardTitle>
-                <CardDescription>Manage your extended profile settings</CardDescription>
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium">Profile Settings</CardTitle>
               </CardHeader>
               <CardContent>
                 <ExtendedProfile />
@@ -74,4 +75,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
