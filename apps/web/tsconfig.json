@@ -8,6 +8,9 @@
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
+    "paths": {
+      "@repo/*": ["../../packages/*"]
+    },
     // "types": [
     //   "styled-components",
     //   "node"
@@ -22,7 +25,7 @@
       {
         "name": "next"
       }
-    ],
+    ]
   },
   "include": [
     "next-env.d.ts",

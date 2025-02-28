@@ -8,9 +8,9 @@
     "build": "tsc"
   },
   "dependencies": {
-    "drizzle-orm": "^0.14.0",
     "@auth/drizzle-adapter": "^1.8.0",
     "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.49.1"
+    "@supabase/supabase-js": "^2.49.1",
+    "drizzle-orm": "^0.14.2"
   }
 }
