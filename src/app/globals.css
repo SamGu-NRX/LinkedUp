@@ -1,8 +1,4 @@
-@tailwind base;
-
-@custom-variant dark (&:is(.dark *));
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 body {
   font-family: Arial, Helvetica, sans-serif;
@@ -88,18 +84,10 @@ body {
 
 @layer base {
   * {
-    @apply border-border;
+    border: var(--border);
   }
   body {
-    @apply bg-background text-foreground;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }

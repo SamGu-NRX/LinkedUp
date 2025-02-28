@@ -18,7 +18,7 @@ export default function VideoChat() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="absolute bottom-4 left-4 bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm"
+          className="absolute bottom-4 left-4 bg-black/50 px-3 py-1 rounded-full text-sm"
         >
           Partner
         </motion.div>
@@ -38,7 +38,7 @@ export default function VideoChat() {
             objectFit="cover"
             className="filter brightness-95"
           />
-          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded-full text-xs">You</div>
+          <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded-full text-xs">You</div>
         </Card>
       </motion.div>
     </div>

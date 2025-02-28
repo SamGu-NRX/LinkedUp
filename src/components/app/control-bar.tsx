@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 export default function ControlBar() {
   return (
     <motion.div
-      className="bg-gray-800 bg-opacity-50 backdrop-blur-md p-2 rounded-full flex space-x-2"
+      className="bg-gray-800/50 backdrop-blur-md p-2 rounded-full flex space-x-2"
       whileHover={{ scale: 1.05 }}
       transition={{ type: "spring", stiffness: 400, damping: 10 }}
     >

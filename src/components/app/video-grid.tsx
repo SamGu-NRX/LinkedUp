@@ -18,7 +18,7 @@ export default function VideoGrid() {
             layout="fill"
             objectFit="cover"
           />
-          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-sm">
+          <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-sm">
             {participant.name}
           </div>
         </div>
