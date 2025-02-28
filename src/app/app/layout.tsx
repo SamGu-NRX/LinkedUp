@@ -1,3 +1,4 @@
+import "../globals.css"
 import type React from "react";
 import { Inter } from "next/font/google";
 import { MobileNavigation } from "@/components/app/MobileNavigation";

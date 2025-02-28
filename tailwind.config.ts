@@ -1,15 +1,22 @@
 import type { Config } from 'tailwindcss';
 
-const config: Config = {
+const config = {
   darkMode: ['class'],
   content: [
-    "./components/**/*.{css,js,jsx,ts,tsx}",
-    "./components/*.{css,js,jsx,ts,tsx}",
-    "./app/*.{css,js,jsx,ts,tsx}",
-    "./app/**/*.{css,js,jsx,ts,tsx}",
-    "./src/**/*.{css,js,jsx,ts,tsx}",
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
   ],
+  prefix: "",
   theme: {
+  	container: {
+  		center: true,
+  		padding: "2rem",
+  		screens: {
+  			"2xl": "1400px",
+  		},
+  	},
   	extend: {
   		backgroundImage: {
   			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -97,5 +104,6 @@ const config: Config = {
   	}
   },
   plugins: [require('tailwindcss-animate')],
-};
+} satisfies Config;
+
 export default config;

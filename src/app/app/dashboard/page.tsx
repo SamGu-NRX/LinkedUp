@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,56 +9,68 @@ import MyConnections from "@/components/dashboard/MyConnections"
 import ExtendedProfile from "@/components/dashboard/ExtendedProfile"
 
 export default function DashboardPage() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return null // or a loading spinner
+  }
+
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <motion.h1
-        className="text-3xl font-bold mb-8 text-black"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        Dashboard
-      </motion.h1>
-      <Tabs defaultValue="metrics" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="metrics">Metrics</TabsTrigger>
-          <TabsTrigger value="connections">Connections</TabsTrigger>
-          <TabsTrigger value="profile">Extended Profile</TabsTrigger>
-        </TabsList>
-        <TabsContent value="metrics">
-          <Card>
-            <CardHeader>
-              <CardTitle>Metrics Summary</CardTitle>
-              <CardDescription>Your call statistics and performance metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DashboardMetrics />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="connections">
-          <Card>
-            <CardHeader>
-              <CardTitle>My Connections</CardTitle>
-              <CardDescription>Your recent connections and quick actions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MyConnections />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Extended Profile</CardTitle>
-              <CardDescription>Manage your extended profile settings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ExtendedProfile />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <div className="container mx-auto p-4 md:p-8">
+        <motion.h1
+          className="text-3xl font-bold mb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          Dashboard
+        </motion.h1>
+        <Tabs defaultValue="metrics" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="metrics">Metrics</TabsTrigger>
+            <TabsTrigger value="connections">Connections</TabsTrigger>
+            <TabsTrigger value="profile">Extended Profile</TabsTrigger>
+          </TabsList>
+          <TabsContent value="metrics">
+            <Card>
+              <CardHeader>
+                <CardTitle>Metrics Summary</CardTitle>
+                <CardDescription>Your call statistics and performance metrics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DashboardMetrics />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="connections">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Connections</CardTitle>
+                <CardDescription>Your recent connections and quick actions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MyConnections />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="profile">
+            <Card>
+              <CardHeader>
+                <CardTitle>Extended Profile</CardTitle>
+                <CardDescription>Manage your extended profile settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ExtendedProfile />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }
