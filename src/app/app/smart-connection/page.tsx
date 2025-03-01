@@ -16,7 +16,7 @@ export default function SmartConnectionPage() {
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}`)
+    router.push(`/videocall/${matchId}`)
   }
 
   const handleDeclineMatch = (matchId: string) => {

@@ -51,9 +51,9 @@ export default function DashboardPage() {
           
           <TabsContent value="connections">
             <Card className="border-0 shadow-sm">
-              <CardHeader className="pb-2">
+              {/* <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-medium">Network</CardTitle>
-              </CardHeader>
+              </CardHeader> */}
               <CardContent>
                 <MyConnections />
               </CardContent>

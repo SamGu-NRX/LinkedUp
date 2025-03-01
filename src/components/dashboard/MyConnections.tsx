@@ -13,8 +13,10 @@ import {
   Phone,
   Calendar,
   ChevronLeft,
+  ChevronRight,
   MessageSquare,
   Info,
+  Menu,
 } from "lucide-react";
 import {
   Dialog,
@@ -167,28 +169,160 @@ const initialMessages: Record<string, Message[]> = {
   "4": [],
 };
 
-// Clean, modern color palette
-const avatarColors = {
-  "1": {
-    from: "from-violet-500",
-    to: "to-purple-700",
-    text: "text-violet-50",
-  },
-  "2": {
-    from: "from-blue-500",
-    to: "to-indigo-600",
-    text: "text-blue-50",
-  },
-  "3": {
-    from: "from-emerald-400",
-    to: "to-teal-600",
-    text: "text-emerald-50",
-  },
-  "4": {
-    from: "from-rose-400",
-    to: "to-pink-600",
-    text: "text-rose-50",
-  },
+// Generate random gradient colors for avatars
+const generateAvatarColor = (id) => {
+  // Set of vibrant gradient combinations
+  const gradients = [
+    { from: "from-violet-500", to: "to-purple-700", text: "text-violet-50" },
+    { from: "from-blue-500", to: "to-indigo-600", text: "text-blue-50" },
+    { from: "from-emerald-400", to: "to-teal-600", text: "text-emerald-50" },
+    { from: "from-rose-400", to: "to-pink-600", text: "text-rose-50" },
+    { from: "from-amber-400", to: "to-orange-600", text: "text-amber-50" },
+    { from: "from-cyan-400", to: "to-blue-600", text: "text-cyan-50" },
+    { from: "from-red-500", to: "to-pink-500", text: "text-red-50" },
+    { from: "from-green-400", to: "to-emerald-600", text: "text-green-50" },
+    { from: "from-fuchsia-500", to: "to-purple-600", text: "text-fuchsia-50" },
+    { from: "from-yellow-400", to: "to-amber-600", text: "text-yellow-50" },
+  ];
+  
+  // Use the id to deterministically select a gradient (makes it consistent for each user)
+  const hash = parseInt(id) || String(id).split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return gradients[hash % gradients.length];
+};
+
+// Build avatar colors mapping for each profile
+const avatarColors = profiles.reduce((acc, profile) => {
+  acc[profile.id] = generateAvatarColor(profile.id);
+  return acc;
+}, {});
+
+interface ProfileListProps {
+  profiles: Profile[];
+  activeProfile: Profile;
+  unreadCounts: Record<string, number>;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  setActiveProfile: (profile: Profile) => void;
+  setUnreadCounts: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  getStatusColor: (status: Profile["status"]) => string;
+  getInitials: (name: string) => string;
+}
+
+const ProfileList: React.FC<ProfileListProps> = ({
+  profiles,
+  activeProfile,
+  unreadCounts,
+  sidebarCollapsed,
+  setSidebarCollapsed,
+  setActiveProfile,
+  setUnreadCounts,
+  getStatusColor,
+  getInitials,
+}) => {
+  const sortedProfiles = [...profiles].sort((a, b) => {
+    const aUnread = unreadCounts[a.id] || 0;
+    const bUnread = unreadCounts[b.id] || 0;
+
+    // Primary sort by online status
+    if (a.status === "online" && b.status !== "online") return -1;
+    if (a.status !== "online" && b.status === "online") return 1;
+
+    // Secondary sort by unread messages
+    return bUnread - aUnread;
+  });
+
+  return (
+    <Card 
+      className={`h-[600px] overflow-hidden shadow-lg transition-all duration-300 ease-in-out ${
+        sidebarCollapsed ? "w-[80px]" : "w-[280px]"
+      }`}
+    >
+      <div className="p-4 border-b dark:border-zinc-800 flex items-center justify-between">
+        {!sidebarCollapsed && <h3 className="font-medium">Connections</h3>}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="ml-auto" 
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        >
+          {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      <div
+        className="py-3 px-2 space-y-1 overflow-y-auto"
+        style={{ maxHeight: "calc(600px - 60px)" }}
+      >
+        {sortedProfiles.map((profile) => (
+          <TooltipProvider key={profile.id}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={
+                    activeProfile.id === profile.id ? "secondary" : "ghost"
+                  }
+                  className={`relative w-full justify-${sidebarCollapsed ? "center" : "start"} gap-2 overflow-hidden transition-all duration-200 ${
+                    activeProfile.id === profile.id
+                      ? "bg-opacity-90"
+                      : "hover:bg-opacity-80"
+                  }`}
+                  onClick={() => {
+                    setActiveProfile(profile);
+                    setUnreadCounts((prev) => ({
+                      ...prev,
+                      [profile.id]: 0,
+                    }));
+                  }}
+                >
+                  <div className="relative flex-shrink-0">
+                    <Avatar
+                      className={`bg-gradient-to-br ${
+                        generateAvatarColor(profile.id).from
+                      } ${generateAvatarColor(profile.id).to} h-9 w-9`}
+                    >
+                      <AvatarFallback
+                        className={generateAvatarColor(profile.id).text}
+                      >
+                        {getInitials(profile.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full ${getStatusColor(
+                        profile.status
+                      )} border-2 border-white dark:border-zinc-900`}
+                    />
+                  </div>
+
+                  {!sidebarCollapsed && (
+                    <div className="flex flex-col items-start truncate overflow-hidden">
+                      <span className="font-medium text-sm">{profile.name}</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {profile.profession}
+                      </span>
+                    </div>
+                  )}
+
+                  {unreadCounts[profile.id] > 0 && (
+                    <Badge variant="destructive" className={sidebarCollapsed ? "absolute top-0 right-0 -mt-1 -mr-1" : "ml-auto"}>
+                      {unreadCounts[profile.id]}
+                    </Badge>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <div>
+                  <p className="font-medium">{profile.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {profile.profession}
+                  </p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ))}
+      </div>
+    </Card>
+  );
 };
 
 interface ChatAppProps {
@@ -211,10 +345,6 @@ interface ChatAppProps {
   getStatusColor: (status: Profile["status"]) => string;
   getInitials: (name: string) => string;
   formatTime: (timestamp: number) => string;
-  avatarColors: Record<
-    string,
-    { from: string; to: string; text: string }
-  >;
 }
 
 const ChatArea: React.FC<ChatAppProps> = ({
@@ -235,10 +365,9 @@ const ChatArea: React.FC<ChatAppProps> = ({
   getStatusColor,
   getInitials,
   formatTime,
-  avatarColors,
 }) => {
   return (
-    <Card className="flex flex-col h-[600px] w-full overflow-hidden shadow-lg">
+    <Card className="flex flex-col h-[600px] flex-1 overflow-hidden shadow-lg">
       {/* Chat Header */}
       <div className="border-b p-3 dark:border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -249,10 +378,10 @@ const ChatArea: React.FC<ChatAppProps> = ({
           >
             <Avatar
               className={`bg-gradient-to-br ${
-                avatarColors[activeProfile.id]?.from
-              } ${avatarColors[activeProfile.id]?.to} h-10 w-10`}
+                generateAvatarColor(activeProfile.id).from
+              } ${generateAvatarColor(activeProfile.id).to} h-10 w-10`}
             >
-              <AvatarFallback className={avatarColors[activeProfile.id]?.text}>
+              <AvatarFallback className={generateAvatarColor(activeProfile.id).text}>
                 {getInitials(activeProfile.name)}
               </AvatarFallback>
             </Avatar>
@@ -352,11 +481,11 @@ const ChatArea: React.FC<ChatAppProps> = ({
                 {!isUser && showAvatar ? (
                   <Avatar
                     className={`bg-gradient-to-br ${
-                      avatarColors[message.senderId]?.from
-                    } ${avatarColors[message.senderId]?.to} h-8 w-8`}
+                      generateAvatarColor(message.senderId).from
+                    } ${generateAvatarColor(message.senderId).to} h-8 w-8`}
                   >
                     <AvatarFallback
-                      className={avatarColors[message.senderId]?.text}
+                      className={generateAvatarColor(message.senderId).text}
                     >
                       {getInitials(activeProfile.name)}
                     </AvatarFallback>
@@ -416,116 +545,14 @@ const ChatArea: React.FC<ChatAppProps> = ({
   );
 };
 
-const ProfileList: React.FC<ProfileListProps> = ({
-  profiles,
-  activeProfile,
-  unreadCounts,
-  setActiveProfile,
-  setUnreadCounts,
-  getStatusColor,
-  getInitials,
-  avatarColors,
-}) => {
-  const sortedProfiles = [...profiles].sort((a, b) => {
-    const aUnread = unreadCounts[a.id] || 0;
-    const bUnread = unreadCounts[b.id] || 0;
-
-    // Primary sort by online status
-    if (a.status === "online" && b.status !== "online") return -1;
-    if (a.status !== "online" && b.status === "online") return 1;
-
-    // Secondary sort by unread messages
-    return bUnread - aUnread;
-  });
-
-  return (
-    <Card className="h-[600px] w-full overflow-hidden shadow-lg">
-      <div className="p-4 border-b dark:border-zinc-800">
-        <h3 className="font-medium">Connections</h3>
-      </div>
-
-      <div
-        className="py-3 px-2 space-y-1 overflow-y-auto"
-        style={{ maxHeight: "calc(600px - 60px)" }}
-      >
-        {sortedProfiles.map((profile) => (
-          <TooltipProvider key={profile.id}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={
-                    activeProfile.id === profile.id ? "secondary" : "ghost"
-                  }
-                  className={`relative w-full justify-start gap-2 overflow-hidden transition-all duration-200 ${
-                    activeProfile.id === profile.id
-                      ? "bg-opacity-90"
-                      : "hover:bg-opacity-80"
-                  }`}
-                  onClick={() => {
-                    setActiveProfile(profile);
-                    setUnreadCounts((prev) => ({
-                      ...prev,
-                      [profile.id]: 0,
-                    }));
-                  }}
-                >
-                  <div className="relative flex-shrink-0">
-                    <Avatar
-                      className={`bg-gradient-to-br ${
-                        avatarColors[profile.id]?.from
-                      } ${avatarColors[profile.id]?.to} h-9 w-9`}
-                    >
-                      <AvatarFallback
-                        className={avatarColors[profile.id]?.text}
-                      >
-                        {getInitials(profile.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div
-                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full ${getStatusColor(
-                        profile.status
-                      )} border-2 border-white dark:border-zinc-900`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col items-start truncate overflow-hidden">
-                    <span className="font-medium text-sm">{profile.name}</span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {profile.profession}
-                    </span>
-                  </div>
-
-                  {unreadCounts[profile.id] > 0 && (
-                    <Badge variant="destructive" className="ml-auto">
-                      {unreadCounts[profile.id]}
-                    </Badge>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <div>
-                  <p className="font-medium">{profile.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {profile.profession}
-                  </p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ))}
-      </div>
-    </Card>
-  );
-};
-
 const ModernChatApp: React.FC = () => {
   const [activeProfile, setActiveProfile] = useState(profiles[0]);
   const [messages, setMessages] = useState(initialMessages);
   const [newMessage, setNewMessage] = useState("");
-  const [showProfiles, setShowProfiles] = useState(true);
   const [showScheduleCall, setShowScheduleCall] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -617,19 +644,18 @@ const ModernChatApp: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 flex gap-4">
-      {/* Profiles Sidebar */}
+    <div className="mx-auto w-full max-w-6xl p-4 flex gap-4">
+      {/* Collapsible Sidebar */}
       <ProfileList
         profiles={profiles}
         activeProfile={activeProfile}
-        showProfiles={showProfiles}
         unreadCounts={unreadCounts}
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
         setActiveProfile={setActiveProfile}
         setUnreadCounts={setUnreadCounts}
-        setShowProfiles={setShowProfiles}
         getStatusColor={getStatusColor}
         getInitials={getInitials}
-        avatarColors={avatarColors}
       />
 
       {/* Chat Area */}
@@ -651,7 +677,6 @@ const ModernChatApp: React.FC = () => {
         getStatusColor={getStatusColor}
         getInitials={getInitials}
         formatTime={formatTime}
-        avatarColors={avatarColors}
       />
 
       {/* Schedule Call Modal */}

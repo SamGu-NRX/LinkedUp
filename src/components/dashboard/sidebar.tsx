@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Home, BarChart2, User, Settings, LogOut } from "lucide-react";
+import Image from "next/image"; // Import Image component
 
 const navItems = [
   { name: "Home", href: "/app", icon: Home },
@@ -17,13 +18,14 @@ export function Sidebar() {
 
   return (
     <div className="hidden border-r bg-gray-100/40 dark:bg-gray-800/40 lg:block">
-      <div className="flex h-full max-h-screen flex-col gap-2">
+      <div className="flex h-full flex-col gap-2">
         <div className="flex h-[60px] items-center border-b px-6">
           <Link className="flex items-center gap-2 font-semibold" href="/app">
+            <Image src="/logo.png" alt="Logo" width={30} height={30} /> {/* Add logo */}
             <span className="text-2xl font-bold">LinkUp</span>
           </Link>
         </div>
-        <ScrollArea className="flex-1 px-3">
+        <ScrollArea className="flex-1 px-3 max-h-[calc(100vh-120px)]"> {/* Adjust height */}
           <div className="space-y-1 py-2">
             {navItems.map((item) => (
               <Button
