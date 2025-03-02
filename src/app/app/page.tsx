@@ -229,7 +229,7 @@ export default function HomePage() {
                     <Button
                       variant="outline"
                       className="w-full border-zinc-200 dark:border-zinc-700"
-                      onClick={() => router.push("app/dashboard")}
+                      onClick={() => router.push("app")}
                     >
                       View Network
                     </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,13 @@ import InterestsSection from "@/components/onboarding/InterestsSection";
 import ProfileSummary from "@/components/onboarding/ProfileSummary";
 import BasicInfo from "@/components/onboarding/BasicInfo";
 import Congratulations from "@/components/onboarding/Congratulations";
-import { Briefcase, MessageSquare, Heart, CheckCircle, User } from "lucide-react";
+import {
+  Briefcase,
+  MessageSquare,
+  Heart,
+  CheckCircle,
+  User,
+} from "lucide-react";
 
 const steps = [
   { id: 1, title: "Basic Info", icon: User },
@@ -25,13 +31,21 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     age: 25,
-    gender: "prefer-not-to-say",
+    gender: "prefer-not-to-say" as | "prefer-not-to-say" // wtf
+      | "male"
+      | "female"
+      | "non-binary",
     field: "",
     jobTitle: "",
     company: "",
     linkedinUrl: "",
     bio: "",
-    interests: [],
+    interests: [] as {
+      id: string;
+      name: string;
+      category: string;
+      icon?: any;
+    }[],
     connectionType: "both",
   });
   const [showCongrats, setShowCongrats] = useState(false);
@@ -55,7 +69,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
+    <div className="from-background to-secondary/20 min-h-screen bg-gradient-to-b">
       <AnimatePresence mode="wait">
         {showCongrats ? (
           <Congratulations key="congrats" />
@@ -65,16 +79,16 @@ export default function OnboardingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="container max-w-4xl mx-auto px-4 py-8"
+            className="container mx-auto max-w-4xl px-4 py-8"
           >
             <div className="space-y-6">
               {/* Progress Header */}
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-center">
+                <h1 className="text-center text-3xl font-bold">
                   Create Your Profile
                 </h1>
                 <p className="text-muted-foreground text-center">
-                  Let's set up your profile to find the perfect connections
+                  {`Let's set up your profile to find the perfect connections.`}
                 </p>
               </div>
 
@@ -91,8 +105,8 @@ export default function OnboardingPage() {
                           : "text-muted-foreground"
                       }`}
                     >
-                      <step.icon className="w-4 h-4" />
-                      <span className="text-sm hidden sm:inline">
+                      <step.icon className="h-4 w-4" />
+                      <span className="hidden text-sm sm:inline">
                         {step.title}
                       </span>
                     </div>

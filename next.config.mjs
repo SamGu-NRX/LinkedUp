@@ -18,9 +18,9 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
-    serverActions: {
-      allowedOrigins: ["app.localhost:3000"],
-    },
+    // serverActions: {
+    //   allowedOrigins: ["app.localhost:3000"],
+    // },
     turbo: {
       rules: {
         "*.svg": {

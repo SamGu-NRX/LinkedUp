@@ -1,10 +1,10 @@
 import type { Config } from 'tailwindcss';
 
 const config = {
-  darkMode: ['class'],
+  darkMode: 'class',
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
+	'./pages/**/*.{ts,tsx}',
+	'./components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
@@ -77,7 +77,7 @@ const config = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
   		},
   		keyframes: {
   			'accordion-down': {

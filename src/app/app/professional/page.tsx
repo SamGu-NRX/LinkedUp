@@ -33,7 +33,9 @@ export default function ProfessionalConnectionPage() {
       <Card>
         <CardHeader>
           <CardTitle>Choose Your Connection Purpose</CardTitle>
-          <CardDescription>Select the type of professional connection you're looking for</CardDescription>
+          <CardDescription>
+            {`Select the type of professional connection you're looking for`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

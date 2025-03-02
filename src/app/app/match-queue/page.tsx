@@ -8,7 +8,7 @@ export default function MatchQueuePage() {
   const router = useRouter()
 
   const handleLeaveQueue = () => {
-    router.push("/app/dashboard")
+    router.push("/app")
   }
 
   const handleAcceptMatch = (matchId: string) => {

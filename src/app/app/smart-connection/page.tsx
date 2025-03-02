@@ -11,7 +11,7 @@ export default function SmartConnectionPage() {
   const purpose = searchParams.get("purpose")
 
   const handleLeaveQueue = () => {
-    router.push("/app/dashboard")
+    router.push("/app")
   }
 
   const handleAcceptMatch = (matchId: string) => {

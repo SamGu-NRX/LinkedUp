@@ -83,6 +83,13 @@ export default function ProfessionalInfoForm({
 
   // Popover state for the field selection dropdown.
   const [open, setOpen] = React.useState(false);
+  const [selectedField, setSelectedField] = React.useState(data.field || "");
+
+  React.useEffect(() => {
+    if (selectedField) {
+      setValue("field", selectedField);
+    }
+  }, [selectedField, setValue]);
 
   const onSubmit = (formData: ProfessionalInfoFormData) => {
     // formData already has the proper types and transformations applied.
@@ -110,8 +117,8 @@ export default function ProfessionalInfoForm({
                   aria-expanded={open}
                   className="w-full justify-between"
                 >
-                  {data.field
-                    ? fields.find((f) => f.value === data.field)?.label
+                  {selectedField
+                    ? fields.find((f) => f.value === selectedField)?.label
                     : "Select field..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -125,14 +132,14 @@ export default function ProfessionalInfoForm({
                       <CommandItem
                         key={fieldItem.value}
                         onSelect={() => {
-                          setValue("field", fieldItem.value);
+                          setSelectedField(fieldItem.value);
                           setOpen(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            data.field === fieldItem.value
+                            selectedField === fieldItem.value
                               ? "opacity-100"
                               : "opacity-0",
                           )}
@@ -145,7 +152,7 @@ export default function ProfessionalInfoForm({
               </PopoverContent>
             </Popover>
             {errors.field && (
-              <p className="text-sm text-destructive">{errors.field.message}</p>
+              <p className="text-destructive text-sm">{errors.field.message}</p>
             )}
           </div>
 
@@ -158,7 +165,7 @@ export default function ProfessionalInfoForm({
               className={errors.jobTitle ? "border-destructive" : ""}
             />
             {errors.jobTitle && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 {errors.jobTitle.message}
               </p>
             )}
@@ -173,7 +180,7 @@ export default function ProfessionalInfoForm({
               className={errors.company ? "border-destructive" : ""}
             />
             {errors.company && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 {errors.company.message}
               </p>
             )}
@@ -181,18 +188,31 @@ export default function ProfessionalInfoForm({
 
           {/* LinkedIn URL (Optional) */}
           <div className="space-y-2">
-            <Label>LinkedIn URL (Optional)</Label>
-            <Input
-              {...register("linkedinUrl")}
-              placeholder="https://linkedin.com/in/username"
-              type="url"
-              className={errors.linkedinUrl ? "border-destructive" : ""}
-            />
+            <Label>LinkedIn Username (Optional)</Label>
+            <div className="flex items-center">
+              <div className="bg-muted text-muted-foreground border-input rounded-l-md border border-r-0 px-3 py-2">
+                linkedin.com/in/
+              </div>
+              <Input
+                {...register("linkedinUrl", {
+                  setValueAs: (value) =>
+                    value ? `https://linkedin.com/in/${value}` : undefined,
+                })}
+                placeholder="username"
+                className={cn(
+                  "rounded-l-none",
+                  errors.linkedinUrl ? "border-destructive" : "",
+                )}
+              />
+            </div>
             {errors.linkedinUrl && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 {errors.linkedinUrl.message}
               </p>
             )}
+            <p className="text-muted-foreground text-xs">
+              Enter just your username, not the full URL
+            </p>
           </div>
         </div>
       </div>

@@ -69,7 +69,7 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Tell us about yourself</h2>
         <p className="text-muted-foreground">
-          Let's start with some basic information
+          {`Let's start with some basic information.`}
         </p>
 
         {/* Age Slider */}

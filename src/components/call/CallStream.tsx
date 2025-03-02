@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Loader from '@/components/Loader';
 
 
 import { Call, useStreamVideoClient } from '@stream-io/video-react-sdk';

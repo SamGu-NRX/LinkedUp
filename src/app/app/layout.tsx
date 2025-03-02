@@ -21,8 +21,8 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import { Providers } from "./providers";
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { ModeToggle } from "@/components/dashboard/ModeToggle";
+import { Sidebar } from "@/components/app/dashboard/sidebar";
+import { ModeToggle } from "@/components/app/dashboard/ModeToggle";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
@@ -41,7 +41,7 @@ export default function RootLayout({
       <html lang="en" suppressHydrationWarning>
         <body className={`${inter.className} antialiased`}>
           <div className="relative flex min-h-screen flex-col">
-            <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-background/80 px-6 backdrop-blur-sm transition-colors duration-300">
+            <header className="bg-background/80 sticky top-0 z-50 flex h-16 items-center gap-4 border-b px-6 backdrop-blur-sm transition-colors duration-300">
               <div className="relative z-10">
                 <Link
                   className="flex items-center gap-2 font-semibold transition-all duration-300 hover:opacity-80"
@@ -52,7 +52,11 @@ export default function RootLayout({
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <Image
-                      src={theme === 'dark' ? "/linkeduplogos/linkedupwhite.png" : "/linkeduplogos/linkedupblack.png"}
+                      src={
+                        theme === "dark"
+                          ? "/linkeduplogos/linkedupwhite.png"
+                          : "/linkeduplogos/linkedupblack.png"
+                      }
                       alt="Logo"
                       width={36}
                       height={36}
@@ -60,7 +64,7 @@ export default function RootLayout({
                     />
                   </motion.div>
                   <motion.h1
-                    className="text-xl font-bold bg-clip-text text-transparent bg-emerald-400 dark:bg-emerald-300"
+                    className="bg-emerald-400 bg-clip-text text-xl font-bold text-transparent dark:bg-emerald-300"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
@@ -70,7 +74,6 @@ export default function RootLayout({
                 </Link>
               </div>
 
-              
               <div className="flex-1" />
               <ModeToggle />
               <SignedOut>
@@ -83,13 +86,13 @@ export default function RootLayout({
             </header>
 
             <div className="flex flex-1 overflow-hidden">
-              <div className="hidden border-r md:block md:w-64 transition-all duration-300">
+              <div className="hidden border-r transition-all duration-300 md:block md:w-64">
                 <DesktopNavigation />
               </div>
-              
+
               <div className="flex flex-1 flex-col overflow-hidden">
                 <main className="flex-1 overflow-y-auto p-6 transition-all duration-300">
-                  <div className="relative w-full min-h-[calc(100vh-10rem)]">
+                  <div className="relative min-h-[calc(100vh-10rem)] w-full">
                     {children}
                   </div>
                 </main>
