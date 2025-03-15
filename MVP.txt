@@ -1,0 +1,9 @@
+MINIMUM Viable Product (MVP)
+
+Date: 03/15/25 @ 2:00 PM CST (20:00 GMT)
+
+TODO
+- Stream API setup on new UI ()
+- implement "cross platform"
+
+

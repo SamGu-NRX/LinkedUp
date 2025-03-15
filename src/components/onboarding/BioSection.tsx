@@ -1,56 +1,27 @@
+// src/components/onboarding/BioSection.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-// -------------------------------------------------------------------
-// 1. Schema & Types
-// -------------------------------------------------------------------
-
-const bioSchema = z.object({
-  bio: z
-    .string()
-    .min(10, "Please write at least 10 characters")
-    .max(150, "Maximum 150 characters"),
-});
-
-export type BioFormData = z.infer<typeof bioSchema>;
+import type { OnboardingFormData } from "@/schemas/onboarding";
 
 interface BioSectionProps {
-  data: Partial<BioFormData>;
-  onUpdate: (data: BioFormData) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 const MAX_CHARS = 150;
 
-// -------------------------------------------------------------------
-// 2. Component
-// -------------------------------------------------------------------
-
-export default function BioSection({
-  data,
-  onUpdate,
-  onNext,
-  onBack,
-}: BioSectionProps) {
+export default function BioSection({ onNext, onBack }: BioSectionProps) {
   const {
     register,
-    handleSubmit,
     watch,
+    trigger,
     formState: { errors },
-  } = useForm<BioFormData>({
-    resolver: zodResolver(bioSchema),
-    defaultValues: {
-      bio: data.bio || "",
-    },
-  });
+  } = useFormContext<OnboardingFormData>();
 
   // Watch the bio value and update the character count
   const bioValue = watch("bio", "");
@@ -60,13 +31,15 @@ export default function BioSection({
     setCharCount(bioValue.length);
   }, [bioValue]);
 
-  const onSubmit = (formData: BioFormData) => {
-    onUpdate(formData);
-    onNext();
+  const handleNext = async () => {
+    const isValid = await trigger("bio");
+    if (isValid) {
+      onNext();
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">About You</h2>
         <p className="text-muted-foreground">
@@ -100,8 +73,10 @@ export default function BioSection({
         <Button type="button" variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button type="submit">Continue</Button>
+        <Button type="button" onClick={handleNext}>
+          Continue
+        </Button>
       </div>
-    </form>
+    </div>
   );
 }

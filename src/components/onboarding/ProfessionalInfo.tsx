@@ -1,9 +1,8 @@
+// src/components/onboarding/ProfessionalInfo.tsx
 "use client";
 
 import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/shadcn";
+import type { OnboardingFormData } from "@/schemas/onboarding";
 
 // Define available fields
 const fields = [
@@ -41,64 +41,41 @@ const fields = [
   { value: "student", label: "Student" },
 ] as const;
 
-// Define the Zod schema for our form.
-// Fields like linkedinUrl are optional and use a transform to convert nullish values to undefined.
-const professionalInfoSchema = z.object({
-  field: z.string().nonempty("Field is required"),
-  jobTitle: z.string().nonempty("Job title is required"),
-  company: z.string().nonempty("Company is required"),
-  linkedinUrl: z
-    .string()
-    .url("Invalid URL")
-    .optional()
-    .nullable()
-    .transform((val) => val ?? undefined),
-});
-
-export type ProfessionalInfoFormData = z.infer<typeof professionalInfoSchema>;
-
-interface ProfessionalInfoFormProps {
-  data: Partial<ProfessionalInfoFormData>;
-  onUpdate: (data: ProfessionalInfoFormData) => void;
+interface ProfessionalInfoProps {
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function ProfessionalInfoForm({
-  data,
-  onUpdate,
+export default function ProfessionalInfo({
   onNext,
   onBack,
-}: ProfessionalInfoFormProps) {
-  // Initialize react-hook-form with Zod schema validation.
+}: ProfessionalInfoProps) {
   const {
     register,
-    handleSubmit,
     setValue,
+    watch,
+    trigger,
     formState: { errors },
-  } = useForm<ProfessionalInfoFormData>({
-    resolver: zodResolver(professionalInfoSchema),
-    defaultValues: data,
-  });
+  } = useFormContext<OnboardingFormData>();
 
   // Popover state for the field selection dropdown.
   const [open, setOpen] = React.useState(false);
-  const [selectedField, setSelectedField] = React.useState(data.field || "");
+  const selectedField = watch("field");
 
-  React.useEffect(() => {
-    if (selectedField) {
-      setValue("field", selectedField);
+  const handleNext = async () => {
+    const isValid = await trigger([
+      "field",
+      "jobTitle",
+      "company",
+      "linkedinUrl",
+    ]);
+    if (isValid) {
+      onNext();
     }
-  }, [selectedField, setValue]);
-
-  const onSubmit = (formData: ProfessionalInfoFormData) => {
-    // formData already has the proper types and transformations applied.
-    onUpdate(formData);
-    onNext();
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Professional Information</h2>
         <p className="text-muted-foreground">
@@ -132,7 +109,9 @@ export default function ProfessionalInfoForm({
                       <CommandItem
                         key={fieldItem.value}
                         onSelect={() => {
-                          setSelectedField(fieldItem.value);
+                          setValue("field", fieldItem.value, {
+                            shouldValidate: true,
+                          });
                           setOpen(false);
                         }}
                       >
@@ -221,8 +200,10 @@ export default function ProfessionalInfoForm({
         <Button type="button" variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button type="submit">Continue</Button>
+        <Button type="button" onClick={handleNext}>
+          Continue
+        </Button>
       </div>
-    </form>
+    </div>
   );
 }
