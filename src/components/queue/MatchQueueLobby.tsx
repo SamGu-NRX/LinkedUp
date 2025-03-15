@@ -6,6 +6,7 @@ import QueueStatus from "./QueueStatus"
 import UserCard from "./UserCard"
 import MatchNotification from "./MatchNotification"
 import ErrorState from "./ErrorState"
+// Errorstate does not exist
 import { Button } from "@/components/ui/button"
 
 interface MatchQueueLobbyProps {

@@ -63,7 +63,13 @@ export function ToastContainer() {
 
     window.addToast = addToast
     return () => {
-      delete window.addToast
+      // delete window.addToast
+      window.addToast = () => {};
+      /*
+        delete cannot be used with non-optional parameters
+        therfore, I have made addToast a "dummy" function as per ChatGPT
+        the prior code is commented
+      */
     }
   }, [])
 
