@@ -34,6 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { profiles } from "./chat/chat-app";
 
 interface Profile {
   id: string;
@@ -60,80 +61,6 @@ interface Message {
   timestamp: number;
 }
 
-const profiles: Profile[] = [
-  {
-    id: "1",
-    name: "Alice Johnson",
-    avatar: "/placeholder.svg?height=50&width=50",
-    status: "online",
-    lastCallDate: "2023-05-15",
-    bio: "Passionate about AI and machine learning",
-    profession: "Data Scientist",
-    company: "TechCorp",
-    school: "MIT",
-    experience: 5,
-    sharedInterests: [
-      { type: "academic", name: "Machine Learning" },
-      { type: "industry", name: "AI" },
-      { type: "skill", name: "Python" },
-    ],
-    connectionType: "collaboration",
-  },
-  {
-    id: "2",
-    name: "Bob Smith",
-    avatar: "/placeholder.svg?height=50&width=50",
-    status: "away",
-    lastCallDate: "2023-05-14",
-    bio: "Experienced software engineer with a focus on web technologies",
-    profession: "Senior Software Engineer",
-    company: "WebSolutions Inc.",
-    school: "Stanford University",
-    experience: 8,
-    sharedInterests: [
-      { type: "academic", name: "Web Development" },
-      { type: "industry", name: "E-commerce" },
-      { type: "skill", name: "JavaScript" },
-    ],
-    connectionType: "mentorship",
-  },
-  {
-    id: "3",
-    name: "Charlie Brown",
-    avatar: "/placeholder.svg?height=50&width=50",
-    status: "offline",
-    lastCallDate: "2023-05-13",
-    bio: "Entrepreneur and startup enthusiast",
-    profession: "Founder & CEO",
-    company: "InnovateTech",
-    school: "Harvard Business School",
-    experience: 10,
-    sharedInterests: [
-      { type: "academic", name: "Entrepreneurship" },
-      { type: "industry", name: "Startups" },
-      { type: "skill", name: "Business Strategy" },
-    ],
-    connectionType: "b2b",
-  },
-  {
-    id: "4",
-    name: "Diana Prince",
-    avatar: "/placeholder.svg?height=50&width=50",
-    status: "online",
-    lastCallDate: "2023-05-12",
-    bio: "UX/UI designer with a passion for creating intuitive user experiences",
-    profession: "Lead UX Designer",
-    company: "DesignMasters",
-    school: "Rhode Island School of Design",
-    experience: 7,
-    sharedInterests: [
-      { type: "academic", name: "User Experience" },
-      { type: "industry", name: "Product Design" },
-      { type: "skill", name: "Figma" },
-    ],
-    connectionType: "collaboration",
-  },
-];
 
 const initialMessages: Record<string, Message[]> = {
   "1": [
@@ -170,7 +97,7 @@ const initialMessages: Record<string, Message[]> = {
 };
 
 // Generate random gradient colors for avatars
-const generateAvatarColor = (id) => {
+const generateAvatarColor = (id: string | number) => {
   // Set of vibrant gradient combinations
   const gradients = [
     { from: "from-violet-500", to: "to-purple-700", text: "text-violet-50" },
@@ -184,14 +111,21 @@ const generateAvatarColor = (id) => {
     { from: "from-fuchsia-500", to: "to-purple-600", text: "text-fuchsia-50" },
     { from: "from-yellow-400", to: "to-amber-600", text: "text-yellow-50" },
   ];
-  
+
   // Use the id to deterministically select a gradient (makes it consistent for each user)
-  const hash = parseInt(id) || String(id).split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = typeof id === 'number' ? id : (parseInt(String(id)) || String(id).split("").reduce((acc, char) => acc + char.charCodeAt(0), 0));
   return gradients[hash % gradients.length];
 };
 
+// Define the type for avatar color
+interface AvatarColor {
+  from: string;
+  to: string;
+  text: string;
+}
+
 // Build avatar colors mapping for each profile
-const avatarColors = profiles.reduce((acc, profile) => {
+const avatarColors = profiles.reduce<Record<string, AvatarColor>>((acc, profile) => {
   acc[profile.id] = generateAvatarColor(profile.id);
   return acc;
 }, {});
@@ -232,17 +166,17 @@ const ProfileList: React.FC<ProfileListProps> = ({
   });
 
   return (
-    <Card 
+    <Card
       className={`h-[600px] overflow-hidden shadow-lg transition-all duration-300 ease-in-out ${
         sidebarCollapsed ? "w-[80px]" : "w-[280px]"
       }`}
     >
       <div className="p-4 border-b dark:border-zinc-800 flex items-center justify-between">
         {!sidebarCollapsed && <h3 className="font-medium">Connections</h3>}
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="ml-auto" 
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
         >
           {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -332,7 +266,7 @@ interface ChatAppProps {
   showScheduleCall: boolean;
   showUserProfile: boolean;
   unreadCounts: Record<string, number>;
-  messagesEndRef: React.RefObject<HTMLDivElement>;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
   setActiveProfile: (profile: Profile) => void;
   setMessages: React.Dispatch<React.SetStateAction<Record<string, Message[]>>>;
   setNewMessage: (message: string) => void;
@@ -696,7 +630,7 @@ const ModernChatApp: React.FC = () => {
       <Dialog open={showUserProfile} onOpenChange={setShowUserProfile}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{activeProfile.name}'s Profile</DialogTitle>
+            <DialogTitle>`{activeProfile.name}{`'s Profile`}</DialogTitle>
           </DialogHeader>
           <UserCard {...activeProfile} />
         </DialogContent>

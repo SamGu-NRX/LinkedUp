@@ -1,9 +1,8 @@
+// src/components/onboarding/InterestsSection.tsx
 "use client";
 
 import React, { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,171 +20,152 @@ import {
   Plane,
   Plus,
 } from "lucide-react";
+import type { OnboardingFormData, InterestType } from "@/schemas/onboarding";
 
-// -------------------------------------------------------------------
-// 1. Define Types & Schema
-// -------------------------------------------------------------------
+// Mapping of iconNames to actual components for UI
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Code,
+  Palette,
+  Gamepad2,
+  Dumbbell,
+  Music,
+  Camera,
+  Book,
+  Plane,
+  Plus,
+};
 
-// Define an Interest type. Note: we use z.any() for `icon` since it’s a React component.
-const interestSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  category: z.string(),
-  icon: z.any(),
-});
-
-export type Interest = z.infer<typeof interestSchema>;
-
-// The overall form schema requires an array of interests with at least one entry.
-const interestsFormSchema = z.object({
-  interests: z
-    .array(interestSchema)
-    .min(1, "Please select at least one interest"),
-});
-
-export type InterestsFormData = z.infer<typeof interestsFormSchema>;
-
-// -------------------------------------------------------------------
-// 2. Predefined Interests & Categories
-// -------------------------------------------------------------------
-
-const predefinedInterests: Interest[] = [
+// Predefined interests
+const predefinedInterests: (Omit<InterestType, "iconName"> & {
+  icon: string;
+})[] = [
   // Tech
-  { id: "programming", name: "Programming", category: "Tech", icon: Code },
-  { id: "ai", name: "Artificial Intelligence", category: "Tech", icon: Code },
-  { id: "web-dev", name: "Web Development", category: "Tech", icon: Code },
+  { id: "programming", name: "Programming", category: "Tech", icon: "Code" },
+  { id: "ai", name: "Artificial Intelligence", category: "Tech", icon: "Code" },
+  { id: "web-dev", name: "Web Development", category: "Tech", icon: "Code" },
 
   // Art
-  { id: "drawing", name: "Drawing", category: "Art", icon: Palette },
-  { id: "painting", name: "Painting", category: "Art", icon: Palette },
-  { id: "design", name: "Design", category: "Art", icon: Palette },
+  { id: "drawing", name: "Drawing", category: "Art", icon: "Palette" },
+  { id: "painting", name: "Painting", category: "Art", icon: "Palette" },
+  { id: "design", name: "Design", category: "Art", icon: "Palette" },
 
   // Gaming
   {
     id: "video-games",
     name: "Video Games",
     category: "Gaming",
-    icon: Gamepad2,
+    icon: "Gamepad2",
   },
   {
     id: "board-games",
     name: "Board Games",
     category: "Gaming",
-    icon: Gamepad2,
+    icon: "Gamepad2",
   },
 
   // Sports
-  { id: "fitness", name: "Fitness", category: "Sports", icon: Dumbbell },
-  { id: "yoga", name: "Yoga", category: "Sports", icon: Dumbbell },
-  { id: "running", name: "Running", category: "Sports", icon: Dumbbell },
+  { id: "fitness", name: "Fitness", category: "Sports", icon: "Dumbbell" },
+  { id: "yoga", name: "Yoga", category: "Sports", icon: "Dumbbell" },
+  { id: "running", name: "Running", category: "Sports", icon: "Dumbbell" },
 
   // Music
   {
     id: "playing-music",
     name: "Playing Music",
     category: "Music",
-    icon: Music,
+    icon: "Music",
   },
-  { id: "singing", name: "Singing", category: "Music", icon: Music },
+  { id: "singing", name: "Singing", category: "Music", icon: "Music" },
 
   // Photography
   {
     id: "photography",
     name: "Photography",
     category: "Photography",
-    icon: Camera,
+    icon: "Camera",
   },
 
   // Reading
-  { id: "books", name: "Books", category: "Reading", icon: Book },
-  { id: "poetry", name: "Poetry", category: "Reading", icon: Book },
+  { id: "books", name: "Books", category: "Reading", icon: "Book" },
+  { id: "poetry", name: "Poetry", category: "Reading", icon: "Book" },
 
   // Travel
-  { id: "traveling", name: "Traveling", category: "Travel", icon: Plane },
-  { id: "backpacking", name: "Backpacking", category: "Travel", icon: Plane },
+  { id: "traveling", name: "Traveling", category: "Travel", icon: "Plane" },
+  { id: "backpacking", name: "Backpacking", category: "Travel", icon: "Plane" },
 ];
 
-// Compute the list of categories.
+// Compute the list of categories
 const categories = Array.from(
   new Set(predefinedInterests.map((interest) => interest.category)),
 );
 
-// -------------------------------------------------------------------
-// 3. Component Props & Main Component
-// -------------------------------------------------------------------
-
 interface InterestsSectionProps {
-  data: Partial<InterestsFormData>;
-  onUpdate: (data: InterestsFormData) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 export default function InterestsSection({
-  data,
-  onUpdate,
   onNext,
   onBack,
 }: InterestsSectionProps) {
-  // We use React Hook Form with our Zod schema. The default value for `interests`
-  // is either passed via props or an empty array.
   const {
-    control,
-    handleSubmit,
-    watch,
     setValue,
+    watch,
+    trigger,
     formState: { errors },
-  } = useForm<InterestsFormData>({
-    resolver: zodResolver(interestsFormSchema),
-    defaultValues: {
-      interests: data.interests || [],
-    },
-  });
+  } = useFormContext<OnboardingFormData>();
 
-  // Manage the interests array using useFieldArray.
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "interests",
-  });
-
-  // We use a separate state for the custom interest input.
+  // We use a separate state for the custom interest input
   const [customInterest, setCustomInterest] = useState("");
 
-  // Get the current interests from the form.
-  const currentInterests: Interest[] = watch("interests");
+  // Get the current interests from the form
+  const currentInterests = watch("interests");
 
-  // Toggle an interest: if already selected, remove it; otherwise, add it.
-  const handleToggleInterest = (interest: Interest) => {
+  // Toggle an interest: if already selected, remove it; otherwise, add it
+  const handleToggleInterest = (interest: any) => {
     const index = currentInterests.findIndex((i) => i.id === interest.id);
     if (index !== -1) {
-      remove(index);
+      const newInterests = [...currentInterests];
+      newInterests.splice(index, 1);
+      setValue("interests", newInterests, { shouldValidate: true });
     } else {
-      append(interest);
+      const newInterest = {
+        id: interest.id,
+        name: interest.name,
+        category: interest.category,
+        iconName: interest.icon,
+      };
+      setValue("interests", [...currentInterests, newInterest], {
+        shouldValidate: true,
+      });
     }
   };
 
-  // Add a custom interest using the custom input.
+  // Add a custom interest using the custom input
   const handleAddCustom = () => {
     if (customInterest.trim()) {
-      const newInterest: Interest = {
+      const newInterest = {
         id: `custom-${customInterest.toLowerCase().replace(/\s+/g, "-")}`,
         name: customInterest,
         category: "Custom",
-        icon: Plus,
+        iconName: "Plus",
       };
-      append(newInterest);
+      setValue("interests", [...currentInterests, newInterest], {
+        shouldValidate: true,
+      });
       setCustomInterest("");
     }
   };
 
-  // Handle form submission. If there are no interests, the schema will trigger an error.
-  const onSubmit = (formData: InterestsFormData) => {
-    onUpdate(formData);
-    onNext();
+  const handleNext = async () => {
+    const isValid = await trigger("interests");
+    if (isValid) {
+      onNext();
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Your Interests</h2>
         <p className="text-muted-foreground">
@@ -248,6 +228,7 @@ export default function InterestsSection({
                       const isSelected = currentInterests.some(
                         (i) => i.id === interest.id,
                       );
+                      const IconComponent = iconMap[interest.icon];
                       return (
                         <motion.button
                           key={interest.id}
@@ -261,7 +242,9 @@ export default function InterestsSection({
                               : "hover:bg-secondary"
                           }`}
                         >
-                          <interest.icon className="h-4 w-4" />
+                          {IconComponent && (
+                            <IconComponent className="h-4 w-4" />
+                          )}
                           <span>{interest.name}</span>
                         </motion.button>
                       );
@@ -274,7 +257,7 @@ export default function InterestsSection({
 
         {/* Display form error from Zod validation */}
         {errors.interests && (
-          <p className="text-sm text-destructive">{errors.interests.message}</p>
+          <p className="text-destructive text-sm">{errors.interests.message}</p>
         )}
       </div>
 
@@ -282,8 +265,10 @@ export default function InterestsSection({
         <Button type="button" variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button type="submit">Continue</Button>
+        <Button type="button" onClick={handleNext}>
+          Continue
+        </Button>
       </div>
-    </form>
+    </div>
   );
 }

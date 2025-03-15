@@ -1,3 +1,4 @@
+// src/components/onboarding/Congratulations.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -6,72 +7,54 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
-import { TransitionLink } from "@/utils/TransitionLink";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 
-export default function Congratulations() {
-  const { user } = useUser();
-  const router = useRouter();
+interface CongratulationsProps {
+  onComplete: () => void;
+}
 
-    useEffect(() => {
-      const updateOnboardingStatus = async () => {
-        try {
-          await user?.update({
-            unsafeMetadata: {
-              onboardingComplete: true,
-              // Add any other metadata you want to track
-            },
-          });
-          // Create a gentler confetti implementation
-          const duration = 2 * 1000; // Shorter duration
-          const end = Date.now() + duration;
+export default function Congratulations({ onComplete }: CongratulationsProps) {
+  useEffect(() => {
+    // Launch confetti effect
+    const duration = 2 * 1000;
+    const end = Date.now() + duration;
 
-          const randomInRange = (min: number, max: number) => {
-            return Math.random() * (max - min) + min;
-          };
+    const randomInRange = (min: number, max: number) => {
+      return Math.random() * (max - min) + min;
+    };
 
-          // Use a safer approach with requestAnimationFrame
-          let frame: number;
+    let frame: number;
 
-          const runConfetti = () => {
-            if (Date.now() < end) {
-              confetti({
-                particleCount: 20, // Fewer particles
-                spread: 40, // Less spread
-                origin: {
-                  x: randomInRange(0.4, 0.6), // More centered horizontally
-                  y: randomInRange(0.3, 0.5), // More centered vertically
-                },
-                gravity: 0.5, // Lower gravity for gentler falling
-                startVelocity: 15, // Lower velocity
-                scalar: 0.8, // Smaller confetti pieces
-                drift: 0, // No drift
-                ticks: 200, // Shorter lifespan for particles
-                colors: ["#4F46E5", "#10B981", "#F59E0B", "#6366F1"], // Softer colors
-              });
+    const runConfetti = () => {
+      if (Date.now() < end) {
+        confetti({
+          particleCount: 20,
+          spread: 40,
+          origin: {
+            x: randomInRange(0.4, 0.6),
+            y: randomInRange(0.3, 0.5),
+          },
+          gravity: 0.5,
+          startVelocity: 15,
+          scalar: 0.8,
+          drift: 0,
+          ticks: 200,
+          colors: ["#4F46E5", "#10B981", "#F59E0B", "#6366F1"],
+        });
 
-              // Slower animation rate
-              setTimeout(() => {
-                frame = requestAnimationFrame(runConfetti);
-              }, 300); // Longer delay between bursts
-            }
-          };
-
+        setTimeout(() => {
           frame = requestAnimationFrame(runConfetti);
+        }, 300);
+      }
+    };
 
-          return () => {
-            if (frame) {
-              cancelAnimationFrame(frame);
-            }
-          };
-        } catch (err) {
-          console.error("Error updating onboarding status:", err);
-        }
-      };
+    frame = requestAnimationFrame(runConfetti);
 
-      updateOnboardingStatus();
-    }, [user]);
+    return () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, []);
 
   return (
     <motion.div
@@ -97,9 +80,9 @@ export default function Congratulations() {
           "hey" and end with ghosting.`}
         </p>
         <div className="space-x-4">
-          <TransitionLink href="/app">
-            <Button size="lg">Start Connecting</Button>
-          </TransitionLink>
+          <Button size="lg" onClick={onComplete}>
+            Start Connecting
+          </Button>
         </div>
       </div>
     </motion.div>

@@ -1,23 +1,49 @@
+// src/components/onboarding/ProfileSummary.tsx
 "use client";
 
+import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Pencil } from "lucide-react";
+import type { OnboardingFormData } from "@/schemas/onboarding";
 
 interface ProfileSummaryProps {
-  data: any;
   onBack: () => void;
   onEdit: (step: number) => void;
   onComplete: () => void;
+  isSubmitting: boolean;
 }
 
+// List of fields for reference in the summary
+const fields = [
+  { value: "software", label: "Software Development" },
+  { value: "design", label: "Design" },
+  { value: "marketing", label: "Marketing" },
+  { value: "sales", label: "Sales" },
+  { value: "finance", label: "Finance" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "education", label: "Education" },
+  { value: "engineering", label: "Engineering" },
+  { value: "research", label: "Research" },
+  { value: "consulting", label: "Consulting" },
+  { value: "hr", label: "Human Resources" },
+  { value: "legal", label: "Legal" },
+  { value: "arts", label: "Arts & Entertainment" },
+  { value: "science", label: "Science" },
+  { value: "student", label: "Student" },
+];
+
 export default function ProfileSummary({
-  data,
   onBack,
   onEdit,
   onComplete,
+  isSubmitting,
 }: ProfileSummaryProps) {
+  const { watch } = useFormContext<OnboardingFormData>();
+
+  const data = watch();
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -181,29 +207,10 @@ export default function ProfileSummary({
         <Button type="button" variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button type="button" onClick={onComplete}>
-          Complete Profile
+        <Button type="button" onClick={onComplete} disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : "Complete Profile"}
         </Button>
       </div>
     </div>
   );
 }
-
-// List of fields for reference in the summary
-const fields = [
-  { value: "software", label: "Software Development" },
-  { value: "design", label: "Design" },
-  { value: "marketing", label: "Marketing" },
-  { value: "sales", label: "Sales" },
-  { value: "finance", label: "Finance" },
-  { value: "healthcare", label: "Healthcare" },
-  { value: "education", label: "Education" },
-  { value: "engineering", label: "Engineering" },
-  { value: "research", label: "Research" },
-  { value: "consulting", label: "Consulting" },
-  { value: "hr", label: "Human Resources" },
-  { value: "legal", label: "Legal" },
-  { value: "arts", label: "Arts & Entertainment" },
-  { value: "science", label: "Science" },
-  { value: "student", label: "Student" },
-];

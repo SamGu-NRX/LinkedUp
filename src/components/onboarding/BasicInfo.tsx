@@ -1,9 +1,8 @@
+// src/components/onboarding/BasicInfo.tsx
 "use client";
 
 import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -14,58 +13,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// -------------------------------------------------------------------
-// 1. Schema & Types
-// -------------------------------------------------------------------
-
-const basicInfoSchema = z.object({
-  age: z
-    .number({ required_error: "Age is required" })
-    .min(13, "You must be at least 13")
-    .max(100, "Age must be 100 or below"),
-  gender: z.enum(["male", "female", "non-binary", "prefer-not-to-say"], {
-    required_error: "Gender is required",
-  }),
-});
-
-export type BasicInfoFormData = z.infer<typeof basicInfoSchema>;
+import type { OnboardingFormData } from "@/schemas/onboarding";
 
 interface BasicInfoProps {
-  data: Partial<BasicInfoFormData>;
-  onUpdate: (data: BasicInfoFormData) => void;
   onNext: () => void;
 }
 
-// -------------------------------------------------------------------
-// 2. Component
-// -------------------------------------------------------------------
-
-export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
+export default function BasicInfo({ onNext }: BasicInfoProps) {
   const {
-    handleSubmit,
     setValue,
     watch,
+    trigger,
     formState: { errors },
-  } = useForm<BasicInfoFormData>({
-    resolver: zodResolver(basicInfoSchema),
-    defaultValues: {
-      age: data.age ?? 18, // default age if not set
-      gender: data.gender ?? undefined,
-    },
-  });
+  } = useFormContext<OnboardingFormData>();
 
   // Watch the age and gender values to update the UI
   const age = watch("age");
   const gender = watch("gender");
 
-  const onSubmit = (formData: BasicInfoFormData) => {
-    onUpdate(formData);
-    onNext();
+  const handleNext = async () => {
+    const isValid = await trigger(["age", "gender"]);
+    if (isValid) {
+      onNext();
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <div className="space-y-8">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Tell us about yourself</h2>
         <p className="text-muted-foreground">
@@ -90,7 +64,7 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
               {age} years old
             </p>
             {errors.age && (
-              <p className="text-sm text-destructive">{errors.age.message}</p>
+              <p className="text-destructive text-sm">{errors.age.message}</p>
             )}
           </div>
         </div>
@@ -100,7 +74,7 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
           <Label>Gender</Label>
           <Select
             value={gender}
-            onValueChange={(value: BasicInfoFormData["gender"]) =>
+            onValueChange={(value: OnboardingFormData["gender"]) =>
               setValue("gender", value, { shouldValidate: true })
             }
           >
@@ -117,14 +91,16 @@ export default function BasicInfo({ data, onUpdate, onNext }: BasicInfoProps) {
             </SelectContent>
           </Select>
           {errors.gender && (
-            <p className="text-sm text-destructive">{errors.gender.message}</p>
+            <p className="text-destructive text-sm">{errors.gender.message}</p>
           )}
         </div>
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit">Continue</Button>
+        <Button type="button" onClick={handleNext}>
+          Continue
+        </Button>
       </div>
-    </form>
+    </div>
   );
 }
