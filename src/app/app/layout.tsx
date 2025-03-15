@@ -37,9 +37,9 @@ export default function RootLayout({
   const isDark = theme === "dark";
 
   return (
-    <Providers>
-      <html lang="en" suppressHydrationWarning>
-        <body className={`${inter.className} antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} antialiased`}>
+        <Providers>
           <div className="relative flex min-h-screen flex-col">
             <header className="bg-background/80 sticky top-0 z-50 flex h-16 items-center gap-4 border-b px-6 backdrop-blur-sm transition-colors duration-300">
               <div className="relative z-10">
@@ -102,8 +102,8 @@ export default function RootLayout({
               </div>
             </div>
           </div>
-        </body>
-      </html>
-    </Providers>
+        </Providers>
+      </body>
+    </html>
   );
 }

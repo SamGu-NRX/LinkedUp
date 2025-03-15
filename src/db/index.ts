@@ -18,7 +18,7 @@ const client = postgres(connectionString, {
   max: 10, // Connection pool size
   idle_timeout: 20, // How long a connection can be idle before being removed
   connect_timeout: 10, // Connection timeout in seconds
-  prepare: false, // Use simple query protocol, disabled prefetch as it is not supported for "Transaction" pool mode
+  prepare: false, // Use simple query protocol, disable prefetch as it is not supported for "Transaction" pool mode
 });
 
 // Test the connection immediately
