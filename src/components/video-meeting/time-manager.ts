@@ -1,3 +1,4 @@
+// New utility file to handle time management
 export class TimeManager {
   private static readonly MAX_MINUTES = 20
   private static readonly TIME_INCREMENT = 5 * 60 // 5 minutes in seconds

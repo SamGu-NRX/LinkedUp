@@ -1,10 +1,11 @@
+// New component to handle PIP functionality
 "use client"
 
 import type React from "react"
 
 import { useState, useCallback } from "react"
 import type { User, ConnectionState } from "@/types/meeting"
-import { ConnectionBadge } from "../connection-badge"
+import { ConnectionBadge } from "./connection-badge"
 
 interface PipManagerProps {
   mainUser: User
