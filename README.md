@@ -3,7 +3,7 @@
 <p align="center">
   <strong>Professional connections, without the BS.</strong><br>
   The antithesis of LinkedIn – real-time, genuine professional connections via sleek UI, effective AI-powered smart matching, and live voice/video calls.<br>
-  <a href="https://devpost.com/software/linkedup-d5slpu?ref_content=user-portfolio&ref_feature=in_progress">HackTAMS 2025 Project</a>
+<!--   <a href="https://devpost.com/software/linkedup-d5slpu?ref_content=user-portfolio&ref_feature=in_progress">HackTAMS 2025 Project</a> -->
 </p>
 
 ---
