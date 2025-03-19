@@ -24,7 +24,7 @@ export default function MatchNotification({ matchData, onAccept, onDecline }: Ma
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
-      className="flex items-center justify-center bg-background/80 backdrop-blur-sm"
+      className="flex items-center justify-center bg-background/80 backdrop-blur-xs"
     >
       <div className="bg-card p-6 rounded-lg shadow-lg w-full max-w-md">
         <h2 className="text-2xl font-bold text-center mb-4">Match Found!</h2>

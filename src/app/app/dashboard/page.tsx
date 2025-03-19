@@ -45,7 +45,7 @@ export default function DashboardPage() {
           </TabsList>
 
           <TabsContent value="metrics">
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-xs">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-medium">
                   Performance Metrics
@@ -58,7 +58,7 @@ export default function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="connections">
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-xs">
               {/* <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-medium">Network</CardTitle>
               </CardHeader> */}
@@ -69,7 +69,7 @@ export default function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="profile">
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-xs">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-medium">
                   Profile Settings

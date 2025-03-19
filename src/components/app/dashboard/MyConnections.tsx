@@ -126,9 +126,9 @@ const ProfileList: React.FC<ProfileListProps> = ({
                       }));
                     }}
                   >
-                    <div className="relative flex-shrink-0">
+                    <div className="relative shrink-0">
                       <Avatar
-                        className={`bg-gradient-to-br ${avatarColors.from} ${avatarColors.to} h-9 w-9`}
+                        className={`bg-linear-to-br ${avatarColors.from} ${avatarColors.to} h-9 w-9`}
                       >
                         <AvatarFallback
                           className={`bg-transparent ${avatarColors.text} font-semibold`}
@@ -232,7 +232,7 @@ const ChatArea: React.FC<ChatAppProps> = ({
             onClick={() => setShowUserProfile(true)}
           >
             <Avatar
-              className={`bg-gradient-to-br ${avatarColors.from} ${avatarColors.to} h-9 w-9`}
+              className={`bg-linear-to-br ${avatarColors.from} ${avatarColors.to} h-9 w-9`}
             >
               <AvatarFallback
                 className={`bg-transparent ${avatarColors.text} font-semibold`}
@@ -349,7 +349,7 @@ const ChatArea: React.FC<ChatAppProps> = ({
                     onClick={() => setShowUserProfile(true)}
                   >
                     <Avatar
-                      className={`bg-gradient-to-br ${avatarColors.from} ${avatarColors.to} h-9 w-9`}
+                      className={`bg-linear-to-br ${avatarColors.from} ${avatarColors.to} h-9 w-9`}
                     >
                       <AvatarFallback
                         className={`bg-transparent ${avatarColors.text} font-semibold`}
@@ -368,7 +368,7 @@ const ChatArea: React.FC<ChatAppProps> = ({
                     className={`rounded-2xl px-4 py-2 ${
                       isUser
                         ? "bg-blue-600 text-white"
-                        : "bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800"
+                        : "bg-white shadow-xs dark:border-zinc-700 dark:bg-zinc-800"
                     }`}
                   >
                     {message.content}

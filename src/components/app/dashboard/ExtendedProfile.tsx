@@ -14,7 +14,7 @@ const ExtendedProfile: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Badges</h3>
           <div className="flex flex-wrap gap-2">
@@ -34,7 +34,7 @@ const ExtendedProfile: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Skills</h3>
           <div className="flex flex-wrap gap-2">
@@ -51,7 +51,7 @@ const ExtendedProfile: React.FC = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
-        className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
       >
         <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Privacy</h3>
         <div className="flex items-center justify-between">
@@ -67,7 +67,7 @@ const ExtendedProfile: React.FC = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.3 }}
-        className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+        className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
       >
         <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">External Links</h3>
         <div className="space-y-3">
@@ -76,7 +76,7 @@ const ExtendedProfile: React.FC = () => {
             <input 
               type="text" 
               placeholder="Personal Website" 
-              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-hidden focus:border-indigo-500"
             />
           </div>
           <div className="flex items-center">
@@ -84,7 +84,7 @@ const ExtendedProfile: React.FC = () => {
             <input 
               type="text" 
               placeholder="LinkedIn Profile" 
-              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-hidden focus:border-indigo-500"
             />
           </div>
           <div className="flex items-center">
@@ -92,7 +92,7 @@ const ExtendedProfile: React.FC = () => {
             <input 
               type="text" 
               placeholder="GitHub Profile" 
-              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1 text-sm focus:outline-hidden focus:border-indigo-500"
             />
           </div>
         </div>

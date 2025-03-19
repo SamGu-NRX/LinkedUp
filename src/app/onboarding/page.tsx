@@ -106,7 +106,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="from-background to-secondary/20 min-h-screen bg-gradient-to-b">
+    <div className="from-background to-secondary/20 min-h-screen bg-linear-to-b">
       <AnimatePresence mode="wait">
         {showCongrats ? (
           <Congratulations key="congrats" onComplete={() => router.push("/app")} />

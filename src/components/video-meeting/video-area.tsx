@@ -25,7 +25,7 @@ export function VideoArea({ activeVideo, users, speakingStates, connectionStates
         onClick={() => onVideoClick(userId)}
       >
         <div className={`absolute inset-0 ${isMain ? `bg-zinc-800` : `bg-zinc-900`}`}>{/* Video placeholder */}</div>
-        <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+        <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/50 backdrop-blur-xs px-3 py-1.5 rounded-full">
           <ConnectionBadge status={connection.status} latency={connection.latency} name={user.name} />
         </div>
       </div>

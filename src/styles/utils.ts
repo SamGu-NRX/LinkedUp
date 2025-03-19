@@ -1,5 +1,5 @@
 export const utils = {
-  gradientBg: "bg-gradient-to-b from-background to-card",
+  gradientBg: "bg-linear-to-b from-background to-card",
   cardBg: "bg-card",
   textPrimary: "text-primary-foreground",
   textSecondary: "text-secondary-foreground",

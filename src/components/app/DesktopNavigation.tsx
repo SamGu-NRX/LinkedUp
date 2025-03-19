@@ -35,7 +35,7 @@ export function DesktopNavigation() {
   const isDark = theme === "dark";
 
   return (
-    <nav className="flex h-full flex-col bg-background/50 backdrop-blur-sm transition-colors duration-300">
+    <nav className="flex h-full flex-col bg-background/50 backdrop-blur-xs transition-colors duration-300">
       <div className="space-y-4 py-6">
 
         <div className="space-y-1 px-3">
@@ -79,7 +79,7 @@ export function DesktopNavigation() {
                       <span className="text-sm font-medium">{item.name}</span>
                     </TransitionLink>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="border border-border/30 bg-background/95 backdrop-blur-sm text-black dark:text-white">
+                  <TooltipContent side="right" className="border border-border/30 bg-background/95 backdrop-blur-xs text-black dark:text-white">
                     {item.description}
                   </TooltipContent>
                 </Tooltip>
@@ -91,7 +91,7 @@ export function DesktopNavigation() {
       <div className=" mt-auto px-3 pb-5">
         <Button className="bg-zinc-200 dark:bg-zinc-900 group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200 hover:bg-gray-50 hover:text-red-600 dark:hover:bg-gray-800 dark:hover:text-red-400">
           <LogOut
-            className="mr-3 h-5 w-5 flex-shrink-0 text-gray-600 dark:text-gray-200 transition-colors duration-200 group-hover:text-red-600 dark:group-hover:text-red-400"
+            className="mr-3 h-5 w-5 shrink-0 text-gray-600 dark:text-gray-200 transition-colors duration-200 group-hover:text-red-600 dark:group-hover:text-red-400"
             aria-hidden="true"
           />
           Log out

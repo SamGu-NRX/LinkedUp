@@ -335,7 +335,7 @@ export default function VideoMeeting() {
 
           {/* Control Bar */}
           <TooltipProvider>
-            <motion.div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center space-x-3 rounded-2xl bg-zinc-900/70 p-2 shadow-xl backdrop-blur-sm">
+            <motion.div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center space-x-3 rounded-2xl bg-zinc-900/70 p-2 shadow-xl backdrop-blur-xs">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

@@ -73,7 +73,7 @@ export default function UserCard({
     <Card className="w-full max-w-md">
       <CardHeader className="flex items-center justify-between">
         <Avatar
-          className={`bg-gradient-to-br ${avatarColors.from} ${avatarColors.to} h-20 w-20`}
+          className={`bg-linear-to-br ${avatarColors.from} ${avatarColors.to} h-20 w-20`}
         >
           <AvatarFallback
             className={`bg-transparent ${avatarColors.text} font-semibold text-2xl`}

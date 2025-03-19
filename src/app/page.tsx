@@ -61,7 +61,7 @@ const MacbookScroll = () => {
   const rotateX = useTransform(scrollYProgress, [0, 0.3], [20, 0]);
 
   return (
-    <div className="flex h-[60vh] items-center justify-center overflow-hidden bg-gradient-to-b from-white to-emerald-50 md:h-[80vh] dark:from-gray-900 dark:to-gray-800">
+    <div className="flex h-[60vh] items-center justify-center overflow-hidden bg-linear-to-b from-white to-emerald-50 md:h-[80vh] dark:from-gray-900 dark:to-gray-800">
       <motion.div
         style={{
           scale,
@@ -72,7 +72,7 @@ const MacbookScroll = () => {
         }}
         className="relative w-full max-w-4xl"
       >
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-xl border-[8px] border-b-0 border-gray-800 bg-gray-900 shadow-2xl">
+        <div className="relative aspect-16/10 w-full overflow-hidden rounded-t-xl border-[8px] border-b-0 border-gray-800 bg-gray-900 shadow-2xl">
           <img
             src="landerimage.png"
             alt="App Interface Screenshot"
@@ -384,7 +384,7 @@ const LandingPage = () => {
               <h1 className="mb-6 text-5xl font-bold text-gray-900 md:text-6xl lg:text-7xl dark:text-white">
                 Professional Networking
                 <br />
-                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                <span className="bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   Without the BS.
                 </span>
               </h1>
@@ -444,7 +444,7 @@ const LandingPage = () => {
         <MacbookScroll />
 
         {/* Improved Stats Section */}
-        <section className="bg-gradient-to-b from-emerald-50 to-white py-20 dark:from-gray-800/50 dark:to-gray-900">
+        <section className="bg-linear-to-b from-emerald-50 to-white py-20 dark:from-gray-800/50 dark:to-gray-900">
           <div className="container mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -554,7 +554,7 @@ const LandingPage = () => {
         {/* Improved Social Proof Section */}
         <section
           id="testimonials"
-          className="bg-gradient-to-b from-white to-emerald-50 py-20 dark:from-gray-900 dark:to-gray-800/50"
+          className="bg-linear-to-b from-white to-emerald-50 py-20 dark:from-gray-900 dark:to-gray-800/50"
         >
           <div className="container mx-auto px-6">
             <motion.div
@@ -666,7 +666,7 @@ const LandingPage = () => {
         {/* Improved CTA Section */}
         <section
           id="pricing"
-          className="bg-gradient-to-r from-emerald-600 to-teal-600 py-20 text-white"
+          className="bg-linear-to-r from-emerald-600 to-teal-600 py-20 text-white"
         >
           <div className="container mx-auto px-6">
             <motion.div

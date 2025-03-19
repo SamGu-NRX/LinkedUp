@@ -20,7 +20,7 @@ export function TimeRequestToast({ request, onAccept, onDecline }: TimeRequestTo
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 50 }}
-        className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur-sm text-white px-4 py-3 rounded-lg shadow-lg"
+        className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur-xs text-white px-4 py-3 rounded-lg shadow-lg"
       >
         <div className="flex items-center space-x-3">
           <Clock className="w-5 h-5 text-blue-400" />

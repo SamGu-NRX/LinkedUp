@@ -105,7 +105,7 @@ const DashboardMetrics: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <div className="text-sm text-zinc-500 dark:text-zinc-400">Trust Score</div>
           <div className="text-2xl font-medium mt-1 text-emerald-500">92%</div>
@@ -115,7 +115,7 @@ const DashboardMetrics: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <div className="text-sm text-zinc-500 dark:text-zinc-400">Total Connections</div>
           <div className="text-2xl font-medium mt-1 text-indigo-500">127</div>
@@ -125,7 +125,7 @@ const DashboardMetrics: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <div className="text-sm text-zinc-500 dark:text-zinc-400">Avg. Rating</div>
           <div className="text-2xl font-medium mt-1 text-amber-500">4.7★</div>
@@ -137,7 +137,7 @@ const DashboardMetrics: React.FC = () => {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Call Statistics</h3>
           <div className="h-64">
@@ -149,7 +149,7 @@ const DashboardMetrics: React.FC = () => {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-sm"
+          className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow-xs"
         >
           <h3 className="text-sm font-medium mb-4 text-zinc-500 dark:text-zinc-400">Rating Distribution</h3>
           <div className="h-64">

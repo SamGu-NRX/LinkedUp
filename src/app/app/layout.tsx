@@ -41,7 +41,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <Providers>
           <div className="relative flex min-h-screen flex-col">
-            <header className="bg-background/80 sticky top-0 z-50 flex h-16 items-center gap-4 border-b px-6 backdrop-blur-sm transition-colors duration-300">
+            <header className="bg-background/80 sticky top-0 z-50 flex h-16 items-center gap-4 border-b px-6 backdrop-blur-xs transition-colors duration-300">
               <div className="relative z-10">
                 <Link
                   className="flex items-center gap-2 font-semibold transition-all duration-300 hover:opacity-80"
