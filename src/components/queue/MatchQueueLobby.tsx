@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import QueueStatus from "./QueueStatus"
 import UserCard from "./UserCard"
 import MatchNotification from "./MatchNotification"
-import ErrorState from "./ErrorState"
+import ErrorState from "@/components/app/ErrorState"
 import { Button } from "@/components/ui/button"
 
 interface MatchQueueLobbyProps {
