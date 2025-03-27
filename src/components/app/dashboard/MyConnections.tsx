@@ -25,7 +25,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ScheduleCallForm } from "./chat/schedule-call-form";
-import UserCard from "./chat/user-card";
+import UserCard from "@/components/app/user-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Tooltip,

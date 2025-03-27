@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import UserCard from "./UserCard";
+import UserCard from "@/components/app/user-card";
 
 interface ProfessionalQueueProps {
   userId: string;

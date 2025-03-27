@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ScheduleCallForm } from "./schedule-call-form";
-import UserCard from "./user-card";
+import UserCard from "@/components/app/user-card";
 
 // Function to generate a random gradient avatar with 80% brightness
 const generateGradientAvatar = (seed: string) => {
@@ -66,6 +66,7 @@ export const profiles: Profile[] = [
   {
     id: "1",
     name: "Alice Johnson",
+    isBot: true,
     avatar: generateGradientAvatar("alice"),
     status: "online",
     lastCallDate: "2023-05-15",
@@ -84,6 +85,7 @@ export const profiles: Profile[] = [
   {
     id: "2",
     name: "Bob Smith",
+    isBot: true,
     avatar: generateGradientAvatar("bob"),
     status: "away",
     lastCallDate: "2023-05-14",
@@ -102,6 +104,7 @@ export const profiles: Profile[] = [
   {
     id: "3",
     name: "Charlie Brown",
+    isBot: true,
     avatar: generateGradientAvatar("charlie"),
     status: "offline",
     lastCallDate: "2023-05-13",
@@ -120,6 +123,7 @@ export const profiles: Profile[] = [
   {
     id: "4",
     name: "Diana Prince",
+    isBot: true,
     avatar: generateGradientAvatar("diana"),
     status: "online",
     lastCallDate: "2023-05-12",

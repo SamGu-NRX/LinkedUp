@@ -50,17 +50,21 @@ export default function RootLayout({
                   <motion.div
                     whileHover={{ rotate: 10, scale: 1.1 }}
                     transition={{ type: "spring", stiffness: 300 }}
+                    className="relative h-9 w-9"
                   >
                     <Image
-                      src={
-                        theme === "dark"
-                          ? "/linkeduplogos/linkedupwhite.png"
-                          : "/linkeduplogos/linkedupblack.png"
-                      }
+                      src="/linkeduplogos/linkedupblack.png"
                       alt="Logo"
                       width={36}
                       height={36}
-                      className="rounded-lg shadow-md"
+                      className="rounded-lg shadow-md dark:hidden"
+                    />
+                    <Image
+                      src="/linkeduplogos/linkedupwhite.png"
+                      alt="Logo"
+                      width={36}
+                      height={36}
+                      className="hidden rounded-lg shadow-md dark:block"
                     />
                   </motion.div>
                   <motion.h1

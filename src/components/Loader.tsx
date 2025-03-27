@@ -35,9 +35,9 @@ const Loader = ({
 
   // Size mappings
   const sizeMap = {
-    sm: { container: 'h-16 w-16', ring-3: 'h-14 w-14', inner: 'h-10 w-10', text: 'text-xs' },
-    md: { container: 'h-24 w-24', ring-3: 'h-20 w-20', inner: 'h-16 w-16', text: 'text-sm' },
-    lg: { container: 'h-32 w-32', ring-3: 'h-28 w-28', inner: 'h-24 w-24', text: 'text-base' }
+    sm: { container: 'h-16 w-16', ring: 'h-14 w-14', inner: 'h-10 w-10', text: 'text-xs' },
+    md: { container: 'h-24 w-24', ring: 'h-20 w-20', inner: 'h-16 w-16', text: 'text-sm' },
+    lg: { container: 'h-32 w-32', ring: 'h-28 w-28', inner: 'h-24 w-24', text: 'text-base' }
   };
 
   // Color mappings

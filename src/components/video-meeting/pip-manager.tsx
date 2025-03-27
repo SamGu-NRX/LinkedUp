@@ -31,7 +31,7 @@ export function PipManager({ mainUser, secondaryUser, mainConnection, secondaryC
       {/* Main Video */}
       <div className="relative h-full w-full rounded-xl overflow-hidden bg-zinc-900">
         <div className="absolute bottom-4 left-4 z-10">
-          <ConnectionBadge status={mainConnection.status} latency={mainConnection.latency} />
+          <ConnectionBadge status={mainConnection.status} latency={mainConnection.latency} name={mainUser.name} />
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export function PipManager({ mainUser, secondaryUser, mainConnection, secondaryC
         <div className="relative h-full w-full">
           <div className="absolute bottom-2 left-2 z-10">
             <div className="scale-90">
-              <ConnectionBadge status={secondaryConnection.status} latency={secondaryConnection.latency} />
+              <ConnectionBadge status={secondaryConnection.status} latency={secondaryConnection.latency} name={secondaryUser.name} />
             </div>
           </div>
         </div>

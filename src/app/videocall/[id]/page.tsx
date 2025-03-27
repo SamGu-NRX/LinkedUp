@@ -28,7 +28,7 @@ import { TopBar } from "@/components/video-meeting/top-bar";
 import { VideoArea } from "@/components/video-meeting/video-area";
 import { ChatDialog } from "@/components/video-meeting/chat-dialog";
 import { EndCallDialog } from "@/components/video-meeting/end-call-dialog";
-import { UserCard } from "@/components/video-meeting/user-card";
+import UserCard from "@/components/app/user-card";
 import {
   MOCK_USERS,
   MOCK_SPEAKING_STATES,
@@ -38,6 +38,9 @@ import {
 import { TimeManager } from "@/components/video-meeting/time-manager";
 import { SettingsDialog } from "@/components/video-meeting/settings-dialog";
 import { ToastContainer } from "@/components/video-meeting/toast";
+
+
+// FIGURE OUT HOW TO BUILD REAL-TIME
 
 const userInterests = {
   user1: ["photography", "travel", "tech startups", "AI", "blockchain"],
@@ -227,7 +230,26 @@ export default function VideoMeeting() {
               className="sidebar z-10 flex w-72 flex-col space-y-4 border-r border-zinc-800 bg-zinc-900/70 p-4 backdrop-blur-lg"
             >
               {/* User Card */}
-              <UserCard user={MOCK_USERS.partner} />
+              <UserCard
+                name={MOCK_USERS.partner.name}
+                avatar={MOCK_USERS.partner.avatar}
+                bio="" // You may not have this in meeting context
+                profession={MOCK_USERS.partner.role}
+                company={MOCK_USERS.partner.company}
+                school="" // You may not have this in meeting context
+                experience={0} // You may not have this in meeting context
+                sharedInterests={[]} // You may not have this in meeting context
+                connectionType="collaboration"
+                inMeeting={true}
+                meetingStats={MOCK_USERS.partner.meetingStats}
+                interests={MOCK_USERS.partner.interests}
+                connectionStatus={
+                  MOCK_CONNECTION_STATES[MOCK_USERS.partner.id] || "good"
+                }
+                isSpeaking={
+                  MOCK_SPEAKING_STATES[MOCK_USERS.partner.id] || false
+                }
+              />
               {/* Compact Prompts Card */}
               <Card className="border-none bg-zinc-800/30 shadow-lg">
                 <CardContent className="p-3">

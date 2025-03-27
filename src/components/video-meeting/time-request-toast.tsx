@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { TimeRequest } from "@/types/meeting"
+import { Toaster } from "sonner";
 
 interface TimeRequestToastProps {
   request: TimeRequest | null
@@ -46,9 +47,6 @@ export function TimeRequestToast({ request, onAccept, onDecline }: TimeRequestTo
     </AnimatePresence>
   )
 }
-
-import { Toaster } from "sonner"
-import { Clock } from "lucide-react"
 
 interface TimeRequestNotificationProps {
   message: string

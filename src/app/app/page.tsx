@@ -122,7 +122,7 @@ export default function HomePage() {
                   Choose your connection type and start matching!
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6">
+              <CardContent className="space-y-8 pt-2">
                 <motion.div
                   variants={container}
                   initial="hidden"

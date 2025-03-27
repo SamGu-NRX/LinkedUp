@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import QueueStatus from "./QueueStatus"
-import UserCard from "./UserCard"
+import UserCard from "@/components/app/user-card";
 import MatchNotification from "./MatchNotification"
 import ErrorState from "@/components/app/ErrorState"
 import { Button } from "@/components/ui/button"

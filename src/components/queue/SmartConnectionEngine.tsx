@@ -112,7 +112,7 @@ export default function SmartConnectionEngine({
             className="text-center"
           >
             <QueueStatus
-              queueType={queueType}
+              queueType={queueType === "professional" ? "formal" : "casual"}
               estimatedWaitTime={estimatedWaitTime}
             />
             <Button onClick={onLeaveQueue} variant="outline" className="mt-4">
