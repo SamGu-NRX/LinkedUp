@@ -83,7 +83,7 @@ A clean, distraction-free environment that lets you focus on building meaningful
 ```
 
 ### Hosting
-- **Front-End** deployed on **Vercel**  
+- **Front-End** deployed on **Vercel**
 - **Back-End** deployed on **Render**
 
 ---
@@ -100,12 +100,12 @@ Before you begin, ensure you have met the following requirements:
 
 1. **Clone** the repo:
    ```bash
-   git clone https://github.com/yourusername/linkedup.git
+   git clone https://github.com/SamGu-NRX/linkedup.git
    cd linkedup
    ```
 2. **Install dependencies** (using Turborepo + workspaces):
    ```bash
-   npm install
+   pnpm install --recursive
    ```
 3. **Setup environment variables** for each app (web, backend):
    - E.g., `.env.local` for Next.js, `.env` for FastAPI, with your Supabase keys, Clerk keys, etc.
@@ -175,8 +175,8 @@ We employ a combination of **xgBoost** (for our “PTM” pipeline) and vector-b
 ---
 
 <p align="center">
-  <a href="https://nextjs.org/">Next.js</a> • 
-  <a href="https://reactjs.org/">React</a> • 
-  <a href="https://clerk.dev/">Clerk</a> • 
+  <a href="https://nextjs.org/">Next.js</a> •
+  <a href="https://reactjs.org/">React</a> •
+  <a href="https://clerk.dev/">Clerk</a> •
   <a href="https://getstream.io/">Stream</a>
 </p>
