@@ -450,11 +450,14 @@ const ModernChatApp: React.FC = () => {
 
       {/* User Profile Modal */}
       <Dialog open={showUserProfile} onOpenChange={setShowUserProfile}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-900 p-4" aria-describedby="user-profile-dialog-description">
           <DialogHeader>
-            <DialogTitle>User Profile</DialogTitle>
+            <DialogTitle>{activeProfile.name}'s Profile</DialogTitle>
+            <DialogDescription id="user-profile-dialog-description">
+              Detailed information about {activeProfile.name}.
+            </DialogDescription>
           </DialogHeader>
-          <UserCard {...activeProfile} />
+          <UserCard user={activeProfile} forceVisible={true} />
         </DialogContent>
       </Dialog>
     </div>
