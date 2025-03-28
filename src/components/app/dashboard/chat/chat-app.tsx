@@ -39,7 +39,7 @@ const generateGradientAvatar = (seed: string) => {
 interface Profile {
   id: string;
   name: string;
-  avatar: string;
+  avatar: string | null; // Changed from string to string | null to match UserCardProps
   status: "online" | "away" | "offline";
   lastCallDate: string;
   bio: string;
@@ -52,6 +52,7 @@ interface Profile {
     name: string;
   }>;
   connectionType: "b2b" | "collaboration" | "mentorship" | "investment";
+  isBot?: boolean; // Added isBot property
 }
 
 interface Message {
@@ -67,7 +68,7 @@ export const profiles: Profile[] = [
     id: "1",
     name: "Alice Johnson",
     isBot: true,
-    avatar: generateGradientAvatar("alice"),
+    avatar: null,
     status: "online",
     lastCallDate: "2023-05-15",
     bio: "Passionate about AI and machine learning",
@@ -86,7 +87,7 @@ export const profiles: Profile[] = [
     id: "2",
     name: "Bob Smith",
     isBot: true,
-    avatar: generateGradientAvatar("bob"),
+    avatar: null,
     status: "away",
     lastCallDate: "2023-05-14",
     bio: "Experienced software engineer with a focus on web technologies",
@@ -105,7 +106,7 @@ export const profiles: Profile[] = [
     id: "3",
     name: "Charlie Brown",
     isBot: true,
-    avatar: generateGradientAvatar("charlie"),
+    avatar: null,
     status: "offline",
     lastCallDate: "2023-05-13",
     bio: "Entrepreneur and startup enthusiast",
@@ -124,7 +125,7 @@ export const profiles: Profile[] = [
     id: "4",
     name: "Diana Prince",
     isBot: true,
-    avatar: generateGradientAvatar("diana"),
+    avatar: null,
     status: "online",
     lastCallDate: "2023-05-12",
     bio: "UX/UI designer with a passion for creating intuitive user experiences",
