@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import QueueStatus from "./QueueStatus"
-import UserCard from "./UserCard"
+import UserCard from "@/components/app/user-card";
 import MatchNotification from "./MatchNotification"
-import ErrorState from "./ErrorState"
+import ErrorState from "@/components/app/ErrorState"
 import { Button } from "@/components/ui/button"
 
 interface MatchQueueLobbyProps {
@@ -72,7 +72,7 @@ export default function MatchQueueLobby({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-b from-background to-secondary/20 p-4">
       <AnimatePresence mode="wait">
         {queueStatus === "searching" && (
           <motion.div

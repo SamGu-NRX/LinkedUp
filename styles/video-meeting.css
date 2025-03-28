@@ -1,0 +1,75 @@
+.sidebar {
+  transition: transform 0.2s ease-out;
+}
+
+.main-content {
+  transition: margin-left 0.2s ease-out;
+}
+
+.sidebar-enter {
+  transform: translateX(-100%);
+}
+
+.sidebar-enter-active {
+  transform: translateX(0);
+}
+
+.sidebar-exit {
+  transform: translateX(0);
+}
+
+.sidebar-exit-active {
+  transform: translateX(-100%);
+}
+
+.sidebar-transition {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-content-transition {
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.connection-badge {
+  transition: opacity 0.2s ease;
+}
+
+.connection-badge-dot {
+  transition: background-color 0.2s ease;
+}
+
+.toast-enter {
+  animation: slideIn 0.2s ease forwards;
+}
+
+.toast-exit {
+  animation: slideOut 0.2s ease forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Remove default focus styles and add custom ones */
+.focus-ring {
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900;
+}
+

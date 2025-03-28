@@ -1,34 +1,54 @@
-// db/schema.ts
+// src/db/schema.ts
+import { relations } from "drizzle-orm";
 import {
   pgTable,
+  serial,
+  uuid,
+  varchar,
   text,
   integer,
-  timestamp,
   boolean,
-  varchar,
-  uuid,
+  timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(), // Use Supabase's uuid generation
-  // Authentication-related fields:
-  email: text("email").notNull(),
-  fullName: text("full_name").notNull(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  imageUrl: text("image_url"),
-
-  // Additional profile fields (fields are nullable by default if you don't chain .notNull())
+  id: serial("id").primaryKey(),
+  clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull(),
+  age: integer("age"),
+  gender: varchar("gender", { length: 20 }),
+  field: varchar("field", { length: 100 }),
+  jobTitle: varchar("job_title", { length: 100 }),
+  company: varchar("company", { length: 100 }),
+  linkedinUrl: varchar("linkedin_url", { length: 255 }),
   bio: text("bio"),
-  field: varchar("field", { length: 255 }),
-  jobTitle: varchar("job_title", { length: 255 }),
-  company: varchar("company", { length: 255 }),
-  linkedinUrl: varchar("linkedin_url", { length: 512 }),
-  resumeUrl: varchar("resume_url", { length: 512 }),
-  interests: text("interests"),
-  score: integer("score").default(0).notNull(),
-  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  onboardingComplete: boolean("onboarding_complete").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const interests = pgTable("interests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  name: varchar("name", { length: 100 }).notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  iconName: varchar("icon_name", { length: 50 }),
+  customId: varchar("custom_id", { length: 100 }),
+});
+
+export const userRelations = relations(users, ({ many }) => ({
+  interests: many(interests),
+}));
+
+export const interestRelations = relations(interests, ({ one }) => ({
+  user: one(users, {
+    fields: [interests.userId],
+    references: [users.id],
+  }),
+}));
 
 export const meetings = pgTable("meetings", {
   id: uuid("id").primaryKey().defaultRandom(),

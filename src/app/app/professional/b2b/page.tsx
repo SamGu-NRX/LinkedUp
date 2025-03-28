@@ -11,7 +11,7 @@ export default function B2BNetworkingPage() {
   const description = searchParams.get("description") || ""
 
   const handleLeaveQueue = () => {
-    router.push("/app/dashboard")
+    router.push("/app")
   }
 
   const handleAcceptMatch = (matchId: string) => {

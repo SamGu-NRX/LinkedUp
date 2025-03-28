@@ -1,9 +1,8 @@
+// src/components/onboarding/ProfessionalInfo.tsx
 "use client";
 
 import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/shadcn";
+import type { OnboardingFormData } from "@/schemas/onboarding";
 
 // Define available fields
 const fields = [
@@ -41,57 +41,41 @@ const fields = [
   { value: "student", label: "Student" },
 ] as const;
 
-// Define the Zod schema for our form.
-// Fields like linkedinUrl are optional and use a transform to convert nullish values to undefined.
-const professionalInfoSchema = z.object({
-  field: z.string().nonempty("Field is required"),
-  jobTitle: z.string().nonempty("Job title is required"),
-  company: z.string().nonempty("Company is required"),
-  linkedinUrl: z
-    .string()
-    .url("Invalid URL")
-    .optional()
-    .nullable()
-    .transform((val) => val ?? undefined),
-});
-
-export type ProfessionalInfoFormData = z.infer<typeof professionalInfoSchema>;
-
-interface ProfessionalInfoFormProps {
-  data: Partial<ProfessionalInfoFormData>;
-  onUpdate: (data: ProfessionalInfoFormData) => void;
+interface ProfessionalInfoProps {
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function ProfessionalInfoForm({
-  data,
-  onUpdate,
+export default function ProfessionalInfo({
   onNext,
   onBack,
-}: ProfessionalInfoFormProps) {
-  // Initialize react-hook-form with Zod schema validation.
+}: ProfessionalInfoProps) {
   const {
     register,
-    handleSubmit,
     setValue,
+    watch,
+    trigger,
     formState: { errors },
-  } = useForm<ProfessionalInfoFormData>({
-    resolver: zodResolver(professionalInfoSchema),
-    defaultValues: data,
-  });
+  } = useFormContext<OnboardingFormData>();
 
   // Popover state for the field selection dropdown.
   const [open, setOpen] = React.useState(false);
+  const selectedField = watch("field");
 
-  const onSubmit = (formData: ProfessionalInfoFormData) => {
-    // formData already has the proper types and transformations applied.
-    onUpdate(formData);
-    onNext();
+  const handleNext = async () => {
+    const isValid = await trigger([
+      "field",
+      "jobTitle",
+      "company",
+      "linkedinUrl",
+    ]);
+    if (isValid) {
+      onNext();
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Professional Information</h2>
         <p className="text-muted-foreground">
@@ -110,8 +94,8 @@ export default function ProfessionalInfoForm({
                   aria-expanded={open}
                   className="w-full justify-between"
                 >
-                  {data.field
-                    ? fields.find((f) => f.value === data.field)?.label
+                  {selectedField
+                    ? fields.find((f) => f.value === selectedField)?.label
                     : "Select field..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -125,14 +109,16 @@ export default function ProfessionalInfoForm({
                       <CommandItem
                         key={fieldItem.value}
                         onSelect={() => {
-                          setValue("field", fieldItem.value);
+                          setValue("field", fieldItem.value, {
+                            shouldValidate: true,
+                          });
                           setOpen(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            data.field === fieldItem.value
+                            selectedField === fieldItem.value
                               ? "opacity-100"
                               : "opacity-0",
                           )}
@@ -145,7 +131,7 @@ export default function ProfessionalInfoForm({
               </PopoverContent>
             </Popover>
             {errors.field && (
-              <p className="text-sm text-destructive">{errors.field.message}</p>
+              <p className="text-destructive text-sm">{errors.field.message}</p>
             )}
           </div>
 
@@ -158,7 +144,7 @@ export default function ProfessionalInfoForm({
               className={errors.jobTitle ? "border-destructive" : ""}
             />
             {errors.jobTitle && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 {errors.jobTitle.message}
               </p>
             )}
@@ -173,7 +159,7 @@ export default function ProfessionalInfoForm({
               className={errors.company ? "border-destructive" : ""}
             />
             {errors.company && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 {errors.company.message}
               </p>
             )}
@@ -181,18 +167,31 @@ export default function ProfessionalInfoForm({
 
           {/* LinkedIn URL (Optional) */}
           <div className="space-y-2">
-            <Label>LinkedIn URL (Optional)</Label>
-            <Input
-              {...register("linkedinUrl")}
-              placeholder="https://linkedin.com/in/username"
-              type="url"
-              className={errors.linkedinUrl ? "border-destructive" : ""}
-            />
+            <Label>LinkedIn Username (Optional)</Label>
+            <div className="flex items-center">
+              <div className="bg-muted text-muted-foreground border-input rounded-l-md border border-r-0 px-3 py-2">
+                linkedin.com/in/
+              </div>
+              <Input
+                {...register("linkedinUrl", {
+                  setValueAs: (value) =>
+                    value ? `https://linkedin.com/in/${value}` : undefined,
+                })}
+                placeholder="username"
+                className={cn(
+                  "rounded-l-none",
+                  errors.linkedinUrl ? "border-destructive" : "",
+                )}
+              />
+            </div>
             {errors.linkedinUrl && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 {errors.linkedinUrl.message}
               </p>
             )}
+            <p className="text-muted-foreground text-xs">
+              Enter just your username, not the full URL
+            </p>
           </div>
         </div>
       </div>
@@ -201,8 +200,10 @@ export default function ProfessionalInfoForm({
         <Button type="button" variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button type="submit">Continue</Button>
+        <Button type="button" onClick={handleNext}>
+          Continue
+        </Button>
       </div>
-    </form>
+    </div>
   );
 }

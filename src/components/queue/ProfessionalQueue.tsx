@@ -1,20 +1,27 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import UserCard from "./UserCard"
+import React, { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import UserCard from "@/components/app/user-card";
 
 interface ProfessionalQueueProps {
-  userId: string
-  connectionType: "b2b" | "collaboration" | "mentorship" | "investment"
-  purpose: string
-  description: string
-  onLeaveQueue: () => void
-  onAcceptMatch: (matchId: string) => void
-  onDeclineMatch: (matchId: string) => void
-  onScheduleCall: (userId: string) => void
+  userId: string;
+  connectionType: "b2b" | "collaboration" | "mentorship" | "investment";
+  purpose: string;
+  description: string;
+  onLeaveQueue: () => void;
+  onAcceptMatch: (matchId: string) => void;
+  onDeclineMatch: (matchId: string) => void;
+  onScheduleCall: (userId: string) => void;
 }
 
 const professionalTips = {
@@ -38,7 +45,7 @@ const professionalTips = {
     "Be prepared to discuss your business model, market opportunity, and financial projections.",
     "Research the investor's portfolio and investment thesis before the call.",
   ],
-}
+};
 
 export default function ProfessionalQueue({
   userId,
@@ -50,23 +57,25 @@ export default function ProfessionalQueue({
   onDeclineMatch,
   onScheduleCall,
 }: ProfessionalQueueProps) {
-  const [queueStatus, setQueueStatus] = useState<"searching" | "match_found" | "no_live_matches">("searching")
-  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(300) // 5 minutes in seconds
-  const [matchData, setMatchData] = useState<any>(null)
-  const [recommendedProfiles, setRecommendedProfiles] = useState<any[]>([])
-  const [currentTip, setCurrentTip] = useState(0)
+  const [queueStatus, setQueueStatus] = useState<
+    "searching" | "match_found" | "no_live_matches"
+  >("searching");
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(300); // 5 minutes in seconds
+  const [matchData, setMatchData] = useState<any>(null);
+  const [recommendedProfiles, setRecommendedProfiles] = useState<any[]>([]);
+  const [currentTip, setCurrentTip] = useState(0);
 
   useEffect(() => {
     // Simulating queue updates
     const timer = setInterval(() => {
-      setEstimatedWaitTime((prev) => Math.max(0, prev - 1))
-    }, 1000)
+      setEstimatedWaitTime((prev) => Math.max(0, prev - 1));
+    }, 1000);
 
     // Simulating a match found or no live matches after 20 seconds
     const matchTimer = setTimeout(() => {
-      const randomOutcome = Math.random()
+      const randomOutcome = Math.random();
       if (randomOutcome < 0.7) {
-        setQueueStatus("match_found")
+        setQueueStatus("match_found");
         setMatchData({
           id: "match123",
           name: "Jane Doe",
@@ -81,9 +90,9 @@ export default function ProfessionalQueue({
             { type: "skill", name: "Python" },
             { type: "academic", name: "Computer Science" },
           ],
-        })
+        });
       } else {
-        setQueueStatus("no_live_matches")
+        setQueueStatus("no_live_matches");
         setRecommendedProfiles([
           {
             id: "user1",
@@ -101,21 +110,23 @@ export default function ProfessionalQueue({
             ],
           },
           // Add more recommended profiles here
-        ])
+        ]);
       }
-    }, 20000)
+    }, 20000);
 
     // Rotate tips every 10 seconds
     const tipRotationTimer = setInterval(() => {
-      setCurrentTip((prev) => (prev + 1) % professionalTips[connectionType].length)
-    }, 10000)
+      setCurrentTip(
+        (prev) => (prev + 1) % professionalTips[connectionType].length,
+      );
+    }, 10000);
 
     return () => {
-      clearInterval(timer)
-      clearTimeout(matchTimer)
-      clearInterval(tipRotationTimer)
-    }
-  }, [connectionType])
+      clearInterval(timer);
+      clearTimeout(matchTimer);
+      clearInterval(tipRotationTimer);
+    };
+  }, [connectionType]);
 
   const renderQueueStatus = () => {
     switch (queueStatus) {
@@ -136,7 +147,7 @@ export default function ProfessionalQueue({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
-                className="text-sm text-muted-foreground"
+                className="text-muted-foreground text-sm"
               >
                 {professionalTips[connectionType][currentTip]}
               </motion.p>
@@ -145,7 +156,7 @@ export default function ProfessionalQueue({
                 <p>{purpose}</p>
                 {description && (
                   <>
-                    <h4 className="font-semibold mt-2">Additional Details:</h4>
+                    <h4 className="mt-2 font-semibold">Additional Details:</h4>
                     <p>{description}</p>
                   </>
                 )}
@@ -157,35 +168,51 @@ export default function ProfessionalQueue({
               </Button>
             </CardFooter>
           </Card>
-        )
+        );
       case "match_found":
         return (
           <Card>
             <CardHeader>
               <CardTitle>Match Found!</CardTitle>
-              <CardDescription>Review the profile and decide if you'd like to connect.</CardDescription>
+              <CardDescription>
+                {`Review the profile and decide if you'd like to connect.`}
+              </CardDescription>
             </CardHeader>
-            <CardContent>{matchData && <UserCard {...matchData} connectionType={connectionType} />}</CardContent>
+            <CardContent>
+              {matchData && (
+                <UserCard {...matchData} connectionType={connectionType} />
+              )}
+            </CardContent>
             <CardFooter className="flex justify-between">
-              <Button onClick={() => onDeclineMatch(matchData.id)} variant="outline">
+              <Button
+                onClick={() => onDeclineMatch(matchData.id)}
+                variant="outline"
+              >
                 Decline
               </Button>
-              <Button onClick={() => onAcceptMatch(matchData.id)}>Accept</Button>
+              <Button onClick={() => onAcceptMatch(matchData.id)}>
+                Accept
+              </Button>
             </CardFooter>
           </Card>
-        )
+        );
       case "no_live_matches":
         return (
           <Card>
             <CardHeader>
               <CardTitle>No Live Matches Available</CardTitle>
-              <CardDescription>We've found some recommended profiles for you to connect with.</CardDescription>
+              <CardDescription>
+                {`We've found some recommended profiles for you to connect with.`}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {recommendedProfiles.map((profile) => (
                 <div key={profile.id} className="mb-4">
                   <UserCard {...profile} connectionType={connectionType} />
-                  <Button onClick={() => onScheduleCall(profile.id)} className="mt-2">
+                  <Button
+                    onClick={() => onScheduleCall(profile.id)}
+                    className="mt-2"
+                  >
                     Schedule Call
                   </Button>
                 </div>
@@ -197,13 +224,15 @@ export default function ProfessionalQueue({
               </Button>
             </CardFooter>
           </Card>
-        )
+        );
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">{getConnectionTypeTitle(connectionType)}</h1>
+      <h1 className="mb-6 text-3xl font-bold">
+        {getConnectionTypeTitle(connectionType)}
+      </h1>
       <AnimatePresence mode="wait">
         <motion.div
           key={queueStatus}
@@ -216,21 +245,22 @@ export default function ProfessionalQueue({
         </motion.div>
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
-function getConnectionTypeTitle(type: "b2b" | "collaboration" | "mentorship" | "investment") {
+function getConnectionTypeTitle(
+  type: "b2b" | "collaboration" | "mentorship" | "investment",
+) {
   switch (type) {
     case "b2b":
-      return "B2B Networking"
+      return "B2B Networking";
     case "collaboration":
-      return "Find Collaborators"
+      return "Find Collaborators";
     case "mentorship":
-      return "Mentorship Connection"
+      return "Mentorship Connection";
     case "investment":
-      return "Investment Opportunities"
+      return "Investment Opportunities";
     default:
-      return "Professional Connection"
+      return "Professional Connection";
   }
 }
-
