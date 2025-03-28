@@ -1,4 +1,7 @@
-// avatar-utils.ts
+// @/lib/avatar-utils.ts (assuming path)
+
+import type { ConnectionStatus, UserInfo } from "@/types/user"; // Import types
+
 export interface AvatarColor {
   from: string;
   to: string;
@@ -29,8 +32,7 @@ export const generateAvatarColor = (id: string | number): AvatarColor => {
   const hash =
     typeof id === "number"
       ? id
-      : parseInt(String(id), 10) ||
-        String(id)
+      : String(id)
           .split("")
           .reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
@@ -38,78 +40,7 @@ export const generateAvatarColor = (id: string | number): AvatarColor => {
 };
 
 /**
- * Generate an SVG data URL for avatars with gradient backgrounds
- * @param seed - String used to generate a deterministic gradient
- * @returns SVG data URL with gradient background
- */
-export const generateAvatarDataUrl = (seed: string | number): string => {
-  // Get consistent gradient colors from our existing utility
-  const avatarColors = generateAvatarColor(seed);
-
-  // Extract color values from Tailwind class names
-  const fromColor = getTailwindColor(avatarColors.from);
-  const toColor = getTailwindColor(avatarColors.to);
-
-  // Generate a deterministic angle based on seed
-  const seedHash =
-    typeof seed === "number"
-      ? seed
-      : String(seed)
-          .split("")
-          .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const angle = seedHash % 360;
-
-  return `data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3ClinearGradient id='g' gradientTransform='rotate(${angle})'%3E%3Cstop offset='0%25' stop-color='%23${fromColor}'/%3E%3Cstop offset='100%25' stop-color='%23${toColor}'/%3E%3C/linearGradient%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3C/svg%3E`;
-};
-
-/**
- * Get initials from a name
- * @param name - Full name of the user
- * @returns Uppercase initials
- */
-export const getInitials = (name: string): string => {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
-};
-
-/**
- * Format timestamp to readable time
- * @param timestamp - Timestamp in milliseconds
- * @returns Formatted time string (HH:MM)
- */
-export const formatTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-/**
- * Get status indicator color based on user status
- * @param status - User status
- * @returns Tailwind CSS class for the appropriate color
- */
-export const getStatusColor = (
-  status: "online" | "away" | "offline",
-): string => {
-  switch (status) {
-    case "online":
-      return "bg-emerald-500";
-    case "away":
-      return "bg-amber-400";
-    case "offline":
-      return "bg-gray-400";
-    default:
-      return "bg-gray-400";
-  }
-};
-
-/**
- * Convert a Tailwind color class to a hex color value
- * This is a simplified implementation - you may need to expand it based on your color palette
+ * Convert a Tailwind color class to a hex color value (simplified)
  */
 function getTailwindColor(tailwindClass: string): string {
   // Extract the color name and shade from class like "from-blue-500"
@@ -118,8 +49,7 @@ function getTailwindColor(tailwindClass: string): string {
 
   const [, color, shade] = matches;
 
-  // Mapping of Tailwind colors to their hex values
-  // This is a simplified mapping - you may need to expand it
+  // Simplified mapping - expand as needed for your project's palette
   const colorMap: Record<string, Record<string, string>> = {
     violet: {
       "500": "8b5cf6",
@@ -176,5 +106,86 @@ function getTailwindColor(tailwindClass: string): string {
     },
   };
 
-  return colorMap[color]?.[shade] || "6366f1"; // Default to indigo-500 if not found
+  return colorMap[color]?.[shade] || "6366f1"; // Default
 }
+
+/**
+ * Generate an SVG data URL for avatars with gradient backgrounds
+ * @param seed - String or number used to generate a deterministic gradient (e.g., user ID)
+ * @returns SVG data URL string
+ */
+export const generateAvatarDataUrl = (seed: string | number): string => {
+  const avatarColors = generateAvatarColor(seed);
+  const fromColor = getTailwindColor(avatarColors.from);
+  const toColor = getTailwindColor(avatarColors.to);
+
+  const seedHash =
+    typeof seed === "number"
+      ? seed
+      : String(seed)
+          .split("")
+          .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const angle = seedHash % 360;
+
+  // Use encodeURIComponent for color values in the URL
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <linearGradient id='g' gradientTransform='rotate(${angle})'>
+      <stop offset='0%' stop-color='#${encodeURIComponent(fromColor)}'/>
+      <stop offset='100%' stop-color='#${encodeURIComponent(toColor)}'/>
+    </linearGradient>
+    <rect width='100' height='100' fill='url(%23g)'/>
+  </svg>`;
+
+  return `data:image/svg+xml;charset=utf8,${encodeURIComponent(svg)}`;
+};
+
+/**
+ * Get initials from a name
+ * @param name - Full name of the user
+ * @returns Uppercase initials (max 2 chars)
+ */
+export const getInitials = (name: string): string => {
+  if (!name) return "?";
+  const parts = name.split(" ").filter(Boolean); // Filter out empty strings
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+/**
+ * Format timestamp to readable time
+ * @param timestamp - Timestamp in milliseconds
+ * @returns Formatted time string (HH:MM) or empty string if invalid
+ */
+export const formatTime = (timestamp: number): string => {
+  if (isNaN(timestamp)) return "";
+  try {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch (e) {
+    console.error("Error formatting time:", e);
+    return "";
+  }
+};
+
+/**
+ * Get status indicator color based on user connection status
+ * @param status - User connection status
+ * @returns Tailwind CSS background color class
+ */
+export const getStatusColor = (
+  status: ConnectionStatus | undefined | null,
+): string => {
+  switch (status) {
+    case "online":
+      return "bg-emerald-500"; // Use a slightly different green for better visibility
+    case "away":
+      return "bg-amber-400";
+    case "offline":
+      return "bg-gray-500"; // Use a slightly darker gray
+    default:
+      return "bg-gray-400"; // Default/fallback color
+  }
+};
