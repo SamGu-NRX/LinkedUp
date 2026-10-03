@@ -13,7 +13,7 @@
 title: LinkedUp
 kind: project
 date: 2025-02
-line: LinkedIn, minus the bots. LinkedUp pairs you by shared interests and drops you both into a live video call.
+line: LinkedIn, minus the bots. LinkedUp matches you on what your interests mean, then puts you both on a video call.
 award: 2nd overall, iSTEM@Stevens Hacks
 badge: 2nd
 stack: [Next.js, FastAPI, pgvector]
@@ -24,25 +24,28 @@ links:
     href: https://github.com/SamGu-NRX/LinkedUp
 ---
 
-LinkedUp pairs people by what they’re interested in, then opens a live voice and video room so they can talk right away. It embeds each person’s interests with pgvector and matches people whose answers sit close together, not people whose job titles match, and an LLM suggests the first question. I led the five-person team, and it placed second overall at iSTEM@Stevens Hacks 2025.
+LinkedUp is networking without the feed. You pick your interests, and it puts you on a video call with the person whose interests mean the closest thing to yours, even when you each name them differently. Doing that live, with real calls, was the hard part. I led the five-person team, we piloted it with more than 40 users, and it placed second overall at iSTEM@Stevens Hacks 2025.
 
-We built it out of frustration with LinkedIn: cluttered interfaces, bot-filled interactions and networking that felt unproductive. The fix we wanted was blunt. Skip the endless text exchanges and put two people who should talk into a call together.
+## Why we built it
 
-Matching works on meaning rather than keywords. Each person’s interests become an OpenAI embedding stored in Postgres with pgvector, and the matcher pairs people whose vectors sit close together. That way, two people can match even when they describe the same interest in different words.
+We built it out of frustration with LinkedIn: cluttered screens, bots everywhere, and networking that rarely turned into a conversation. Our answer was blunt. Skip the message thread and put two people who should talk on a call.
 
-Once two people match, Stream opens the voice and video room. An LLM writes a conversation prompt to open with, so the call doesn’t start with two people waiting for the other to speak. Clerk handles sign-in and onboarding, and Supabase holds the data.
+## What you get
+
+- **A match on meaning, not keywords.** Your interests become an OpenAI embedding stored in Postgres with pgvector, and the matcher pairs the closest ones.
+- **A call, not a thread.** Once you match, Stream opens a voice and video room for the two of you.
+- **Something to say first.** The call shows discussion prompts drawn from both people’s interests, so neither of you waits for the other to start.
 
 ## How it’s put together
 
-We built it as a Turborepo monorepo with two apps:
+- A Turborepo monorepo with two apps: a Next.js front end with Tailwind and shadcn/ui on Vercel, and a FastAPI backend in Python on Render.
+- Clerk for sign-in and onboarding, and Supabase for the data.
+- Shipped in Docker with CI/CD.
 
-- a Next.js front end with Tailwind and shadcn/ui, deployed on Vercel;
-- a FastAPI backend in Python, deployed on Render.
-
-We shipped it in Docker with CI/CD. The public repository holds the Next.js app, including the onboarding flow and the video call, and I wrote most of the code in it.
+The public repository holds the Next.js app, including onboarding and the call, and I wrote most of its code.
 
 ## The pilot
 
-We ran a pilot with more than 40 users, and match satisfaction came in 140% higher.
+A pilot with more than 40 users showed 140% higher match satisfaction.
 
-The list of what we’d build next is still open in the README. It includes meeting modes beyond one-on-one networking, such as B2B meetings and mentor sessions, better matching models, and machine-learning moderation to keep the community safe. None of that is built yet.
+The README’s list of what comes next is still open: meeting modes beyond one-on-one networking, such as B2B meetings and mentor sessions, better matching, and machine-learning moderation. The app has placeholder screens for some of those modes, and none of them works yet.
