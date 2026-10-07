@@ -316,3 +316,10 @@
     color: var(--foreground);
   }
 }
+
+/* Arriving from kgu.one (src/app/kgu-arrival.ts), the hero is in place from the first frame, under kgu.one's
+   dots, instead of fading up after hydration. Important beats the inline styles motion sets. */
+html[data-kgu-arrival] [data-kgu-intro] {
+  opacity: 1 !important;
+  transform: none !important;
+}
