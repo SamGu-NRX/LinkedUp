@@ -372,6 +372,7 @@ const LandingPage = () => {
 
           <div className="relative container mx-auto px-6 pt-12 pb-32">
             <motion.div
+              data-kgu-intro
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
