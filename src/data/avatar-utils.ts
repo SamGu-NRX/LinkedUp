@@ -133,7 +133,7 @@ export const generateAvatarDataUrl = (seed: string | number): string => {
       <stop offset='0%' stop-color='#${encodeURIComponent(fromColor)}'/>
       <stop offset='100%' stop-color='#${encodeURIComponent(toColor)}'/>
     </linearGradient>
-    <rect width='100' height='100' fill='url(%23g)'/>
+    <rect width='100' height='100' fill='url(#g)'/>
   </svg>`;
 
   return `data:image/svg+xml;charset=utf8,${encodeURIComponent(svg)}`;
