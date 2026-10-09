@@ -12,7 +12,8 @@
     "db:seed": "npx drizzle-kit seed:pg",
     "db:reset": "npx drizzle-kit reset:pg",
     "db:studio": "npx drizzle-kit studio",
-    "db:push": "npx drizzle-kit push:pg"
+    "db:push": "npx drizzle-kit push:pg",
+    "test": "tsx --test src/app/app/_tests/*.test.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",
