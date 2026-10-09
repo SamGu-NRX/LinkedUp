@@ -29,12 +29,16 @@ export const generateAvatarColor = (id: string | number): AvatarColor => {
   ];
 
   // Use the id to deterministically select a gradient
-  const hash =
+  const n =
     typeof id === "number"
       ? id
       : String(id)
           .split("")
           .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // JS % keeps the sign, so a negative id indexes gradients out of bounds
+  // (gradients[-3] is undefined) and NaN never matches an index. Abs+trunc
+  // keeps every valid input byte-identical while making the index safe.
+  const hash = Number.isFinite(n) ? Math.abs(Math.trunc(n)) : 0;
 
   return gradients[hash % gradients.length];
 };
@@ -119,12 +123,15 @@ export const generateAvatarDataUrl = (seed: string | number): string => {
   const fromColor = getTailwindColor(avatarColors.from);
   const toColor = getTailwindColor(avatarColors.to);
 
-  const seedHash =
+  const n =
     typeof seed === "number"
       ? seed
       : String(seed)
           .split("")
           .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // Mirror generateAvatarColor's sanitized hash so the angle is always a
+  // non-negative integer (a raw negative or NaN seedHash corrupts it).
+  const seedHash = Number.isFinite(n) ? Math.abs(Math.trunc(n)) : 0;
   const angle = seedHash % 360;
 
   // Use encodeURIComponent for color values in the URL
