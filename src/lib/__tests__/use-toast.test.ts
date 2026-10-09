@@ -238,10 +238,11 @@ describe("toast() singleton flows", () => {
     if (!handle) {
       throw new Error("toast() returned no handle; expected { id, dismiss, update }");
     }
+    const created = handle; // narrowed const so it is usable inside act() closures
     act(() => {
-      handle.update({ id: "ignored-by-update", open: false, title: "After", description: "Updated" });
+      created.update({ id: "ignored-by-update", open: false, title: "After", description: "Updated" });
     });
-    expect(latest?.toasts[0]?.id).toBe(handle.id); // merges into THIS toast; id stays pinned
+    expect(latest?.toasts[0]?.id).toBe(created.id); // merges into THIS toast; id stays pinned
     expect(latest?.toasts[0]?.title).toBe("After");
     expect(latest?.toasts[0]?.description).toBe("Updated");
     expect(latest?.toasts[0]?.open).toBe(false);
@@ -256,10 +257,11 @@ describe("toast() singleton flows", () => {
     if (!handle) {
       throw new Error("toast() returned no handle; expected { id, dismiss, update }");
     }
+    const created = handle; // narrowed const so it is usable inside act() closures
     act(() => {
-      handle.dismiss();
+      created.dismiss();
     });
-    expect(latest?.toasts[0]?.id).toBe(handle.id);
+    expect(latest?.toasts[0]?.id).toBe(created.id);
     expect(latest?.toasts[0]?.open).toBe(false);
     act(() => {
       vi.advanceTimersByTime(TOAST_REMOVE_DELAY_MS);
