@@ -158,7 +158,7 @@ export const getInitials = (name: string): string => {
  * @returns Formatted time string (HH:MM) or empty string if invalid
  */
 export const formatTime = (timestamp: number): string => {
-  if (isNaN(timestamp)) return "";
+  if (!Number.isFinite(timestamp)) return "";
   try {
     return new Date(timestamp).toLocaleTimeString([], {
       hour: "2-digit",
