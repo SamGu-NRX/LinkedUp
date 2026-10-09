@@ -23,7 +23,7 @@ export const mockUsers: UserInfo[] = [
       averageRating: 4.8,
     },
     interests: ["Design Systems", "User Research", "Prototyping", "Accessibility"],
-    connectionStatus: "excellent",
+    connectionStatus: "online",
     isSpeaking: true,
   },
   {
@@ -48,7 +48,7 @@ export const mockUsers: UserInfo[] = [
       averageRating: 4.5,
     },
     interests: ["JavaScript", "Cloud Computing", "System Design", "Open Source"],
-    connectionStatus: "good",
+    connectionStatus: "online",
     isSpeaking: false,
   },
   {
@@ -73,7 +73,7 @@ export const mockUsers: UserInfo[] = [
       averageRating: 4.9,
     },
     interests: ["Machine Learning", "NLP", "Data Analysis", "Automation"],
-    connectionStatus: "excellent",
+    connectionStatus: "offline",
     isSpeaking: false,
   },
 ]
