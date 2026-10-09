@@ -1,6 +1,12 @@
-// @/lib/avatar-utils.ts (assuming path)
+// @/lib/avatar-utils.ts
 
 import type { ConnectionStatus, UserInfo } from "@/types/user"; // Import types
+
+/**
+ * A value that deterministically seeds avatar generation.
+ * Strings are hashed by summing char codes; numbers are used directly.
+ */
+export type AvatarSeed = string | number;
 
 export interface AvatarColor {
   from: string;
@@ -9,11 +15,48 @@ export interface AvatarColor {
 }
 
 /**
+ * Validates an AvatarSeed at runtime and returns its numeric hash.
+ * Strings hash to the sum of their char codes (unchanged behavior);
+ * numbers pass through untouched.
+ *
+ * Throws a TypeError (never returns silently) for:
+ * - non-finite numbers (NaN, Infinity, -Infinity)
+ * - empty or whitespace-only strings
+ */
+function seedToHash(seed: AvatarSeed): number {
+  if (typeof seed === "number") {
+    if (!Number.isFinite(seed)) {
+      throw new TypeError(`avatar seed must be a finite number, got ${seed}`);
+    }
+    return seed;
+  }
+  if (seed.trim().length === 0) {
+    throw new TypeError(
+      `avatar seed must be a non-empty string, got ${JSON.stringify(seed)}`,
+    );
+  }
+  return seed
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+}
+
+/**
+ * Normalizes any finite numeric hash to a non-negative integer index in
+ * [0, length). A raw `% length` on a negative or fractional hash yields a
+ * negative/fractional array index and therefore `undefined` — the root cause
+ * of the broken-gradient bugs for negative and non-integer numeric ids.
+ */
+function hashToIndex(hash: number, length: number): number {
+  return Math.abs(Math.trunc(hash)) % length;
+}
+
+/**
  * Generate deterministic gradient colors for avatar based on user ID or name
  * @param id - Unique identifier for the user (string or number)
  * @returns Object containing gradient classes and text color
+ * @throws TypeError if id is a non-finite number or an empty/whitespace-only string
  */
-export const generateAvatarColor = (id: string | number): AvatarColor => {
+export const generateAvatarColor = (id: AvatarSeed): AvatarColor => {
   const gradients: AvatarColor[] = [
     { from: "from-violet-500", to: "to-purple-700", text: "text-violet-50" },
     { from: "from-blue-500", to: "to-indigo-600", text: "text-blue-50" },
@@ -27,14 +70,8 @@ export const generateAvatarColor = (id: string | number): AvatarColor => {
     { from: "from-yellow-400", to: "to-amber-600", text: "text-yellow-50" },
   ];
 
-  const hash =
-    typeof id === "number"
-      ? id
-      : String(id)
-          .split("")
-          .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-  return gradients[hash % gradients.length];
+  const hash = seedToHash(id);
+  return gradients[hashToIndex(hash, gradients.length)];
 };
 
 /**
@@ -72,19 +109,15 @@ function getTailwindColor(tailwindClass: string): string {
  * Generate an SVG data URL for avatars with gradient backgrounds
  * @param seed - String or number used to generate a deterministic gradient (e.g., user ID)
  * @returns SVG data URL string
+ * @throws TypeError if seed is a non-finite number or an empty/whitespace-only string
  */
-export const generateAvatarDataUrl = (seed: string | number): string => {
+export const generateAvatarDataUrl = (seed: AvatarSeed): string => {
+  const seedHash = seedToHash(seed); // validates the seed, throws TypeError when invalid
   const avatarColors = generateAvatarColor(seed);
   const fromColor = getTailwindColor(avatarColors.from);
   const toColor = getTailwindColor(avatarColors.to);
 
-  const seedHash =
-    typeof seed === "number"
-      ? seed
-      : String(seed)
-          .split("")
-          .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const angle = seedHash % 360;
+  const angle = hashToIndex(seedHash, 360);
 
   // Use encodeURIComponent for color values in the URL
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
@@ -101,7 +134,7 @@ export const generateAvatarDataUrl = (seed: string | number): string => {
 /**
  * Get initials from a name
  * @param name - Full name of the user
- * @returns Uppercase initials (max 2 chars)
+ * @returns Uppercase initials (max 2 chars), or "?" when no initials can be derived
  */
 export const getInitials = (name: string): string => {
   if (!name) return "?";
@@ -114,10 +147,11 @@ export const getInitials = (name: string): string => {
 /**
  * Format timestamp to readable time
  * @param timestamp - Timestamp in milliseconds
- * @returns Formatted time string (HH:MM) or empty string if invalid
+ * @returns Formatted time string (HH:MM), or empty string for any invalid
+ * timestamp (NaN, Infinity, -Infinity)
  */
 export const formatTime = (timestamp: number): string => {
-  if (isNaN(timestamp)) return "";
+  if (!Number.isFinite(timestamp)) return "";
   try {
     return new Date(timestamp).toLocaleTimeString([], {
       hour: "2-digit",
@@ -153,6 +187,8 @@ export const getStatusColor = (
  * Generates a fallback avatar URL or returns the existing one.
  * @param user - The UserInfo object
  * @returns A string containing the avatar URL (either original or generated data URL)
+ * @throws TypeError if user.avatar is falsy and user.id is a non-finite number
+ * or an empty/whitespace-only string (previously silently produced a broken gradient)
  */
 export const getAvatar = (user: UserInfo): string => {
   return user.avatar || generateAvatarDataUrl(user.id);
