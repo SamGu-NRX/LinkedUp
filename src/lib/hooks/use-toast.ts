@@ -8,7 +8,7 @@ import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
 
-type ToasterToast = ToastProps & {
+export type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
@@ -31,7 +31,7 @@ function genId() {
 
 type ActionType = typeof actionTypes;
 
-type Action =
+export type Action =
   | {
       type: ActionType['ADD_TOAST'];
       toast: ToasterToast;
@@ -49,7 +49,7 @@ type Action =
       toastId?: ToasterToast['id'];
     };
 
-interface State {
+export interface State {
   toasts: ToasterToast[];
 }
 
@@ -152,7 +152,11 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, 'id'>;
 
-function toast({ ...props }: Toast) {
+function toast({ ...props }: Toast): {
+  id: string;
+  dismiss: () => void;
+  update: (props: ToasterToast) => void;
+} {
   const id = genId();
 
   const update = (props: ToasterToast) =>
@@ -181,7 +185,11 @@ function toast({ ...props }: Toast) {
   };
 }
 
-function useToast() {
+function useToast(): {
+  toasts: ToasterToast[];
+  toast: typeof toast;
+  dismiss: (toastId?: string) => void;
+} {
   const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
