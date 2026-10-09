@@ -123,6 +123,19 @@ export const reducer = (state: State, action: Action): State => {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       };
+
+    default: {
+      // Runtime guard for an unknown action `type`: `Action` is a closed union
+      // and every member is handled above, so TypeScript narrows `action` to
+      // `never` here. The assignment below fails to compile if a new Action
+      // member is added without a matching case, preserving exhaustiveness
+      // checking. At runtime an unknown type can only arrive from a caller
+      // that bypasses the type system (plain JavaScript or an unchecked cast),
+      // and the reducer must stay total: return the same state reference
+      // instead of undefined.
+      const _exhaustive: never = action;
+      return state;
+    }
   }
 };
 
