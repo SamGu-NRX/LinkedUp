@@ -12,7 +12,9 @@
     "db:seed": "npx drizzle-kit seed:pg",
     "db:reset": "npx drizzle-kit reset:pg",
     "db:studio": "npx drizzle-kit studio",
-    "db:push": "npx drizzle-kit push:pg"
+    "db:push": "npx drizzle-kit push:pg",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",
@@ -103,7 +105,8 @@
     "react-dom": "^19.0.0",
     "tailwindcss": "4.0.14",
     "tsx": "^4.19.3",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vitest": "^5.0.3"
   },
   "peerDependencies": {
     "next": "^15",
