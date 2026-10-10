@@ -7,13 +7,17 @@ export type ConnectionType =
   | "mentorship"
   | "investment";
 
-// Define ConnectionStatus based on usage in Profile and UserCard
-// Assuming it maps directly from the old 'status'
-export type ConnectionStatus = "online" | "away" | "offline";
+// Connection quality as reported during a video meeting.
+// Mirrors ConnectionStatus in @/types/meeting — the UserCard renders it
+// through ConnectionStatusIndicator, which expects this union.
+export type ConnectionStatus = "excellent" | "good" | "poor" | "offline";
+
+// Presence status shown on profile/chat avatars (distinct from connection quality).
+export type PresenceStatus = "online" | "away" | "offline";
 
 // Define Interest based on usage in Profile and UserCardInterests
 export interface Interest {
-  type: "academic" | "industry" | "skill" | string; // Allow string for flexibility if needed
+  type: "academic" | "industry" | "skill";
   name: string;
 }
 

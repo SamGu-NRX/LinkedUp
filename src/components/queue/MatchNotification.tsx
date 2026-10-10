@@ -34,6 +34,7 @@ export default function MatchNotification({
 }: MatchNotificationProps) {
   // Extract only the properties needed by UserCard
   const userCardProps = {
+    id: matchData.id,
     name: matchData.name,
     avatar: matchData.avatar,
     bio: matchData.bio,
@@ -55,7 +56,7 @@ export default function MatchNotification({
     >
       <div className="bg-card w-full max-w-md rounded-lg p-6 shadow-lg">
         <h2 className="mb-4 text-center text-2xl font-bold">Match Found!</h2>
-        <UserCard {...userCardProps} />
+        <UserCard user={userCardProps} />
         <div className="mt-6 flex justify-center space-x-4">
           <Button onClick={onDecline} variant="outline">
             Decline

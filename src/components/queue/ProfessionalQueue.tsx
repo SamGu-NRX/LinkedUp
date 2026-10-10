@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import UserCard from "@/components/app/user-card";
+import type { UserInfo } from "@/types/user";
 
 interface ProfessionalQueueProps {
   userId: string;
@@ -61,8 +62,8 @@ export default function ProfessionalQueue({
     "searching" | "match_found" | "no_live_matches"
   >("searching");
   const [estimatedWaitTime, setEstimatedWaitTime] = useState<number>(300); // 5 minutes in seconds
-  const [matchData, setMatchData] = useState<any>(null);
-  const [recommendedProfiles, setRecommendedProfiles] = useState<any[]>([]);
+  const [matchData, setMatchData] = useState<UserInfo | null>(null);
+  const [recommendedProfiles, setRecommendedProfiles] = useState<UserInfo[]>([]);
   const [currentTip, setCurrentTip] = useState(0);
 
   useEffect(() => {
@@ -85,6 +86,7 @@ export default function ProfessionalQueue({
           company: "Tech Innovations Inc.",
           school: "Stanford University",
           experience: 8,
+          connectionType,
           sharedInterests: [
             { type: "industry", name: "Artificial Intelligence" },
             { type: "skill", name: "Python" },
@@ -103,6 +105,7 @@ export default function ProfessionalQueue({
             company: "GreenTech Solutions",
             school: "MIT",
             experience: 12,
+            connectionType,
             sharedInterests: [
               { type: "industry", name: "Renewable Energy" },
               { type: "skill", name: "Business Development" },
@@ -180,17 +183,17 @@ export default function ProfessionalQueue({
             </CardHeader>
             <CardContent>
               {matchData && (
-                <UserCard {...matchData} connectionType={connectionType} />
+                <UserCard user={matchData} />
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button
-                onClick={() => onDeclineMatch(matchData.id)}
+                onClick={() => matchData && onDeclineMatch(matchData.id)}
                 variant="outline"
               >
                 Decline
               </Button>
-              <Button onClick={() => onAcceptMatch(matchData.id)}>
+              <Button onClick={() => matchData && onAcceptMatch(matchData.id)}>
                 Accept
               </Button>
             </CardFooter>
@@ -208,7 +211,7 @@ export default function ProfessionalQueue({
             <CardContent>
               {recommendedProfiles.map((profile) => (
                 <div key={profile.id} className="mb-4">
-                  <UserCard {...profile} connectionType={connectionType} />
+                  <UserCard user={profile} />
                   <Button
                     onClick={() => onScheduleCall(profile.id)}
                     className="mt-2"
