@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 const REPO_URL = "https://github.com/SamGu-NRX/LinkedUp";
+const CONNVO_URL = "https://github.com/SamGu-NRX/Connvo";
 
 // MacBook Component with improved transitions
 const MacbookScroll = () => {
@@ -575,8 +576,19 @@ const LandingPage = () => {
                 The repository&apos;s list of what comes next is still open:
                 meeting modes beyond one-on-one networking, better matching,
                 and machine-learning moderation. This page does not advertise
-                that work as done, and there is no follow-up product to sign
-                up for here.
+                that work as done. The same team&apos;s successor project,{" "}
+                <a
+                  href={CONNVO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-emerald-700 underline underline-offset-4 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                >
+                  Connvo
+                </a>
+                , is in development in its own public repository. LinkedUp is
+                the hackathon build you can run today; nothing here is a sign
+                up for Connvo, and this page makes no claims about Connvo&apos;s
+                features or timeline.
               </motion.p>
             </div>
           </section>
