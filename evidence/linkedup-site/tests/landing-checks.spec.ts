@@ -45,7 +45,12 @@ test.describe("keyboard operation", () => {
     );
 
     // Enter on the "How it works" control scrolls to a real section.
-    const how = page.getByRole("button", { name: /how it works/i });
+    // The nav collapses on mobile, so match whichever "How it works" control
+    // is visible in the current viewport.
+    const how = page
+      .locator("button:visible")
+      .filter({ hasText: /how it works/i })
+      .first();
     await how.focus();
     await page.keyboard.press("Enter");
     await page.waitForTimeout(1200);

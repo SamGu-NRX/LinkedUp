@@ -10,8 +10,20 @@ const shotDir =
 test("capture full-page landing screenshot", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  // Let entry animations settle so the capture shows the resting state.
-  await page.waitForTimeout(2500);
+  // Sections animate in on first view (framer-motion whileInView), so walk
+  // the page to the bottom to trigger every entrance before capturing.
+  await page.evaluate(async () => {
+    const step = window.innerHeight / 2;
+    for (let y = 0; y <= document.body.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  });
+  // Let the in-view transitions settle, return to the top, and capture the
+  // resting state.
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(500);
   const file = path.join(
     __dirname,
     "..",
