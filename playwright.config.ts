@@ -10,8 +10,12 @@ import { defineConfig } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
-  timeout: 120_000,
+  // Journey tests drive 2-3 browser contexts inside ONE test process; they
+  // are intentionally serial. Parallel workers would only multiply Chromium
+  // memory on a small sandbox.
+  fullyParallel: false,
+  workers: 1,
+  timeout: 240_000,
   expect: { timeout: 15_000 },
   reporter: [["list"]],
   use: {
@@ -21,6 +25,19 @@ export default defineConfig({
     navigationTimeout: 120_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    launchOptions: {
+      args: [
+        // Auto-grant mic/cam with a synthetic device: the call page must
+        // render local media without a real webcam on CI sandboxes.
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        // Small-sandbox hygiene: /dev/shm is tiny; /tmp-backed shmem keeps
+        // Chromium from crashing under concurrent-context journeys.
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+      ],
+    },
+    permissions: ["microphone", "camera"],
   },
   webServer: {
     command: "pnpm dev:up",
