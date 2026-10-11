@@ -13,7 +13,8 @@
     "db:reset": "npx drizzle-kit reset:pg",
     "db:studio": "npx drizzle-kit studio",
     "db:push": "npx drizzle-kit push:pg",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "dev:up": "node scripts/dev-up.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",
