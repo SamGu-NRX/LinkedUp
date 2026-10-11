@@ -3,6 +3,11 @@
 Owner: the Connvo/LinkedUp lead (fleet). Task prompts quote this file by section ID. Integration branch: `alpha`
 (cut from `main` at da3ebbf4a22b). Nothing here merges to `main`.
 
+**Why `alpha` starts at main (checked 2026-10-11, Sam's rule: cut from the definitive latest version).** Main
+da3ebbf4a22b (2026-10-07) is the newest real version. Every other branch is older and behind it (`s-wip/v.0.0`,
+`feat/monorepo`, `NextAI`, `kgu-continuation`), shares no history with it (`HackTAMS`), or belongs to the fleet
+(`obv/*` PRs #5, #6 and #8, which are read-only inputs).
+
 LinkedUp is Connvo's predecessor. The two share the call problem, so LinkedUp reuses Connvo's harness design and,
 after Connvo's round 1, its winning transport. Connvo's plan is the reference for the harness:
 https://github.com/SamGu-NRX/Connvo/blob/alpha/docs/plan/CALL-PLAN.md
