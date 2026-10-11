@@ -26,6 +26,7 @@ Commands (run in the repo root, pnpm 10.34.6 / Node 20.20.2):
 | Typecheck | `npx tsc --noEmit` | 31 errors | **0 errors (exit 0)** |
 | Lint | `npx next lint` | 3 errors (conditional hooks) | **0 errors (exit 0)**, warnings only (`<img>` in one-on-one meeting) |
 | Build | `pnpm build` | fail (missing VoiceCallScreen module) | **exit 0 — compiles and prerenders all 16 pages** (placeholder-format Clerk pk, see env story) |
+| Unit tests | `pnpm exec vitest run` | no tests in repo | **8/8 passed** (M2 honesty suite) |
 
 **Dev-server route verification (keyless Clerk, `pnpm dev`, isolated `.next`, clean run):**
 
@@ -54,16 +55,18 @@ Note: `/dashboard` is a 404 — no such page exists in the skeleton (the app das
 
 **Done (this checkpoint):** all Description items plus the full green matrix above: typecheck 0, lint 0, build exit 0 with all 16 pages prerendered, and keyless-dev route smoke tests passing.
 
+**M2 checkpoint (`bdcee5e`, pushed):** local media capture + DB-backed matching + honest call route, all verified (typecheck 0, lint 0, build 15/15 pages, vitest 8/8). VoiceCallScreen now runs a real `getUserMedia` capture — phase machine advances `joining → connected` only on live local capture; mic/camera toggles really stop and re-acquire tracks; permission/no-device states with working retry; remote side honestly reports "audio not connected — waiting for media transport" (no `data-remote-audio` pretense). Call route enforces server-side room membership; participants come from the room record. Matching: transactional pairing reads `FOR UPDATE SKIP LOCKED` via postgres-js RowList indexing (fixed `.rows` type/runtime error). Tooling: Vitest 3 + Testing Library, jsdom 26 (jsdom 30 needs Node 22; this is Node 20), esbuild automatic JSX (the `@vitejs/plugin-react` build in the lockfile imports a vite subpath the resolved vite does not export — plugin removed). The repo's `node_modules` is pnpm-managed; `npm install` corrupts/cannot reify it — use `pnpm`.
+
 **Scope note (per checkpoint review):** real peer media is LS1, a later task that ports the transport Connvo's harness picks; Stream stays out per L-D4. Nothing in this task requires a Stream API key.
 
 **Left — LS0 deliverables (in order):**
 
 1. One-command local stack: local open-source Postgres (L-D2), Drizzle migrate, seed, then keyless `next dev`.
 2. ~~Auth pages~~ — done in this checkpoint (top-level `/sign-in` and `/sign-up`, L-D3).
-3. Real DB-backed matching: queue and pairing in Postgres through Drizzle with transactional pairing, cancellation and stale-entry expiry; queue UI driven by it instead of mock data and timers.
-4. Buildable call route with honest states: other participant from the room record created by matching, shown as "waiting for media transport"; refusal for a signed-in user not in the room; no fake remote tiles.
-5. Local media on the call page: `getUserMedia` preview, mic and camera toggles that really stop the capture track (`readyState === 'ended'`) and restart it, permission-denied and no-device states with a working retry.
+3. ~~Real DB-backed matching~~ — done in M2 (`bdcee5e`): queue/pairing in Postgres through Drizzle, transactional pairing with `FOR UPDATE SKIP LOCKED`, room records driving the call route. Cancellation and stale-entry expiry still to verify end to end.
+4. ~~Buildable call route with honest states~~ — done in M2: server-side room-membership enforcement, participants from the room record, honest "waiting for media transport" remote row, no fake remote tiles.
+5. ~~Local media on the call page~~ — done in M2: `getUserMedia` preview, real track stop/restart for mic and camera toggles, permission/no-device states with working retry; pinned by the 8-test vitest honesty suite.
 6. The J suite: two isolated browsers sign up through keyless Clerk via `@clerk/testing`, complete onboarding, queue, match and land in the same `/app/call/[id]` — every case in the plan's J list, 10 seeds each, no request interception, persisted rows checked in Postgres.
-7. Tooling for the above: Vitest (unit/concurrency) and Playwright (journeys, screenshots), plus call-page screenshots at 1440x900 and 390x844 and a prep-for-prod pass before the final push.
+7. Tooling for the above: Vitest done in M2; Playwright (journeys, screenshots) still pending, plus call-page screenshots at 1440x900 and 390x844 and a prep-for-prod pass before the final push.
 
 **How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the env story above, run the one-command local stack script (landing in the next push), then `npx tsc --noEmit && npx next lint` and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
