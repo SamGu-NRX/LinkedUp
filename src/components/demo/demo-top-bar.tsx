@@ -36,9 +36,9 @@ export function DemoTopBar({
     <div className="flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-900/80 px-6 backdrop-blur-lg">
       <div className="flex items-center space-x-4">
         <div>
-          <h3 className="text-sm font-medium text-zinc-200">
+          <h2 className="text-sm font-medium text-zinc-200">
             Sample meeting with {partner.name}
-          </h3>
+          </h2>
           <p className="text-xs text-zinc-400">
             Simulated preview — sample persona, not a real person
           </p>

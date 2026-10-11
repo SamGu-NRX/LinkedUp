@@ -120,7 +120,7 @@ export function DemoShell() {
   // The simulated meeting renders full-bleed dark, like the production room.
   if (stage.kind === "in-call") {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <div className="dark min-h-screen bg-zinc-950 text-zinc-100">
         <header>
           <DemoBanner />
           <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
@@ -133,6 +133,9 @@ export function DemoShell() {
           {sampleStageAnnouncement(stage)}
         </p>
         <main>
+          {/* The room surface replaces the light-branch chrome, so it must
+              carry the page's own level-one heading. */}
+          <h1 className="sr-only">Sample meeting in progress (simulated)</h1>
           <InCallView
             stage={stage}
             onLeave={() => dispatch({ type: "call-left" })}
@@ -239,7 +242,7 @@ export function DemoShell() {
 
         <div className="mt-6 flex flex-col gap-3">
           <RehearseControls onRehearse={rehearse} />
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-600">
             This sample demo is part of the LinkedUp repository as a fixture
             for reviewing the product flow without accounts or services. Every
             person, queue, and meeting here is scripted sample data.

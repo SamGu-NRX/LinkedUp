@@ -44,7 +44,7 @@ function StageChrome({ step, title, children }: StageChromeProps) {
   return (
     <Card className="w-full border-zinc-200 bg-white shadow-sm">
       <CardContent className="p-6 sm:p-8">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
           Sample demo · {step}
         </p>
         <h2 className="mt-1 text-2xl font-semibold text-zinc-900">{title}</h2>
@@ -327,9 +327,12 @@ export function InCallView({
         isAlmostOutOfTime={remaining <= 60}
         onToggleTimeDisplay={() => setShowTimeLeft((value) => !value)}
       />
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
+      {/* overflow-y-auto: on short/phone viewports the stacked tiles exceed the
+          room's fixed height; scrolling keeps tiles above siblings so their
+          positioned overlays can never cover the controls. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="grid min-h-0 flex-1 gap-3 sm:grid-cols-2">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
             <SampleTile
               frame={media.partnerFrame}
               connectionStatus={SAMPLE_CONNECTION_STATES.partner.status}
