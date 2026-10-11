@@ -59,14 +59,32 @@ Note: `/dashboard` is a 404 — no such page exists in the skeleton (the app das
 
 **Scope note (per checkpoint review):** real peer media is LS1, a later task that ports the transport Connvo's harness picks; Stream stays out per L-D4. Nothing in this task requires a Stream API key.
 
+**LS0 checkpoint (`9e54e76` + `292aa77`):** both J-suite prerequisites are in and verified.
+
+**One-command local stack — `pnpm dev:up` (scripts/dev-up.mjs, L-D2):** from a clean machine state it (1) ensures `.env.local` carries the local `DATABASE_URL`, (2) starts the local PostgreSQL 17 cluster (`17/main`) when down via `pg_ctlcluster` (sudo fallback), (3) sets the postgres role password to match the local URL and creates the `linkedup` database if missing, (4) applies Drizzle migrations with `drizzle-kit migrate` (idempotent journal), (5) runs the repo seed when one exists, (6) starts keyless `next dev` on :3000 detached — reusing a healthy server, replacing a stale one — and waits for HTTP 200 on `/` before exiting. It strips any Clerk/Stream env vars from the dev server so dev stays keyless; no Clerk or Stream keys are involved at any point. Logs: `/tmp/linkedup-next-dev.log`, pid file `/tmp/linkedup-next-dev.pid`.
+
+**Seed status (honest):** the repo has NO seed script — `drizzle-kit` 0.30.5 has no `seed` command (so the boilerplate `db:seed` script's `drizzle-kit seed:pg` cannot work) and no seed file exists in git history. `dev:up` runs the seed when one appears at `scripts/seed.*` or `src/db/seed.*` (ts via tsx, js via node) and until then prints a clear notice instead of pretending to seed. Seed data design (plan line: "10 seeds each") belongs to the J-suite task.
+
+**Playwright tooling (`292aa77`):** `@playwright/test` pinned to exactly 1.63.0 — its playwright-core expects chromium revision 1243, the build already cached in `~/.cache/ms-playwright`, so no browser download is needed. `playwright.config.ts` defines two chromium projects (desktop 1440x900, mobile 390x844 with `isMobile`/`hasTouch`) at `baseURL` http://localhost:3000, plus a `webServer` hook that boots the real stack via `pnpm dev:up` (`reuseExistingServer: true`) — tests always run against the real keyless dev server, never a mock. Exactly one smoke journey (`tests/e2e/smoke.spec.ts`): navigate to `/` and `/sign-in` through keyless Clerk, assert HTTP 200, the page title, and Clerk's mounted identifier field. Navigation timeouts are sized for dev-mode first compiles (a cold `/sign-in` compile measured ~49s once and would blow Playwright's default 30s). `pnpm exec playwright test` / `pnpm test:e2e`.
+
+**Verification matrix at `292aa77` (all measured this checkpoint):**
+
+| Check | Result |
+|---|---|
+| Cold-start `pnpm dev:up` (cluster down, no server) | reaches HTTP 200 on `/`, `/sign-in`, `/app`; rerun reuses the healthy server |
+| `pnpm exec playwright test` (smoke, both projects) | **2/2 passed** (desktop 9.0s, mobile 7.7s) against the live keyless server |
+| `pnpm exec vitest run` | **8/8 passed** |
+| Inline-key `pnpm build` | **exit 0** (app-path manifest: 18 routes) |
+| `npx tsc --noEmit` / `npx next lint` | 0 errors / 0 errors (pre-existing `<img>` warnings only) |
+
 **Left — LS0 deliverables (in order):**
 
-1. One-command local stack: local open-source Postgres (L-D2), Drizzle migrate, seed, then keyless `next dev`.
+1. ~~One-command local stack~~ — done in this checkpoint (`9e54e76`, L-D2): `pnpm dev:up`. Seed hook wired; the seed script itself is still to be written (by the J-suite task, which owns its data design).
 2. ~~Auth pages~~ — done in this checkpoint (top-level `/sign-in` and `/sign-up`, L-D3).
 3. ~~Real DB-backed matching~~ — done in M2 (`bdcee5e`): queue/pairing in Postgres through Drizzle, transactional pairing with `FOR UPDATE SKIP LOCKED`, room records driving the call route. Cancellation and stale-entry expiry still to verify end to end.
 4. ~~Buildable call route with honest states~~ — done in M2: server-side room-membership enforcement, participants from the room record, honest "waiting for media transport" remote row, no fake remote tiles.
 5. ~~Local media on the call page~~ — done in M2: `getUserMedia` preview, real track stop/restart for mic and camera toggles, permission/no-device states with working retry; pinned by the 8-test vitest honesty suite.
 6. The J suite: two isolated browsers sign up through keyless Clerk via `@clerk/testing`, complete onboarding, queue, match and land in the same `/app/call/[id]` — every case in the plan's J list, 10 seeds each, no request interception, persisted rows checked in Postgres.
-7. Tooling for the above: Vitest done in M2; Playwright (journeys, screenshots) still pending, plus call-page screenshots at 1440x900 and 390x844 and a prep-for-prod pass before the final push.
+7. Tooling for the above: Vitest done in M2; **Playwright tooling + smoke journey done in this checkpoint** (`292aa77`). Still pending: the full journey specs, call-page screenshots at 1440x900 and 390x844, and a prep-for-prod pass before the final push.
 
-**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the env story above, run the one-command local stack script (landing in the next push), then `npx tsc --noEmit && npx next lint` and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
+**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, then `pnpm dev:up` — it creates `.env.local` if missing, brings up Postgres 17, migrates, seeds (when a seed exists), and serves keyless dev on :3000. Then `pnpm exec playwright test` (boots the stack itself if it is not up), `npx tsc --noEmit && npx next lint`, and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
