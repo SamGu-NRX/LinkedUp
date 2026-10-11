@@ -121,23 +121,27 @@ export function DemoShell() {
   if (stage.kind === "in-call") {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100">
-        <DemoBanner />
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
-          {backButton}
-          {exitLink}
-          <RehearseControls onRehearse={rehearse} />
-        </div>
-        <p role="status" aria-live="polite" className="sr-only">
+        <header>
+          <DemoBanner />
+          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+            {backButton}
+            {exitLink}
+            <RehearseControls onRehearse={rehearse} />
+          </div>
+        </header>
+        <p role="status" aria-live="polite" className="sr-only" data-testid="demo-live-region">
           {sampleStageAnnouncement(stage)}
         </p>
-        <InCallView
-          stage={stage}
-          onLeave={() => dispatch({ type: "call-left" })}
-          onTimeRequestSent={() => dispatch({ type: "call-time-request-sent" })}
-          onTimeRequestResolved={() =>
-            dispatch({ type: "call-time-request-resolved" })
-          }
-        />
+        <main>
+          <InCallView
+            stage={stage}
+            onLeave={() => dispatch({ type: "call-left" })}
+            onTimeRequestSent={() => dispatch({ type: "call-time-request-sent" })}
+            onTimeRequestResolved={() =>
+              dispatch({ type: "call-time-request-resolved" })
+            }
+          />
+        </main>
       </div>
     );
   }
@@ -202,7 +206,9 @@ export function DemoShell() {
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <DemoBanner />
+      <header>
+        <DemoBanner />
+      </header>
       <main className="mx-auto w-full max-w-3xl px-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -218,7 +224,7 @@ export function DemoShell() {
           </div>
         </div>
 
-        <p role="status" aria-live="polite" className="sr-only">
+        <p role="status" aria-live="polite" className="sr-only" data-testid="demo-live-region">
           {sampleStageAnnouncement(stage)}
         </p>
 

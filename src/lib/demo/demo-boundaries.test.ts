@@ -196,7 +196,7 @@ describe("demo tree import boundaries", () => {
     // Prove the scanner reads real import statements — if these allowed
     // imports are absent, the scan above is vacuous and this fails.
     expect([...allImports].some((s) => s.includes("video-meeting/time-manager"))).toBe(true);
-    expect([...allImports].some((s) => s.includes("video-meeting/top-bar"))).toBe(true);
+    expect([...allImports].some((s) => s.includes("video-meeting/time-display"))).toBe(true);
   });
 
   it("scanner positive control: covers the three owned trees", async () => {

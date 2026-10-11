@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { TopBar } from "@/components/video-meeting/top-bar";
+import { DemoTopBar } from "./demo-top-bar";
 import { SampleProfileCard } from "./sample-profile-card";
 import { SampleTile } from "./sample-tile";
 import type { DemoStage, FailureStage } from "@/lib/demo/demo-state";
@@ -319,16 +319,13 @@ export function InCallView({
 
   return (
     <div className="flex h-[calc(100vh-40px)] flex-col bg-zinc-950" data-testid="demo-in-call">
-      <TopBar
+      <DemoTopBar
         partner={meetingUsers.partner}
         timeElapsed={stage.elapsedSeconds}
         timeRemaining={remaining}
         showTimeLeft={showTimeLeft}
         isAlmostOutOfTime={remaining <= 60}
-        isSidebarOpen={true}
         onToggleTimeDisplay={() => setShowTimeLeft((value) => !value)}
-        onToggleSidebar={() => {}}
-        onOpenSettings={() => {}}
       />
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col gap-3">
