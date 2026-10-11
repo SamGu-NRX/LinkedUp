@@ -1,11 +1,11 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import VoiceCallScreen from "@/components/call/VoiceCallScreen"
 import type { CallType, Participant } from "@/types/call"
 
-export default function CallPage() {
+function CallPageContent() {
   const params = useParams()
 
   const searchParams = useSearchParams()
@@ -51,3 +51,11 @@ export default function CallPage() {
   )
 }
 
+export default function CallPage() {
+  // useSearchParams() inside requires a Suspense boundary for static prerendering.
+  return (
+    <Suspense fallback={null}>
+      <CallPageContent />
+    </Suspense>
+  )
+}

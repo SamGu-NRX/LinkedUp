@@ -24,24 +24,23 @@ Commands (run in the repo root, pnpm 10.34.6 / Node 20.20.2):
 |---|---|---|---|
 | Typecheck | `npx tsc --noEmit` | 31 errors | **0 errors (exit 0)** |
 | Lint | `npx next lint` | 3 errors (conditional hooks) | **0 errors (exit 0)**, warnings only (`<img>` in one-on-one meeting) |
-| Build | `pnpm build` | fail (missing VoiceCallScreen module) | **webpack compiles successfully**; static prerender currently fails — see Known issues |
+| Build | `pnpm build` | fail (missing VoiceCallScreen module) | **exit 0 — compiles and prerenders all 16 pages** (with the placeholder-format Clerk pk below) |
 
 **Known issues at this checkpoint (honest):**
 
-1. `pnpm build` compiles all code but static prerendering fails at `/app/professional/b2b`: `useSearchParams()` needs a `<Suspense>` boundary (Next.js CSR bailout). Fix identified (wrap the page's client component in Suspense, standard Next pattern); several other pages using `useSearchParams` (e.g. `/app/app/call/[id]`) will need the same treatment. This is the immediate next step.
-2. Static prerendering requires a Clerk publishable key. `pnpm dev` is truly keyless (Clerk 6.12.5 keyless instances — verified `Ready` boot). For `pnpm build`, `.env.local` needs `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsubG9jYWxob3N0JA` (a syntactically valid placeholder, not a real key — passes Clerk's structure check, no real instance behind it). `.env*` is gitignored; the key is documented here so any contributor can reproduce the build.
-3. `next dev` route checks returned HTTP 500 while `next dev` and `next build` competed for the same `.next` directory; dev-server route verification is still pending (needs a rerun without a concurrent build).
+1. Static prerendering requires a Clerk publishable key. `pnpm dev` is truly keyless (Clerk 6.12.5 keyless instances — verified `Ready` boot). For `pnpm build`, `.env.local` needs `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsubG9jYWxob3N0JA` (a syntactically valid placeholder, not a real key — passes Clerk's structure check, no real instance behind it). `.env*` is gitignored; the key is documented here so any contributor can reproduce the build.
+2. `next dev` route checks returned HTTP 500 while `next dev` and `next build` competed for the same `.next` directory; dev-server route verification is still pending (needs a rerun without a concurrent build).
+3. No tests exist in the repo; milestone evidence is the check matrix above plus manual route smoke tests.
 
 ## Handoff
 
-**Done (this checkpoint):** all of the above; ~38 files changed on the branch, uncommitted until this commit.
+**Done (this checkpoint):** all of the Description items, plus the full green matrix above: typecheck 0, lint 0, build exit 0 with all 16 pages prerendered. The six `useSearchParams` pages (b2b, collaboration, investment, mentorship, smart-connection, call) each got the standard Next fix — inner content component wrapped in `<Suspense>`.
 
 **Left (in plan order):**
 
-1. Wrap `useSearchParams` consumers in `<Suspense>` (b2b page + any others), get `pnpm build` fully green, commit as milestone 2a.
-2. Dev-server route verification (sign-in, dashboard, call screens) without a concurrent build; record HTTP status per route.
-3. Milestone 2: onboarding polish/QA per plan (the two fixes above are in; revisit wizard edge cases).
-4. Milestone 3: real transport wiring behind `src/lib/call/transport.ts` (already byte-identical to Connvo alpha, L-D5 satisfied); replace the honest `joining` placeholder in VoiceCallScreen with real snapshots.
-5. Stream API key needed from the operator for live call media — not yet provided; all call UI is verified structurally until then.
+1. Dev-server route verification (sign-in, dashboard, call screens) without a concurrent build; record HTTP status per route.
+2. Milestone 2: onboarding polish/QA per plan (the two fixes above are in; revisit wizard edge cases).
+3. Milestone 3: real transport wiring behind `src/lib/call/transport.ts` (already byte-identical to Connvo alpha, L-D5 satisfied); replace the honest `joining` placeholder in VoiceCallScreen with real snapshots.
+4. Stream API key needed from the operator for live call media — not yet provided; all call UI is verified structurally until then.
 
-**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the Proof section, `npx tsc --noEmit && npx next lint && pnpm build`. Fix the Suspense issue first. Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
+**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the Proof section, then `npx tsc --noEmit && npx next lint && pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.

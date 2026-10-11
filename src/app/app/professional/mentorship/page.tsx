@@ -1,10 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
-export default function MentorshipPage() {
+function MentorshipPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const purpose = searchParams.get("purpose") || ""
@@ -42,3 +42,11 @@ export default function MentorshipPage() {
   )
 }
 
+export default function MentorshipPage() {
+  // useSearchParams() inside requires a Suspense boundary for static prerendering.
+  return (
+    <Suspense fallback={null}>
+      <MentorshipPageContent />
+    </Suspense>
+  )
+}
