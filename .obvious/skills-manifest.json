@@ -1,0 +1,17 @@
+{
+  "_about": "Written by Sam's vendor_skills.py. A refresh replaces only the skill folders and files listed here; any other folder under .obvious/skills/ belongs to this repo and is never touched.",
+  "skills": [
+    "anti-ui-slop",
+    "better-accessibility",
+    "pstack-create-verification-skill",
+    "pstack-principle-boundary-discipline",
+    "pstack-principle-model-the-domain",
+    "pstack-principle-prove-it-works",
+    "pstack-principle-test-behavior-not-implementation",
+    "pstack-typescript-best-practices",
+    "pstack-unslop"
+  ],
+  "files": [
+    "sharedrefs/host-contract.md"
+  ]
+}
