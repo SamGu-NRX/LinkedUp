@@ -48,16 +48,22 @@ Note: `/dashboard` is a 404 — no such page exists in the skeleton (the app das
 **Known issues at this checkpoint (honest):**
 
 1. No tests exist in the repo; milestone evidence is the check matrix and route smoke tests above, plus manual UI verification pending Stream keys.
-2. Call transport is intentionally not wired: VoiceCallScreen stays in `joining` until M3 wiring, which needs the operator's Stream API key for live media.
+2. Call transport and real peer media are LS1, outside this task: VoiceCallScreen shows honest `joining` and the partner as "waiting for media transport". Stream is out per L-D4.
 
 ## Handoff
 
 **Done (this checkpoint):** all Description items plus the full green matrix above: typecheck 0, lint 0, build exit 0 with all 16 pages prerendered, and keyless-dev route smoke tests passing.
 
-**Left (in plan order):**
+**Scope note (per checkpoint review):** real peer media is LS1, a later task that ports the transport Connvo's harness picks; Stream stays out per L-D4. Nothing in this task requires a Stream API key.
 
-1. Milestone 2: onboarding polish/QA per plan (the two fixes above are in; revisit wizard edge cases).
-2. Milestone 3: real transport wiring behind `src/lib/call/transport.ts` (already byte-identical to Connvo alpha, L-D5 satisfied); replace the honest `joining` placeholder in VoiceCallScreen with real snapshots. Requires the operator's Stream API key.
-3. Optional cleanup: `.env.local.example` references a nonexistent `/dashboard` route.
+**Left — LS0 deliverables (in order):**
 
-**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the env story above, then `npx tsc --noEmit && npx next lint` and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
+1. One-command local stack: local open-source Postgres (L-D2), Drizzle migrate, seed, then keyless `next dev`.
+2. ~~Auth pages~~ — done in this checkpoint (top-level `/sign-in` and `/sign-up`, L-D3).
+3. Real DB-backed matching: queue and pairing in Postgres through Drizzle with transactional pairing, cancellation and stale-entry expiry; queue UI driven by it instead of mock data and timers.
+4. Buildable call route with honest states: other participant from the room record created by matching, shown as "waiting for media transport"; refusal for a signed-in user not in the room; no fake remote tiles.
+5. Local media on the call page: `getUserMedia` preview, mic and camera toggles that really stop the capture track (`readyState === 'ended'`) and restart it, permission-denied and no-device states with a working retry.
+6. The J suite: two isolated browsers sign up through keyless Clerk via `@clerk/testing`, complete onboarding, queue, match and land in the same `/app/call/[id]` — every case in the plan's J list, 10 seeds each, no request interception, persisted rows checked in Postgres.
+7. Tooling for the above: Vitest (unit/concurrency) and Playwright (journeys, screenshots), plus call-page screenshots at 1440x900 and 390x844 and a prep-for-prod pass before the final push.
+
+**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the env story above, run the one-command local stack script (landing in the next push), then `npx tsc --noEmit && npx next lint` and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
