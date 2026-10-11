@@ -43,7 +43,17 @@ pnpm build                      # exit 0; 16/16 routes
 
 A root-owned `node_modules` from a previous sandbox image required `sudo rm -rf node_modules` before the first frozen install; if `pnpm install` fails with EACCES under `.pnpm`, that is why.
 
+The publishable key must be structurally valid, not just non-empty: Clerk
+base64-decodes it into a frontend-API URL, so a bare string fails the build with
+"publishableKey ... is invalid". The exported key above works; an equivalent form
+(verified 2026-10-11) is
+`pk_test_$(printf 'https://linkedup-build-placeholder.clerk.accounts.dev$' | base64 -w0)`.
+
 ## Verification record
+
+Independently re-verified 2026-10-11 on the pushed `d3b9951` tree: vitest 27/27,
+`tsc --noEmit` exit 0, `pnpm lint` exit 0 (same 3 img warnings), build with the
+placeholder keys above exit 0 with 16/16 routes prerendered.
 
 | Gate | `main` @ `da3ebbf` | This branch @ `08dff14` | This branch + handoff/tests commit |
 |---|---|---|---|
@@ -56,6 +66,10 @@ A root-owned `node_modules` from a previous sandbox image required `sudo rm -rf 
 
 - **No real Stream-backed call room.** The videocall page is a mock-based demo with a deterministic timer. The reusable `StreamClientProvider` is retained but unused by routes; a real room needs a new route wired to Stream credentials and the existing components.
 - **No live Clerk / database / Stream credentials were exercised.** All checks run with placeholder keys and mocked providers; middleware redirects, onboarding persistence, and Clerk metadata behavior are unit-tested, not integration-tested.
+- **The onboarding save action does not wrap steps 3–5 in a transaction.** A failure
+  between the users-row write and the interests insert leaves a users row with missing
+  interests until the next retry repairs it. Local mocks cannot surface this; only a
+  live-database run can.
 - **Onboarding expects a reachable Postgres** (Drizzle) and Clerk user emails; first sign-up inserts the user row, later runs take the update path and clear/re-insert interests.
 - **No ML matching service.** Match queues are demo-populated; nothing in this branch adds a matching design.
 - **The `/app/professional/*` and `/app/smart-connection` pages** read `useSearchParams` inside Suspense boundaries; their queues are demo data.
