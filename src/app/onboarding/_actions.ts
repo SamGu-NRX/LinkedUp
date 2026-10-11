@@ -18,19 +18,12 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
   const client = await clerkClient();
 
   try {
-    // 1. Update Clerk metadata
-    await client.users.updateUser(userId, {
-      publicMetadata: {
-        onboardingComplete: true,
-      },
-    });
-
-    // 2. Check if user exists in our database
+    // 1. Check if user exists in our database
     const existingUser = await db.query.users.findFirst({
       where: (users, { eq }) => eq(users.clerkId, userId),
     });
 
-    // 3. Get user email from Clerk
+    // 2. Get user email from Clerk
     const userDetails = await client.users.getUser(userId);
     const email = userDetails.emailAddresses[0]?.emailAddress;
 
@@ -38,12 +31,16 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
       return { error: "User email not found" };
     }
 
-    // 4. If user exists, update; otherwise, create
+    // 3. If user exists, update; otherwise, create. Names come from the
+    //    Clerk profile, not the wizard. Clerk's onboardingComplete
+    //    metadata is written only after persistence succeeds (step 4).
     let userRecord;
     if (existingUser) {
       [userRecord] = await db
         .update(users)
         .set({
+          firstName: userDetails.firstName ?? existingUser.firstName,
+          lastName: userDetails.lastName ?? existingUser.lastName,
           age: data.age,
           gender: data.gender,
           field: data.field,
@@ -62,6 +59,8 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
         .values({
           clerkId: userId,
           email,
+          firstName: userDetails.firstName,
+          lastName: userDetails.lastName,
           age: data.age,
           gender: data.gender,
           field: data.field,
@@ -73,6 +72,13 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
         })
         .returning();
     }
+
+    // 4. Persist success flag in Clerk metadata (after DB writes).
+    await client.users.updateUser(userId, {
+      publicMetadata: {
+        onboardingComplete: true,
+      },
+    });
 
     // 5. Clear existing interests (if updating)
     if (existingUser) {

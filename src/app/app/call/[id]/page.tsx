@@ -1,61 +1,58 @@
-"use client"
+// src/app/app/call/[id]/page.tsx
+import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
+import { getRoomForUser } from "@/lib/matching";
+import CallScreenClient from "./CallScreenClient";
 
-import React, { Suspense } from "react"
-import { useParams, useSearchParams } from "next/navigation"
-import VoiceCallScreen from "@/components/call/VoiceCallScreen"
-import type { CallType, Participant } from "@/types/call"
+export const dynamic = "force-dynamic";
 
-function CallPageContent() {
-  const params = useParams()
+const refusalCopy: Record<string, { title: string; detail: string }> = {
+  room_not_found: {
+    title: "Call not found",
+    detail: "This call room doesn't exist. It may have never been created.",
+  },
+  room_ended: {
+    title: "This call has ended",
+    detail: "The call room you tried to open is no longer active.",
+  },
+  not_a_participant: {
+    title: "You're not in this call",
+    detail:
+      "Only the two people matched into this room can join it. If this was your match, rejoin the queue from the app.",
+  },
+};
 
-  const searchParams = useSearchParams()
-  const callType = (searchParams.get("type") as CallType) || "casual"
-  const callId = params.id as string
+export default async function CallPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const { userId } = await auth();
 
-  const handleEndCall = () => {
-    // Implement call ending logic
-    console.log("Call ended")
+  const access = userId
+    ? await getRoomForUser(userId, id)
+    : ({ allowed: false, reason: "not_a_participant" } as const);
+
+  if (!access.allowed) {
+    const copy = refusalCopy[access.reason] ?? refusalCopy.not_a_participant;
+    return (
+      <main
+        data-call-refusal=""
+        data-refusal-reason={access.reason}
+        className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center text-zinc-100"
+      >
+        <h1 className="text-2xl font-semibold">{copy.title}</h1>
+        <p className="max-w-md text-sm text-zinc-400">{copy.detail}</p>
+        <Link
+          href="/app"
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Back to the app
+        </Link>
+      </main>
+    );
   }
 
-  const handleExtendCall = () => {
-    // Implement call extension logic
-    console.log("Call extended")
-  }
-
-  const handleToggleMute = () => {
-    // Implement mute toggling logic
-    console.log("Mute toggled")
-  }
-
-  const handleRateCall = (rating: number) => {
-    // Implement call rating logic
-    console.log(`Call rated: ${rating}`)
-  }
-
-  // Mock data for demonstration purposes
-  const participants: [Participant, Participant] = [
-    { id: "1", name: "You", avatarUrl: "/placeholder.svg?height=120&width=120" },
-    { id: "2", name: "John Doe", avatarUrl: "/placeholder.svg?height=120&width=120" },
-  ]
-
-  return (
-    <VoiceCallScreen
-      callType={callType}
-      participants={participants}
-      initialDuration={300} // 5 minutes
-      onEndCall={handleEndCall}
-      onExtendCall={handleExtendCall}
-      onToggleMute={handleToggleMute}
-      onRateCall={handleRateCall}
-    />
-  )
-}
-
-export default function CallPage() {
-  // useSearchParams() inside requires a Suspense boundary for static prerendering.
-  return (
-    <Suspense fallback={null}>
-      <CallPageContent />
-    </Suspense>
-  )
+  return <CallScreenClient access={access} />;
 }

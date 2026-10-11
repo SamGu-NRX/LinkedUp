@@ -1,5 +1,5 @@
 // src/db/schema.ts
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
   serial,
@@ -10,12 +10,16 @@ import {
   boolean,
   timestamp,
   jsonb,
+  uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }),
+  lastName: varchar("last_name", { length: 255 }),
   age: integer("age"),
   gender: varchar("gender", { length: 20 }),
   field: varchar("field", { length: 100 }),
@@ -74,3 +78,42 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 });
+
+// --- Matching queue and call rooms (LS0) --------------------------------
+
+export const rooms = pgTable("rooms", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  queueType: varchar("queue_type", { length: 20 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  user1Id: integer("user1_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  user2Id: integer("user2_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+});
+
+export const queueEntries = pgTable(
+  "queue_entries",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    queueType: varchar("queue_type", { length: 20 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("waiting"),
+    roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    exitedAt: timestamp("exited_at", { withTimezone: true }),
+  },
+  (table) => [
+    // One live queue slot per user: no double-joining, ever.
+    uniqueIndex("queue_entries_user_waiting_unique")
+      .on(table.userId)
+      .where(sql`status = 'waiting'`),
+    // Pairing index: the matcher scans waiting entries by type.
+    index("queue_entries_pairing_idx").on(table.queueType, table.status),
+  ],
+);

@@ -1,7 +1,8 @@
+// src/components/call/VoiceCallScreen.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { Mic, MicOff, PhoneOff, Clock, Star } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Mic, MicOff, PhoneOff, Clock, Star, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { VoiceCallProps } from "@/types/call";
@@ -9,18 +10,24 @@ import type { VoiceCallProps } from "@/types/call";
 /**
  * VoiceCallScreen — the LS0 voice-call surface.
  *
- * Renders the call DOM contract documented in docs/plan/CALL-PLAN.md:
+ * Renders the call DOM contract documented for the journey suite:
  * a root region with a phase attribute, a call timer, participant rows,
  * and control buttons carrying stable data-testids so the J-suite can
  * drive and observe the call without depending on visual styling.
  *
- * Milestone 1 renders honest state only: the screen mounts in "joining"
- * and every transition into connected/reconnecting/failed/left is driven
- * by real transport snapshots wired in a later milestone. No simulated
- * remote audio, no fabricated connection states.
+ * LS0 behavior: the screen mounts in "joining" and advances to
+ * "connected" only when the browser owns a live local capture. Mic and
+ * camera toggles really stop and re-acquire tracks. There is no
+ * simulated remote media — the partner tile reports exactly what exists
+ * ("audio not connected") until the transport milestone (LS1) wires
+ * remote streams.
  */
-
 type CallPhase = "joining" | "connected" | "reconnecting" | "failed" | "left";
+
+type CaptureError = {
+  kind: "permission" | "no-device" | "unknown";
+  message: string;
+};
 
 const phaseLabel: Record<CallPhase, string> = {
   joining: "Connecting…",
@@ -30,10 +37,16 @@ const phaseLabel: Record<CallPhase, string> = {
   left: "Call ended",
 };
 
-function formatElapsed(totalSeconds: number): string {
+// Exported for the honesty unit tests.
+export function formatElapsed(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+/** Stops every live track — the only reliable way to release devices. */
+function stopAllTracks(stream: MediaStream | null): void {
+  stream?.getTracks().forEach((track) => track.stop());
 }
 
 export default function VoiceCallScreen({
@@ -45,12 +58,156 @@ export default function VoiceCallScreen({
   onToggleMute,
   onRateCall,
 }: VoiceCallProps) {
-  // Milestone 1: transport wiring is not in place yet, so the phase stays
-  // "joining". Real snapshots replace this in the transport milestone.
-  const [phase] = useState<CallPhase>("joining");
-  const [isMuted, setIsMuted] = useState(false);
+  const [phase, setPhase] = useState<CallPhase>("joining");
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [captureError, setCaptureError] = useState<CaptureError | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [rating, setRating] = useState<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const localParticipant = participants[0];
+  const remoteParticipants = participants.slice(1);
+
+  const setStreamAndRef = useCallback((next: MediaStream | null) => {
+    streamRef.current = next;
+    setStream(next);
+  }, []);
+
+  const startCapture = useCallback(async () => {
+    setCaptureError(null);
+    try {
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      stopAllTracks(streamRef.current);
+      setStreamAndRef(media);
+      setPhase("connected");
+    } catch (error) {
+      // Browsers throw DOMException, but read the name off any error —
+      // wrappers and polyfills exist in the wild.
+      const name =
+        error instanceof DOMException
+          ? error.name
+          : ((error as { name?: string } | null)?.name ?? "");
+      if (name === "NotAllowedError") {
+        setCaptureError({
+          kind: "permission",
+          message:
+            "Camera and microphone access was blocked. Allow access in your browser settings, then retry.",
+        });
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        setCaptureError({
+          kind: "no-device",
+          message:
+            "No camera or microphone was found. Connect one (or check that another app isn't holding it), then retry.",
+        });
+      } else {
+        setCaptureError({
+          kind: "unknown",
+          message: "Could not start local capture. Retry when ready.",
+        });
+      }
+    }
+  }, [setStreamAndRef]);
+
+  // Acquire local media on mount (startCapture is stable). The
+  // device-permission prompt shows here; nothing is presented as
+  // "connected" before it.
+  useEffect(() => {
+    void startCapture();
+    return () => {
+      stopAllTracks(streamRef.current);
+      streamRef.current = null;
+    };
+  }, [startCapture]);
+
+  // Camera off: really stop the video track. Camera on: re-acquire it.
+  useEffect(() => {
+    if (phase !== "connected") return;
+    if (!cameraOn) {
+      const current = streamRef.current;
+      current?.getVideoTracks().forEach((track) => track.stop());
+      if (current) {
+        setStreamAndRef(new MediaStream(current.getTracks().filter((t) => t.kind !== "video")));
+      }
+      return;
+    }
+    if (streamRef.current?.getVideoTracks().some((t) => t.readyState === "live")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const fresh = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (cancelled) {
+          stopAllTracks(fresh);
+          return;
+        }
+        const current = streamRef.current;
+        setStreamAndRef(new MediaStream([...(current?.getTracks() ?? []), ...fresh.getTracks()]));
+      } catch (error) {
+        if (!cancelled) {
+          const name = error instanceof DOMException ? error.name : "";
+          setCaptureError({
+            kind: name === "NotAllowedError" ? "permission" : "no-device",
+            message:
+              name === "NotAllowedError"
+                ? "Camera access was blocked. Allow access in your browser settings, then retry."
+                : "No camera was found. Connect one, then retry.",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cameraOn, phase, setStreamAndRef]);
+
+  // Mic off: really stop the audio track. Mic on: re-acquire it.
+  useEffect(() => {
+    if (phase !== "connected") return;
+    if (!micEnabled) {
+      const current = streamRef.current;
+      current?.getAudioTracks().forEach((track) => track.stop());
+      if (current) {
+        setStreamAndRef(new MediaStream(current.getTracks().filter((t) => t.kind !== "audio")));
+      }
+      return;
+    }
+    if (streamRef.current?.getAudioTracks().some((t) => t.readyState === "live")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const fresh = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) {
+          stopAllTracks(fresh);
+          return;
+        }
+        const current = streamRef.current;
+        setStreamAndRef(new MediaStream([...(current?.getTracks() ?? []), ...fresh.getTracks()]));
+      } catch (error) {
+        if (!cancelled) {
+          const name = error instanceof DOMException ? error.name : "";
+          setCaptureError({
+            kind: name === "NotAllowedError" ? "permission" : "no-device",
+            message:
+              name === "NotAllowedError"
+                ? "Microphone access was blocked. Allow access in your browser settings, then retry."
+                : "No microphone was found. Connect one, then retry.",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [micEnabled, phase, setStreamAndRef]);
+
+  // Local preview element follows the stream while the camera is live.
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
   // Elapsed timer runs only while the call is actually connected.
   useEffect(() => {
@@ -61,12 +218,15 @@ export default function VoiceCallScreen({
     return () => clearInterval(interval);
   }, [phase]);
 
-  const localParticipant = participants[0];
-  const remoteParticipants = participants.slice(1);
+  const localAudioLive = stream?.getAudioTracks().some((t) => t.readyState === "live") ?? false;
+  const localVideoLive = stream?.getVideoTracks().some((t) => t.readyState === "live") ?? false;
+  const micState = phase === "connected" && micEnabled && localAudioLive ? "live" : "muted";
 
-  const handleToggleMute = () => {
-    setIsMuted((prev) => !prev);
-    onToggleMute();
+  const handleLeave = () => {
+    stopAllTracks(streamRef.current);
+    setStreamAndRef(null);
+    setPhase("left");
+    onEndCall();
   };
 
   const remaining = Math.max(initialDuration - elapsed, 0);
@@ -103,6 +263,18 @@ export default function VoiceCallScreen({
         )}
       </header>
 
+      {/* Local preview: the only video shown is this device's capture. */}
+      {localVideoLive && phase !== "left" && (
+        <video
+          data-call-local-preview=""
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="h-44 w-64 scale-x-[-1] rounded-xl border border-zinc-800 bg-black object-cover"
+        />
+      )}
+
       <ul
         data-call-participants=""
         className="flex w-full max-w-sm flex-col gap-3"
@@ -115,21 +287,12 @@ export default function VoiceCallScreen({
             data-participant-id={localParticipant.id}
             className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={localParticipant.avatarUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
-            />
             <span className="text-sm font-medium">{localParticipant.name} (you)</span>
             <span
-              data-call-mic-state={isMuted ? "muted" : "live"}
-              className={cn(
-                "ml-auto text-xs",
-                isMuted ? "text-red-400" : "text-green-400",
-              )}
+              data-call-mic-state={micState}
+              className={cn("ml-auto text-xs", micState === "muted" ? "text-red-400" : "text-green-400")}
             >
-              {isMuted ? "muted" : "mic live"}
+              {micState === "muted" ? "muted" : "mic live"}
             </span>
           </li>
         )}
@@ -140,16 +303,10 @@ export default function VoiceCallScreen({
             data-participant-id={participant.id}
             className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={participant.avatarUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
-            />
             <span className="text-sm font-medium">{participant.name}</span>
-            {/* Remote media wrapper: audio is attached only when a real
-                remote stream exists. Until then the wrapper reports muted
-                video/audio honestly instead of pretending to play. */}
+            {/* Remote media wrapper: no remote stream exists in LS0, so the
+                wrapper reports muted video/audio honestly instead of
+                pretending to play. Real streams attach in LS1. */}
             <div
               data-testid="remote-media"
               data-participant-id={participant.id}
@@ -157,26 +314,30 @@ export default function VoiceCallScreen({
               data-video-off="true"
               className="ml-auto flex flex-col items-end"
             >
-              <span className="text-xs text-zinc-500">audio not connected</span>
-              <audio data-remote-audio="" autoPlay playsInline hidden />
+              <span data-call-transport-note="" className="text-xs text-zinc-500">
+                audio not connected — waiting for media transport
+              </span>
             </div>
           </li>
         ))}
       </ul>
 
-      {phase === "failed" && (
-        <div className="flex flex-col items-center gap-3">
-          <p className="text-sm text-red-400">
-            We couldn&apos;t reach the call. Check your microphone connection.
-          </p>
+      {captureError && phase !== "left" && (
+        <div
+          data-call-capture-error={captureError.kind}
+          role="alert"
+          className="flex max-w-sm flex-col items-center gap-3 text-center"
+        >
+          <p className="text-sm text-red-400">{captureError.message}</p>
           <Button
             data-testid="retry-media"
+            data-call-retry=""
             onClick={() => {
-              /* transport retry wired with the transport milestone */
+              void startCapture();
             }}
             variant="secondary"
           >
-            Retry connection
+            Retry capture
           </Button>
         </div>
       )}
@@ -218,29 +379,36 @@ export default function VoiceCallScreen({
           <Button
             data-testid="toggle-mic"
             data-call-mic=""
-            aria-pressed={isMuted}
-            aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
-            onClick={handleToggleMute}
+            aria-pressed={micEnabled}
+            aria-label={micEnabled ? "Mute microphone" : "Unmute microphone"}
+            onClick={() => {
+              setMicEnabled((prev) => !prev);
+              onToggleMute();
+            }}
             variant="secondary"
             size="icon"
             className="h-14 w-14 rounded-full"
           >
-            {isMuted ? (
-              <MicOff className="h-6 w-6" aria-hidden />
-            ) : (
+            {micEnabled ? (
               <Mic className="h-6 w-6" aria-hidden />
+            ) : (
+              <MicOff className="h-6 w-6" aria-hidden />
             )}
           </Button>
           <Button
-            data-testid="leave-call"
-            data-call-end=""
-            aria-label="End call"
-            onClick={onEndCall}
-            variant="destructive"
+            data-call-camera=""
+            aria-pressed={cameraOn}
+            aria-label={cameraOn ? "Turn camera off" : "Turn camera on"}
+            onClick={() => setCameraOn((prev) => !prev)}
+            variant="secondary"
             size="icon"
-            className="h-16 w-16 rounded-full"
+            className="h-14 w-14 rounded-full"
           >
-            <PhoneOff className="h-7 w-7" aria-hidden />
+            {cameraOn ? (
+              <Video className="h-6 w-6" aria-hidden />
+            ) : (
+              <VideoOff className="h-6 w-6" aria-hidden />
+            )}
           </Button>
           <Button
             data-call-extend=""
@@ -251,6 +419,17 @@ export default function VoiceCallScreen({
             className="h-14 w-14 rounded-full"
           >
             <Clock className="h-6 w-6" aria-hidden />
+          </Button>
+          <Button
+            data-testid="leave-call"
+            data-call-end=""
+            aria-label="End call"
+            onClick={handleLeave}
+            variant="destructive"
+            size="icon"
+            className="h-16 w-16 rounded-full"
+          >
+            <PhoneOff className="h-7 w-7" aria-hidden />
           </Button>
         </footer>
       )}
