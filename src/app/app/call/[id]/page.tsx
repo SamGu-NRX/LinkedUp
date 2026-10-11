@@ -3,7 +3,7 @@
 import React from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import VoiceCallScreen from "@/components/call/VoiceCallScreen"
-import type { CallType } from "@/types/call"
+import type { CallType, Participant } from "@/types/call"
 
 export default function CallPage() {
   const params = useParams()
@@ -33,7 +33,7 @@ export default function CallPage() {
   }
 
   // Mock data for demonstration purposes
-  const participants = [
+  const participants: [Participant, Participant] = [
     { id: "1", name: "You", avatarUrl: "/placeholder.svg?height=120&width=120" },
     { id: "2", name: "John Doe", avatarUrl: "/placeholder.svg?height=120&width=120" },
   ]
