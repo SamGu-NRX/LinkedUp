@@ -1,0 +1,30 @@
+Requests recorded during a whole sample-demo run (27 total, all hosts):
+GET document   http://127.0.0.1:4310/demo
+GET font       http://127.0.0.1:4310/_next/static/media/5dfb1d0134f1564c-s.p.otf
+GET font       http://127.0.0.1:4310/_next/static/media/5e2deae4b23fe9dc-s.p.woff2
+GET font       http://127.0.0.1:4310/_next/static/media/b9cdf579b141d3d6-s.p.woff2
+GET font       http://127.0.0.1:4310/_next/static/media/e4af272ccee01ff0-s.p.woff2
+GET stylesheet http://127.0.0.1:4310/_next/static/css/eebc7413e3000652.css
+GET stylesheet http://127.0.0.1:4310/_next/static/css/21e50076623580b6.css
+GET script     http://127.0.0.1:4310/_next/static/chunks/webpack-122a916895e21383.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/137c818c-106a66a265f7afcc.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/384-6d13d05147dd583f.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/main-app-3c9d77614997a700.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/8341-a87ea9ddf3550cf6.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/8236-bef0fd09228e231c.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/9336-63265079e84d02cb.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/8819-8a583b57a64b744e.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/app/layout-92288da5db24ea4e.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/4387-98b624c3c27f36fc.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/8654-2cb92a57653d1234.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/1412-4093514fd931f577.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/7027-20d9b72a18e3f09d.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/8796-a34093c6e0c3d90c.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/7454-6e5ec8ff20b83128.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/app/demo/page-136f6476c86ea261.js
+GET fetch      http://127.0.0.1:4310/?_rsc=1vhu0
+GET script     http://127.0.0.1:4310/_next/static/chunks/3753-20e9055c22dec392.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/9906-d3b39da8cb4f1b23.js
+GET script     http://127.0.0.1:4310/_next/static/chunks/app/page-f99af509f20a037a.js
+
+External (non-local) requests: 0
