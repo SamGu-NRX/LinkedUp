@@ -1,0 +1,35 @@
+{
+  "repeats": 5,
+  "runs": [
+    {
+      "run": 1,
+      "shiftCount": 0,
+      "totalShift": 0,
+      "shifts": []
+    },
+    {
+      "run": 2,
+      "shiftCount": 0,
+      "totalShift": 0,
+      "shifts": []
+    },
+    {
+      "run": 3,
+      "shiftCount": 0,
+      "totalShift": 0,
+      "shifts": []
+    },
+    {
+      "run": 4,
+      "shiftCount": 0,
+      "totalShift": 0,
+      "shifts": []
+    },
+    {
+      "run": 5,
+      "shiftCount": 0,
+      "totalShift": 0,
+      "shifts": []
+    }
+  ]
+}

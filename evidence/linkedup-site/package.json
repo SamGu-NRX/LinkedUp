@@ -1,0 +1,15 @@
+{
+  "name": "linkedup-site-evidence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evidence toolchain for the LinkedUp public landing (Playwright suite, axe, layout-shift checks). Self-contained: deps and lockfile live here, not in the repo root.",
+  "scripts": {
+    "test": "playwright test --config=playwright.config.ts",
+    "test:headed": "playwright test --config=playwright.config.ts --headed"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
+    "playwright": "^1.64.0"
+  }
+}

@@ -1,55 +1,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+  motion,
+  MotionConfig,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import {
-  Phone,
-  Shield,
-  Zap,
-  Users,
-  Star,
   ArrowRight,
-  Timer,
-  MessageSquare,
-  Target,
-  Award,
-  TrendingUp,
+  CalendarCheck,
   ChevronRight,
-  UserCheck,
-  Globe,
-  Clock,
-  Activity,
-  Sun,
+  ClipboardList,
   Moon,
+  Sun,
+  Users,
+  Video,
 } from "lucide-react";
 import { handleTransition } from "@/utils/TransitionLink";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  UserButton,
-} from "@clerk/nextjs";
 
-// Retention data for the chart
-const retentionData = [
-  { month: "Jan", rate: 85 },
-  { month: "Feb", rate: 87 },
-  { month: "Mar", rate: 89 },
-  { month: "Apr", rate: 92 },
-  { month: "May", rate: 94 },
-  { month: "Jun", rate: 95 },
-];
+const REPO_URL = "https://github.com/SamGu-NRX/LinkedUp";
+const CONNVO_URL = "https://github.com/SamGu-NRX/Connvo";
 
 // MacBook Component with improved transitions
 const MacbookScroll = () => {
@@ -75,7 +48,7 @@ const MacbookScroll = () => {
         <div className="relative aspect-16/10 w-full overflow-hidden rounded-t-xl border-[8px] border-b-0 border-gray-800 bg-gray-900 shadow-2xl">
           <img
             src="landerimage.png"
-            alt="App Interface Screenshot"
+            alt="The LinkedUp meeting room: two participant tiles, a discussion prompt, meeting notes, and the time remaining"
             className="absolute inset-0 h-full w-full object-cover"
           />
         </div>
@@ -102,7 +75,7 @@ const StatCard: React.FC<StatCardProps> = ({
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
+    whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
     transition={{ delay, duration: 0.5 }}
     className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg transition-all duration-300 hover:border-emerald-200 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800 dark:hover:border-emerald-800"
   >
@@ -120,25 +93,24 @@ const StatCard: React.FC<StatCardProps> = ({
   </motion.div>
 );
 
-// Improved Feature Card component
-interface FeatureCardProps {
+// Capability Card component
+interface CapabilityCardProps {
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
   index: number;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({
+const CapabilityCard: React.FC<CapabilityCardProps> = ({
+  icon: Icon,
   title,
   description,
-  icon: Icon,
   index,
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
+    whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
     transition={{ delay: index * 0.1, duration: 0.5 }}
-    whileHover={{ y: -5, scale: 1.02 }}
     className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg transition-all duration-300 hover:border-emerald-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-emerald-800"
   >
     <div className="mb-4 w-fit rounded-xl bg-emerald-50 p-3 dark:bg-emerald-900/30">
@@ -148,48 +120,6 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       {title}
     </h3>
     <p className="text-gray-600 dark:text-gray-300">{description}</p>
-  </motion.div>
-);
-
-// Improved Testimonial Card component
-interface TestimonialCardProps {
-  name: string;
-  role: string;
-  text: string;
-  rating: number;
-  index: number;
-}
-
-const TestimonialCard: React.FC<TestimonialCardProps> = ({
-  name,
-  role,
-  text,
-  rating,
-  index,
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.2, duration: 0.5 }}
-    className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg transition-all duration-300 hover:border-emerald-200 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800 dark:hover:border-emerald-800"
-  >
-    <div className="mb-4 flex gap-1">
-      {[...Array(rating)].map((_, i) => (
-        <Star key={i} className="h-5 w-5 fill-current text-emerald-400" />
-      ))}
-    </div>
-    <p className="mb-4 text-gray-600 italic dark:text-gray-300">
-      &quot;{text}&quot;
-    </p>
-    <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400">
-        {name.charAt(0)}
-      </div>
-      <div>
-        <p className="font-semibold text-gray-900 dark:text-white">{name}</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{role}</p>
-      </div>
-    </div>
   </motion.div>
 );
 
@@ -277,430 +207,30 @@ const LandingPage = () => {
     }
   };
 
-  // Smooth scroll function: URGENT TODO: SWITCH TO LENIS
+  // Smooth scroll, unless the visitor asked for reduced motion.
   const scrollToSection = (elementId: string) => {
     const element = document.getElementById(elementId);
     if (element) {
+      const reduce =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       window.scrollTo({
         top: element.offsetTop - 100,
-        behavior: "smooth",
+        behavior: reduce ? "auto" : "smooth",
       });
     }
   };
 
   return (
-    <div className={`min-h-screen ${theme === "dark" ? "dark" : ""}`}>
-      <div className="bg-white transition-colors duration-300 dark:bg-gray-900">
-        {/* Improved Nav */}
-        <nav className="fixed top-0 z-50 w-full border-b border-emerald-100 bg-white/90 backdrop-blur-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-900/90">
-          <div className="container mx-auto flex items-center justify-between px-6 py-4">
-            {/* Logo that changes based on theme */}
-            <div className="flex items-center gap-2">
-              {/* Logo that changes based on theme */}
-              {theme === "light" ? (
-                <Image
-                  src="/linkeduplogos/linkedupblack.png"
-                  alt="LinkedUp Logo"
-                  width={40}
-                  height={40}
-                  className="h-10 w-auto"
-                />
-              ) : (
-                <Image
-                  src="/linkeduplogos/linkedupwhite.png"
-                  alt="LinkedUp Logo"
-                  width={40}
-                  height={40}
-                  className="h-10 w-auto"
-                />
-              )}
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                LinkedUp
-              </span>
-            </div>
-
-            <div className="hidden items-center gap-8 md:flex">
-              <button
-                onClick={() => scrollToSection("features")}
-                className="text-gray-600 transition-colors hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-400"
-              >
-                Features
-              </button>
-              <button
-                onClick={() => scrollToSection("testimonials")}
-                className="text-gray-600 transition-colors hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-400"
-              >
-                Testimonials
-              </button>
-              <button
-                onClick={() => scrollToSection("pricing")}
-                className="text-gray-600 transition-colors hover:text-emerald-600 dark:text-gray-300 dark:hover:text-emerald-400"
-              >
-                Pricing
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                onClick={toggleTheme}
-                className="rounded-full p-2 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
-                aria-label="Toggle theme"
-              >
-                {theme === "light" ? (
-                  <Moon className="h-5 w-5 text-emerald-600" />
-                ) : (
-                  <Sun className="h-5 w-5 text-emerald-400" />
-                )}
-              </button>
-
-              <motion.a
-                href="/app"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white shadow-md transition-colors duration-300 hover:bg-emerald-700 hover:shadow-lg"
-                onClick={(e) => handleTransition(e, "/app", router)}
-              >
-                Start Connecting
-              </motion.a>
-            </div>
-          </div>
-        </nav>
-
-        {/* Improved Hero Section */}
-        <section className="relative flex min-h-screen items-center pt-32 pb-16 md:pb-0">
-          <FloatingShapes />
-
-          <div className="relative container mx-auto px-6 pt-12 pb-32">
-            <motion.div
-              data-kgu-intro
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="mx-auto max-w-4xl text-center"
-            >
-              <div className="mb-6 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                Professional networking reimagined
-              </div>
-
-              <h1 className="mb-6 text-5xl font-bold text-gray-900 md:text-6xl lg:text-7xl dark:text-white">
-                Professional Networking
-                <br />
-                <span className="bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  Without the BS.
-                </span>
-              </h1>
-
-              <p className="mx-auto mb-10 max-w-2xl text-xl text-gray-600 dark:text-gray-300">
-                Where professionals come to actually connect, not to share
-                inspirational quotes or humble brag about their morning
-                routines.
-              </p>
-
-              <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <motion.a
-                  href="/app"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => handleTransition(e, "/app", router)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-8 py-4 font-medium text-white shadow-md transition-all hover:bg-emerald-700 hover:shadow-lg sm:w-auto"
-                >
-                  Start Real Networking <ArrowRight className="h-5 w-5" />
-                </motion.a>
-
-                <motion.button
-                  onClick={() => scrollToSection("how-it-works")}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-white px-8 py-4 font-medium text-gray-800 shadow-md transition-all hover:bg-emerald-50 hover:shadow-lg sm:w-auto dark:border-emerald-800 dark:bg-gray-800 dark:text-white dark:hover:bg-emerald-900/20"
-                >
-                  See How It Works <ChevronRight className="h-5 w-5" />
-                </motion.button>
-              </div>
-            </motion.div>
-
-            {/* Smooth transition to next section */}
-          </div>
-        </section>
-
-        <motion.div
-          data-kgu-intro
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-10 left-1/2 hidden -translate-x-1/2 transform md:block"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-            className="flex h-10 w-6 justify-center rounded-full border-2 border-emerald-400 dark:border-emerald-500"
-          >
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="mt-2 h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-500"
-            />
-          </motion.div>
-        </motion.div>
-
-        {/* MacBook Scroll Component */}
-        <MacbookScroll />
-
-        {/* Improved Stats Section */}
-        <section className="bg-linear-to-b from-emerald-50 to-white py-20 dark:from-gray-800/50 dark:to-gray-900">
-          <div className="container mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mb-12 text-center"
-            >
-              <h2 className="mb-4 text-3xl font-bold text-gray-900 dark:text-white">
-                Why professionals choose LinkedUp
-              </h2>
-              <div className="mx-auto h-1 w-20 rounded-full bg-emerald-600"></div>
-            </motion.div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <StatCard
-                icon={UserCheck}
-                value="50K+"
-                label="BS-Free Conversations"
-                delay={0.1}
-              />
-              <StatCard
-                icon={Clock}
-                value="92%"
-                label="Less Cringe Than LinkedIn"
-                delay={0.2}
-              />
-              <StatCard
-                icon={Activity}
-                value="4.8/5"
-                label="User Satisfaction"
-                delay={0.3}
-              />
-              <StatCard
-                icon={Globe}
-                value="120+"
-                label="Countries Represented"
-                delay={0.4}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Improved Features Section */}
-        <section id="features" className="py-20">
-          <div className="container mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mx-auto mb-16 max-w-3xl text-center"
-            >
-              <div className="mb-4 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                What makes us different
-              </div>
-              <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
-                Features That Actually Matter
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300">
-                No fluff. No filler. Just real connection tools.
-              </p>
-            </motion.div>
-
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  icon: Timer,
-                  title: "5-Minute Calls",
-                  description:
-                    "Because 'quick coffee chats' are never quick. Get straight to the point.",
-                },
-                {
-                  icon: Users,
-                  title: "Smart Matching",
-                  description:
-                    "Like dating apps, but for people who want to talk about more than their Myers-Briggs.",
-                },
-                {
-                  icon: Shield,
-                  title: "BS Detection",
-                  description:
-                    "Our AI flags corporate buzzwords faster than you can say 'synergy'.",
-                },
-                {
-                  icon: MessageSquare,
-                  title: "Real Talk Only",
-                  description:
-                    "Save the weather small talk for your next awkward elevator ride.",
-                },
-                {
-                  icon: Award,
-                  title: "Trust Score",
-                  description:
-                    "Earned by being interesting, not by posting motivational quotes.",
-                },
-                {
-                  icon: TrendingUp,
-                  title: "Actual Growth",
-                  description:
-                    "Track connections that matter, not your endorsement count.",
-                },
-              ].map((feature, index) => (
-                <FeatureCard key={index} {...feature} index={index} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Improved Social Proof Section */}
-        <section
-          id="testimonials"
-          className="bg-linear-to-b from-white to-emerald-50 py-20 dark:from-gray-900 dark:to-gray-800/50"
-        >
-          <div className="container mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mx-auto mb-16 max-w-3xl text-center"
-            >
-              <div className="mb-4 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                {`Don't take our word for it`}
-              </div>
-              <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
-                What Real Humans Say
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300">
-                No paid testimonials. Just honest feedback.
-              </p>
-            </motion.div>
-
-            <div className="grid gap-8 md:grid-cols-3">
-              {[
-                {
-                  name: "Sarah K.",
-                  role: "Reformed LinkedIn Influencer",
-                  text: "Found my co-founder in 5 minutes. My LinkedIn connection requests are still pending.",
-                  rating: 5,
-                },
-                {
-                  name: "Alex T.",
-                  role: "Professional Human",
-                  text: "Finally, networking that doesn't feel like a bad LinkedIn post. Actually made meaningful connections.",
-                  rating: 5,
-                },
-                {
-                  name: "Mike R.",
-                  role: "Ex-Corporate Buzzword Expert",
-                  text: "Turns out, real conversations work better than 'touching base' emails. Who knew?",
-                  rating: 5,
-                },
-              ].map((testimonial, index) => (
-                <TestimonialCard key={index} {...testimonial} index={index} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Retention Data Visualization */}
-        <section className="py-20">
-          <div className="container mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mx-auto mb-12 max-w-3xl text-center"
-            >
-              <div className="mb-4 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-                Users stick around
-              </div>
-              <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
-                Industry-Leading Retention
-              </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300">
-                People who join LinkedUp actually keep using it. Imagine that.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-              className="mb-12 rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div className="h-64 sm:h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={retentionData}>
-                    <XAxis
-                      dataKey="month"
-                      stroke={theme === "dark" ? "#94a3b8" : "#64748b"}
-                    />
-                    <YAxis stroke={theme === "dark" ? "#94a3b8" : "#64748b"} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor:
-                          theme === "dark" ? "#1e293b" : "#ffffff",
-                        borderColor: theme === "dark" ? "#334155" : "#e2e8f0",
-                        color: theme === "dark" ? "#f8fafc" : "#0f172a",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="rate"
-                      name="Retention %"
-                      stroke="#10b981"
-                      strokeWidth={3}
-                      dot={{
-                        r: 6,
-                        strokeWidth: 2,
-                        fill: theme === "dark" ? "#1e293b" : "#ffffff",
-                      }}
-                      activeDot={{ r: 8 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Improved CTA Section */}
-        <section
-          id="pricing"
-          className="bg-linear-to-r from-emerald-600 to-teal-600 py-20 text-white"
-        >
-          <div className="container mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              className="mx-auto max-w-4xl text-center"
-            >
-              <h2 className="mb-6 text-4xl font-bold">
-                Ready for Real Professional Growth?
-              </h2>
-              <p className="mb-10 text-xl text-emerald-100">
-                Join thousands of professionals building meaningful connections
-                through authentic conversations.
-              </p>
-              <motion.a
-                href="/app"
-                onClick={(e) => handleTransition(e, "/app", router)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 font-medium text-emerald-600 shadow-md transition-all hover:bg-gray-100 hover:shadow-lg"
-              >
-                Start Your Journey <ArrowRight className="h-5 w-5" />
-              </motion.a>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Improved Footer */}
-        <footer className="border-t border-emerald-100 py-12 dark:border-gray-800">
-          <div className="container mx-auto px-6">
-            <div className="flex flex-col items-center justify-between md:flex-row">
-              <div className="mb-6 flex items-center md:mb-0">
+    <MotionConfig reducedMotion="user">
+      <div
+        className={`min-h-screen ${theme === "dark" ? "dark" : ""}`}
+      >
+        <div className="bg-white transition-colors duration-300 dark:bg-gray-900">
+          {/* Nav */}
+          <nav className="fixed top-0 z-50 w-full border-b border-emerald-100 bg-white/90 backdrop-blur-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-900/90">
+            <div className="container mx-auto flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-2">
                 {theme === "light" ? (
                   <Image
                     src="/linkeduplogos/linkedupblack.png"
@@ -718,22 +248,438 @@ const LandingPage = () => {
                     className="h-10 w-auto"
                   />
                 )}
-                <span className="pl-2 text-xl font-bold text-gray-900 dark:text-white">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">
                   LinkedUp
                 </span>
               </div>
 
-              <div className="text-center text-gray-600 md:text-right dark:text-gray-300">
-                © {new Date().getFullYear()} LinkedUp. All rights reserved.
-                <div className="mt-1 text-sm">
-                  No corporate jargon was harmed in the making of this site.
+              <div className="hidden items-center gap-8 md:flex">
+                <button
+                  onClick={() => scrollToSection("what-it-is")}
+                  className="rounded-full px-3 py-1 text-gray-600 transition-colors hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:text-gray-300 dark:hover:text-emerald-400"
+                >
+                  What it is
+                </button>
+                <button
+                  onClick={() => scrollToSection("how-it-works")}
+                  className="rounded-full px-3 py-1 text-gray-600 transition-colors hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:text-gray-300 dark:hover:text-emerald-400"
+                >
+                  How it works
+                </button>
+                <button
+                  onClick={() => scrollToSection("where-it-stands")}
+                  className="rounded-full px-3 py-1 text-gray-600 transition-colors hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:text-gray-300 dark:hover:text-emerald-400"
+                >
+                  Where it stands
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={toggleTheme}
+                  className="rounded-full p-2 transition-colors hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:hover:bg-emerald-900/30"
+                  aria-label="Toggle theme"
+                >
+                  {theme === "light" ? (
+                    <Moon className="h-5 w-5 text-emerald-700" />
+                  ) : (
+                    <Sun className="h-5 w-5 text-emerald-400" />
+                  )}
+                </button>
+
+                <motion.a
+                  href="/app"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="rounded-full bg-emerald-800 px-6 py-2.5 text-sm font-medium text-white shadow-md transition-colors duration-300 hover:bg-emerald-900 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+                  onClick={(e) => handleTransition(e, "/app", router)}
+                >
+                  Open the demo
+                </motion.a>
+              </div>
+            </div>
+          </nav>
+
+          {/* Hero Section */}
+          <section className="relative flex min-h-screen items-center pt-32 pb-16 md:pb-0">
+            <FloatingShapes />
+
+            <div className="relative container mx-auto px-6 pt-12 pb-32">
+              <motion.div
+                data-kgu-intro
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                className="mx-auto max-w-4xl text-center"
+              >
+                <div className="mb-6 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                  Maintained in the open · the demo lives in this repo
+                </div>
+
+                <h1 className="mb-6 text-5xl font-bold text-gray-900 md:text-6xl lg:text-7xl dark:text-white">
+                  Professional Networking
+                  <br />
+                  <span className="bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    Without the BS.
+                  </span>
+                </h1>
+
+                <p className="mx-auto mb-6 max-w-2xl text-xl text-gray-600 dark:text-gray-300">
+                  LinkedUp matches two people on what their interests mean,
+                  then puts them straight into a one-on-one video call. Built
+                  for a hackathon in 2025, kept alive in this repository, and
+                  open to try right now.
+                </p>
+
+                <p className="mx-auto mb-10 text-sm text-gray-700 dark:text-gray-300">
+                  Second place overall, iSTEM@Stevens Hacks 2025 · piloted with
+                  more than 40 users
+                </p>
+
+                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                  <motion.a
+                    href="/app"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => handleTransition(e, "/app", router)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-800 px-8 py-4 font-medium text-white shadow-md transition-all hover:bg-emerald-900 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto"
+                  >
+                    Open the demo <ArrowRight className="h-5 w-5" />
+                  </motion.a>
+
+                  <motion.button
+                    onClick={() => scrollToSection("how-it-works")}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-white px-8 py-4 font-medium text-gray-800 shadow-md transition-all hover:bg-emerald-50 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto dark:border-emerald-800 dark:bg-gray-800 dark:text-white dark:hover:bg-emerald-900/20"
+                  >
+                    See how it works <ChevronRight className="h-5 w-5" />
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Scroll cue */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.5, duration: 1 }}
+            className="absolute bottom-10 left-1/2 hidden -translate-x-1/2 transform md:block"
+          >
+            <motion.div
+              animate={{ y: [0, 10, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="flex h-10 w-6 justify-center rounded-full border-2 border-emerald-400 dark:border-emerald-500"
+            >
+              <motion.div
+                animate={{ y: [0, 10, 0] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className="mt-2 h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-500"
+              />
+            </motion.div>
+          </motion.div>
+
+          {/* MacBook Scroll Component */}
+          <MacbookScroll />
+
+          <p className="mx-auto -mt-10 max-w-2xl px-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            The picture above is the real simulated meeting room from this
+            repository: mock participants, discussion prompts drawn from both
+            people&apos;s interests, shared notes, chat, and the
+            meeting-time manager.
+          </p>
+
+          {/* What it is */}
+          <section
+            id="what-it-is"
+            className="bg-linear-to-b from-emerald-50 to-white py-20 dark:from-gray-800/50 dark:to-gray-900"
+          >
+            <div className="container mx-auto px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="mx-auto mb-16 max-w-3xl text-center"
+              >
+                <div className="mb-4 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                  What it is
+                </div>
+                <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
+                  Networking without the feed
+                </h2>
+                <p className="text-xl text-gray-600 dark:text-gray-300">
+                  You pick your interests, it finds the person whose interests
+                  mean the closest thing to yours, and it skips the message
+                  thread. Here is what that is made of.
+                </p>
+              </motion.div>
+
+              <div className="grid gap-8 md:grid-cols-3">
+                <CapabilityCard
+                  index={0}
+                  icon={CalendarCheck}
+                  title="Sign-in and onboarding"
+                  description="Clerk gates every route. A five-step wizard validates each field with zod and writes your profile and interests to Postgres through Drizzle, and only marks onboarding complete after every write succeeds."
+                />
+                <CapabilityCard
+                  index={1}
+                  icon={Users}
+                  title="The match queue"
+                  description="Casual or professional mode, with B2B, collaboration, mentorship, and investment variants. In this repository the queue runs on mock data; the original pilot matched interests as embeddings in Postgres with pgvector."
+                />
+                <CapabilityCard
+                  index={2}
+                  icon={Video}
+                  title="The call room"
+                  description="The room at /videocall/[id] simulates the meeting: discussion prompts, notes, chat, an elapsed clock, low-time warnings, extension requests with a cooldown, and a hard 20-minute cap."
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* How it works */}
+          <section id="how-it-works" className="py-20">
+            <div className="container mx-auto px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="mx-auto mb-16 max-w-3xl text-center"
+              >
+                <div className="mb-4 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                  How it works
+                </div>
+                <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
+                  Four steps to a conversation
+                </h2>
+                <p className="text-xl text-gray-600 dark:text-gray-300">
+                  Every step below is something the repository actually
+                  implements.
+                </p>
+              </motion.div>
+
+              <ol className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+                {[
+                  "Sign in and finish the five-step onboarding wizard, saved to Postgres.",
+                  "Pick the interests that describe you, in your own words.",
+                  "Join a queue: casual, or a professional mode like mentorship.",
+                  "Accept a match and the simulated room opens with prompts ready.",
+                ].map((step, index) => (
+                  <motion.li
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                    transition={{ delay: index * 0.1, duration: 0.5 }}
+                    className="flex items-start gap-4 rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-800 font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <p className="text-gray-700 dark:text-gray-300">{step}</p>
+                  </motion.li>
+                ))}
+              </ol>
+            </div>
+          </section>
+
+          {/* Where it stands: the honest ledger */}
+          <section
+            id="where-it-stands"
+            className="bg-linear-to-b from-white to-emerald-50 py-20 dark:from-gray-900 dark:to-gray-800/50"
+          >
+            <div className="container mx-auto px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="mx-auto mb-16 max-w-3xl text-center"
+              >
+                <div className="mb-4 inline-block rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                  Where it stands
+                </div>
+                <h2 className="mb-6 text-4xl font-bold text-gray-900 dark:text-white">
+                  The honest ledger
+                </h2>
+                <p className="text-xl text-gray-600 dark:text-gray-300">
+                  LinkedUp is the maintained predecessor: this repository is
+                  the live home of the project. Here is exactly what runs and
+                  what does not, so you never have to guess.
+                </p>
+              </motion.div>
+
+              <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                  transition={{ duration: 0.5 }}
+                  className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-lg dark:border-emerald-800 dark:bg-gray-800"
+                >
+                  <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-white">
+                    <ClipboardList className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    Runs for real in this repo
+                  </h3>
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                    <li>Clerk sign-in and sign-up routes, gated by middleware.</li>
+                    <li>Five-step onboarding persisted to Postgres.</li>
+                    <li>Queue, dashboard, profile, and settings screens.</li>
+                    <li>The simulated call room with its time manager.</li>
+                    <li>Light and dark theme.</li>
+                  </ul>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-white">
+                    <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    Simulated or dormant, stated plainly
+                  </h3>
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                    <li>
+                      Participants and matching are mock data; there is no ML
+                      matching service in this repository.
+                    </li>
+                    <li>
+                      The Stream-backed live room was removed; its SDKs are
+                      kept for a future real room.
+                    </li>
+                    <li>
+                      Modes beyond one-on-one networking have placeholder
+                      screens, and none of them work yet.
+                    </li>
+                    <li>This page promises no live deployment and no new product.</li>
+                  </ul>
+                </motion.div>
+              </div>
+
+              {/* Counts, honestly derived */}
+              <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-4">
+                <StatCard icon={ClipboardList} value="5" label="Onboarding steps" delay={0.1} />
+                <StatCard icon={Video} value="1" label="Simulated meeting room" delay={0.2} />
+                <StatCard icon={Users} value="40+" label="Users in the 2025 pilot" delay={0.3} />
+                <StatCard icon={CalendarCheck} value="2nd" label="iSTEM@Stevens Hacks 2025" delay={0.4} />
+              </div>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }} viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="mx-auto mt-10 max-w-3xl text-center text-gray-500 dark:text-gray-400"
+              >
+                LinkedUp was built by a five-person team led by Sam Gu and
+                placed second overall at iSTEM@Stevens Hacks 2025; the pilot
+                with more than 40 users showed 140% higher match satisfaction.
+                The repository&apos;s list of what comes next is still open:
+                meeting modes beyond one-on-one networking, better matching,
+                and machine-learning moderation. This page does not advertise
+                that work as done. The same team&apos;s successor project,{" "}
+                <a
+                  href={CONNVO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-emerald-700 underline underline-offset-4 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                >
+                  Connvo
+                </a>
+                , is in development in its own public repository. LinkedUp is
+                the hackathon build you can run today; nothing here is a sign
+                up for Connvo, and this page makes no claims about Connvo&apos;s
+                features or timeline.
+              </motion.p>
+            </div>
+          </section>
+
+          {/* CTA */}
+          <section className="bg-linear-to-r from-emerald-700 to-teal-700 py-20 text-white">
+            <div className="container mx-auto px-6">
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }} viewport={{ once: true }}
+                className="mx-auto max-w-4xl text-center"
+              >
+                <h2 className="mb-6 text-4xl font-bold">
+                  Open the demo yourself
+                </h2>
+                <p className="mb-10 text-xl text-emerald-100">
+                  Sign in, finish onboarding, join a queue, and the simulated
+                  room opens. The full source is on GitHub, and every claim on
+                  this page traces to it.
+                </p>
+                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                  <motion.a
+                    href="/app"
+                    onClick={(e) => handleTransition(e, "/app", router)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 font-medium text-emerald-700 shadow-md transition-all hover:bg-gray-100 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    Open the demo <ArrowRight className="h-5 w-5" />
+                  </motion.a>
+                  <motion.a
+                    href={REPO_URL}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/60 px-8 py-4 font-medium text-white transition-all hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    Read the source
+                  </motion.a>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="border-t border-emerald-100 py-12 dark:border-gray-800">
+            <div className="container mx-auto px-6">
+              <div className="flex flex-col items-center justify-between md:flex-row">
+                <div className="mb-6 flex items-center md:mb-0">
+                  {theme === "light" ? (
+                    <Image
+                      src="/linkeduplogos/linkedupblack.png"
+                      alt="LinkedUp Logo"
+                      width={40}
+                      height={40}
+                      className="h-10 w-auto"
+                    />
+                  ) : (
+                    <Image
+                      src="/linkeduplogos/linkedupwhite.png"
+                      alt="LinkedUp Logo"
+                      width={40}
+                      height={40}
+                      className="h-10 w-auto"
+                    />
+                  )}
+                  <span className="pl-2 text-xl font-bold text-gray-900 dark:text-white">
+                    LinkedUp
+                  </span>
+                </div>
+
+                <div className="text-center text-gray-600 md:text-right dark:text-gray-300">
+                  © {new Date().getFullYear()} LinkedUp. Built by a
+                  five-person team at iSTEM@Stevens Hacks 2025, maintained in
+                  the open.{" "}
+                  <a
+                    href={REPO_URL}
+                    className="rounded text-emerald-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:text-emerald-400"
+                  >
+                    Source on GitHub
+                  </a>
+                  .
+                  <div className="mt-1 text-sm">
+                    No corporate jargon was harmed in the making of this site.
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </footer>
+          </footer>
+        </div>
       </div>
-    </div>
+    </MotionConfig>
   );
 };
 
