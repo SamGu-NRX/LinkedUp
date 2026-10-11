@@ -54,7 +54,7 @@ export const profiles: UserInfo[] = [
     ],
     connectionType: "collaboration",
     interests: ["NLP", "Deep Learning", "AI Ethics"],
-    connectionStatus: "online",
+    connectionStatus: "excellent",
     isSpeaking: false,
     meetingStats: undefined, // Or provide default stats if applicable
   },
@@ -75,7 +75,7 @@ export const profiles: UserInfo[] = [
     ],
     connectionType: "mentorship",
     interests: ["React", "Node.js", "AWS", "Microservices"],
-    connectionStatus: "away",
+    connectionStatus: "good",
     isSpeaking: false,
     meetingStats: undefined,
   },
@@ -96,7 +96,7 @@ export const profiles: UserInfo[] = [
     ],
     connectionType: "b2b",
     interests: ["Startups", "Venture Capital", "Growth Hacking"],
-    connectionStatus: "offline",
+    connectionStatus: "poor",
     isSpeaking: false,
     meetingStats: undefined,
   },
@@ -117,7 +117,7 @@ export const profiles: UserInfo[] = [
     ],
     connectionType: "collaboration",
     interests: ["Design Systems", "Accessibility", "User Research"],
-    connectionStatus: "online",
+    connectionStatus: "excellent",
     isSpeaking: false,
     meetingStats: undefined,
   },
@@ -389,7 +389,7 @@ const ModernChatApp: React.FC = () => {
                   variant="outline"
                   size="sm"
                   className="border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/30"
-                  disabled={activeProfile.connectionStatus !== "online"} // Disable based on status
+                  disabled={activeProfile.connectionStatus === "offline"} // Can't call when offline
                   aria-label={`Call ${activeProfile.name}`}
                 >
                   <Phone className="mr-2 h-4 w-4" />
@@ -488,7 +488,6 @@ const ModernChatApp: React.FC = () => {
           </DialogHeader>
           {/* Ensure ScheduleCallForm receives necessary props and handles closing */}
           <ScheduleCallForm
-            userName={activeProfile.name}
             onSchedule={() => setShowScheduleCall(false)}
           />
         </DialogContent>

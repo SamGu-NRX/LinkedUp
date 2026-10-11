@@ -1,10 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import SmartConnectionEngine from "@/components/queue/SmartConnectionEngine"
 
-export default function SmartConnectionPage() {
+function SmartConnectionPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const queueType = searchParams.get("type") as "professional" | "casual"
@@ -34,3 +34,10 @@ export default function SmartConnectionPage() {
   )
 }
 
+export default function SmartConnectionPage() {
+  return (
+    <Suspense fallback={null}>
+      <SmartConnectionPageContent />
+    </Suspense>
+  )
+}

@@ -1,10 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
-export default function CollaborationPage() {
+function CollaborationPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const purpose = searchParams.get("purpose") || ""
@@ -16,7 +16,7 @@ export default function CollaborationPage() {
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted collaboration match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}?type=collaboration`)
+    router.push(`/videocall/${matchId}?type=collaboration`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -39,6 +39,14 @@ export default function CollaborationPage() {
       onDeclineMatch={handleDeclineMatch}
       onScheduleCall={handleScheduleCall}
     />
+  )
+}
+
+export default function CollaborationPage() {
+  return (
+    <Suspense fallback={null}>
+      <CollaborationPageContent />
+    </Suspense>
   )
 }
 

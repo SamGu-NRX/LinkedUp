@@ -1,10 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
-export default function B2BNetworkingPage() {
+function B2BNetworkingPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const purpose = searchParams.get("purpose") || ""
@@ -16,7 +16,7 @@ export default function B2BNetworkingPage() {
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted B2B match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}?type=b2b`)
+    router.push(`/videocall/${matchId}?type=b2b`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -39,6 +39,14 @@ export default function B2BNetworkingPage() {
       onDeclineMatch={handleDeclineMatch}
       onScheduleCall={handleScheduleCall}
     />
+  )
+}
+
+export default function B2BNetworkingPage() {
+  return (
+    <Suspense fallback={null}>
+      <B2BNetworkingPageContent />
+    </Suspense>
   )
 }
 

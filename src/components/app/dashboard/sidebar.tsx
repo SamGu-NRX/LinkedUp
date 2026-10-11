@@ -1,6 +1,7 @@
 "use client";
 import { TransitionLink } from "@/utils/TransitionLink";
 import { usePathname } from "next/navigation";
+import { SignOutButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Home, BarChart2, User, Settings, LogOut } from "lucide-react";
@@ -43,12 +44,12 @@ export function Sidebar() {
           </div>
         </ScrollArea>
         <div className="mt-auto p-4">
-          <Button variant="outline" className="w-full" asChild>
-            <TransitionLink href="/signout">
+          <SignOutButton>
+            <Button variant="outline" className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
               Log out
-            </TransitionLink>
-          </Button>
+            </Button>
+          </SignOutButton>
         </div>
       </div>
     </div>

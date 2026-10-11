@@ -1,10 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
-export default function MentorshipPage() {
+function MentorshipPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const purpose = searchParams.get("purpose") || ""
@@ -16,7 +16,7 @@ export default function MentorshipPage() {
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted mentorship match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}?type=mentorship`)
+    router.push(`/videocall/${matchId}?type=mentorship`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -39,6 +39,14 @@ export default function MentorshipPage() {
       onDeclineMatch={handleDeclineMatch}
       onScheduleCall={handleScheduleCall}
     />
+  )
+}
+
+export default function MentorshipPage() {
+  return (
+    <Suspense fallback={null}>
+      <MentorshipPageContent />
+    </Suspense>
   )
 }
 

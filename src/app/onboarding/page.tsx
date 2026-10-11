@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,7 +48,6 @@ const defaultValues: Partial<OnboardingFormData> = {
 };
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [showCongrats, setShowCongrats] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,16 +78,17 @@ export default function OnboardingPage() {
 
       const isValid = await methods.trigger();
       if (!isValid) {
-        toast.error("An unexpected error occurred. Please try again.", {
-          description: "Please try again later.",
+        toast.error("Some fields need attention", {
+          description: "Please fix the highlighted fields before finishing.",
         });
+        return;
       }
 
       const formData = methods.getValues();
       const result = await saveUserOnboardingData(formData);
 
       if (result.error) {
-        toast.error("Error", {
+        toast.error("Couldn't finish onboarding", {
           description: result.error,
         });
         return;
@@ -109,7 +108,16 @@ export default function OnboardingPage() {
     <div className="from-background to-secondary/20 min-h-screen bg-linear-to-b">
       <AnimatePresence mode="wait">
         {showCongrats ? (
-          <Congratulations key="congrats" onComplete={() => router.push("/app")} />
+          <Congratulations
+            key="congrats"
+            onComplete={() => {
+              // Full page load on purpose: the middleware checks the Clerk
+              // metadata from the session token, which only refreshes on a
+              // new request. A client-side navigation would bounce the user
+              // back to /onboarding with the stale token.
+              window.location.assign("/app");
+            }}
+          />
         ) : (
           <FormProvider {...methods}>
             <motion.div
