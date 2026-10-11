@@ -109,4 +109,9 @@ Removed: nav items `#testimonials` and `#pricing` (fabricated sections gone).
   against the production server on `:3210` — 16 passed, 0 failed
   (screenshots, keyboard, reduced motion, axe ×2 viewports ×2 states, links,
   repeated-load layout shift). Re-run after the Connvo note landed; see the
-  committed `results/report.json` for the latest run.
+  committed `results/report.json` for the latest run. The evidence toolchain
+  (playwright, @playwright/test, @axe-core/playwright) lives in
+  `evidence/linkedup-site/package.json` with its own lockfile — root
+  `package.json` and `pnpm-lock.yaml` are restored to the maintenance base —
+  and the final 16/16 run executes via `pnpm test` inside
+  `evidence/linkedup-site/`.

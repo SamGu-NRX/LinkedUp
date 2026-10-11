@@ -70,9 +70,11 @@ Commit history on this branch (rebased onto the maintenance head):
 ```
 cd /home/user/work/LinkedUp
 git checkout obv/products-l2-linkedup-public-site-20261010
+# root app: build and serve the production landing on :3210
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsucGxhY2Vob2xkZXIubG9jYWwk \
 CLERK_SECRET_KEY=sk_test_dummyplaceholderforlocalruns PORT=3210 pnpm start
-pnpm exec playwright test --config=evidence/linkedup-site/playwright.config.ts
+# evidence toolchain: deps live in evidence/linkedup-site, not the repo root
+cd evidence/linkedup-site && pnpm install && pnpm test
 ```
 
 The Clerk key is a synthetic local-run placeholder (`clerk.placeholder.local$`
