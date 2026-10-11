@@ -3,30 +3,24 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const isOnboardingRoute = createRouteMatcher(["/onboarding"]);
 const isPublicRoute = createRouteMatcher(["/", "/sign-in", "/sign-up"]);
 
+/**
+ * Session gate only. Whether a signed-in user has finished onboarding is
+ * owned by Postgres (users.onboarding_complete), not Clerk publicMetadata —
+ * the app never writes that claim, so gating on it here bounced completed
+ * users into an /onboarding loop. The DB-backed gate lives in
+ * src/app/app/onboarding-gate.tsx (for /app/**) and the /onboarding layout.
+ */
 export default clerkMiddleware(async (auth, req: NextRequest) => {
-  const { userId, sessionClaims, redirectToSignIn } = await auth();
-
-  // For users visiting /onboarding, don't try to redirect
-  if (userId && isOnboardingRoute(req)) {
-    return NextResponse.next();
-  }
+  const { userId, redirectToSignIn } = await auth();
 
   // If the user isn't signed in and the route is private, redirect to sign-in
-  if (!userId && !isPublicRoute(req))
+  if (!userId && !isPublicRoute(req)) {
     return redirectToSignIn({ returnBackUrl: req.url });
-
-  // Catch users who do not have `onboardingComplete: true` in their publicMetadata
-  // Redirect them to the /onboading route to complete onboarding
-  if (userId && !sessionClaims?.metadata?.onboardingComplete) {
-    const onboardingUrl = new URL("/onboarding", req.url);
-    return NextResponse.redirect(onboardingUrl);
   }
 
-  // If the user is logged in and the route is protected, let them view.
-  if (userId && !isPublicRoute(req)) return NextResponse.next();
+  return NextResponse.next();
 });
 
 export const config = {
