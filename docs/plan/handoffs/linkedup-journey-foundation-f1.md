@@ -14,6 +14,7 @@ Milestone 1 restores the app to a compiling, linting state and builds the founda
 - **Created `src/components/call/VoiceCallScreen.tsx`** implementing the documented call DOM contract: participant rows, accessible controls, timer, stable test selectors. Honest state machine — the phase stays `joining` until real transport wiring lands (M3); no fabricated transport state or remote audio.
 - **Restored Clerk auth routes**: top-level `/sign-in` and `/sign-up` catch-all pages matching middleware expectations; removed the misplaced `src/app/app/(auth)` group.
 - **Guarded the Stream provider** so keyless development skips Stream initialization instead of throwing on the missing API key (initializes normally once `NEXT_PUBLIC_STREAM_API_KEY`/secret are configured).
+- **Wrapped the six `useSearchParams` pages** (b2b, collaboration, investment, mentorship, smart-connection, call) — inner content component behind a `<Suspense>` boundary — so static prerendering succeeds (Next.js CSR bailout fix).
 - **Two onboarding fixes** (per plan): invalid wizard form submission now returns early; Clerk metadata completion is only marked after database persistence succeeds.
 
 ## Proof
@@ -24,23 +25,39 @@ Commands (run in the repo root, pnpm 10.34.6 / Node 20.20.2):
 |---|---|---|---|
 | Typecheck | `npx tsc --noEmit` | 31 errors | **0 errors (exit 0)** |
 | Lint | `npx next lint` | 3 errors (conditional hooks) | **0 errors (exit 0)**, warnings only (`<img>` in one-on-one meeting) |
-| Build | `pnpm build` | fail (missing VoiceCallScreen module) | **exit 0 — compiles and prerenders all 16 pages** (with the placeholder-format Clerk pk below) |
+| Build | `pnpm build` | fail (missing VoiceCallScreen module) | **exit 0 — compiles and prerenders all 16 pages** (placeholder-format Clerk pk, see env story) |
+
+**Dev-server route verification (keyless Clerk, `pnpm dev`, isolated `.next`, clean run):**
+
+| Route | Status | Note |
+|---|---|---|
+| `/` | 200 | |
+| `/sign-in` | 200 | Clerk catch-all renders |
+| `/sign-up` | 200 | Clerk catch-all renders |
+| `/onboarding` | 200 | requires `DATABASE_URL` in `.env.local` (db import at module load) |
+| `/app` | 200 | Stream provider skips init in keyless mode |
+| `/app/call/test123?type=casual` | 200 | VoiceCallScreen route |
+| `/app/professional/b2b` | 200 | Suspense-wrapped |
+| `/app/smart-connection` | 200 | Suspense-wrapped |
+| `/videocall/test123` | 200 | |
+
+Note: `/dashboard` is a 404 — no such page exists in the skeleton (the app dashboard lives at `/app`), while `.env.local.example` still references `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/dashboard`; left as-is (example config only, no runtime impact in keyless mode).
+
+**Local env story (reproduces both modes):** `.env.local` holds only `DATABASE_URL` — dev runs fully keyless (Clerk 6.12.5 keyless instances). Builds take the placeholder key inline: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsubG9jYWxob3N0JA pnpm build` (a syntactically valid placeholder — passes Clerk's structure check, no real instance behind it; `.env*` is gitignored). Do not put the key in `.env.local` — with it present, dev leaves keyless mode and every route 500s with `Missing secretKey`; keep the two modes separate.
 
 **Known issues at this checkpoint (honest):**
 
-1. Static prerendering requires a Clerk publishable key. `pnpm dev` is truly keyless (Clerk 6.12.5 keyless instances — verified `Ready` boot). For `pnpm build`, `.env.local` needs `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsubG9jYWxob3N0JA` (a syntactically valid placeholder, not a real key — passes Clerk's structure check, no real instance behind it). `.env*` is gitignored; the key is documented here so any contributor can reproduce the build.
-2. `next dev` route checks returned HTTP 500 while `next dev` and `next build` competed for the same `.next` directory; dev-server route verification is still pending (needs a rerun without a concurrent build).
-3. No tests exist in the repo; milestone evidence is the check matrix above plus manual route smoke tests.
+1. No tests exist in the repo; milestone evidence is the check matrix and route smoke tests above, plus manual UI verification pending Stream keys.
+2. Call transport is intentionally not wired: VoiceCallScreen stays in `joining` until M3 wiring, which needs the operator's Stream API key for live media.
 
 ## Handoff
 
-**Done (this checkpoint):** all of the Description items, plus the full green matrix above: typecheck 0, lint 0, build exit 0 with all 16 pages prerendered. The six `useSearchParams` pages (b2b, collaboration, investment, mentorship, smart-connection, call) each got the standard Next fix — inner content component wrapped in `<Suspense>`.
+**Done (this checkpoint):** all Description items plus the full green matrix above: typecheck 0, lint 0, build exit 0 with all 16 pages prerendered, and keyless-dev route smoke tests passing.
 
 **Left (in plan order):**
 
-1. Dev-server route verification (sign-in, dashboard, call screens) without a concurrent build; record HTTP status per route.
-2. Milestone 2: onboarding polish/QA per plan (the two fixes above are in; revisit wizard edge cases).
-3. Milestone 3: real transport wiring behind `src/lib/call/transport.ts` (already byte-identical to Connvo alpha, L-D5 satisfied); replace the honest `joining` placeholder in VoiceCallScreen with real snapshots.
-4. Stream API key needed from the operator for live call media — not yet provided; all call UI is verified structurally until then.
+1. Milestone 2: onboarding polish/QA per plan (the two fixes above are in; revisit wizard edge cases).
+2. Milestone 3: real transport wiring behind `src/lib/call/transport.ts` (already byte-identical to Connvo alpha, L-D5 satisfied); replace the honest `joining` placeholder in VoiceCallScreen with real snapshots. Requires the operator's Stream API key.
+3. Optional cleanup: `.env.local.example` references a nonexistent `/dashboard` route.
 
-**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the Proof section, then `npx tsc --noEmit && npx next lint && pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
+**How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, create `.env.local` per the env story above, then `npx tsc --noEmit && npx next lint` and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
