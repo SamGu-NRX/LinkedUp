@@ -31,7 +31,14 @@ no network stubs. If the demo tree tried to call Clerk, Stream, Supabase, or
 any remote host, the log would show a non-local request and the
 `zero remote effect` test would fail.
 
-## Exact commands (run 6, the committed evidence)
+## Exact commands (the committed evidence)
+
+The committed log and axe records come from a full-suite re-run on the
+merged maintenance base (branch brought up to date by merge commit
+`117bc89`, which folded in the advanced base's `d3b9951`, `3be70b2` as a
+regular merge — no rebase); every recorded figure — 27
+requests, 0 external, 18 scans with 0 serious / 0 critical — matched the
+pre-merge run, so the numbers below describe the merged tree.
 
 ```bash
 # 1. Production build of the real app (includes the demo route)
