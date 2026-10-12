@@ -254,13 +254,33 @@ Co-authored-by: obvious-autobuild[bot] <262744130+obvious-autobuild[bot]@users.n
 
 ## Push protocol application
 
-Before push: `git fetch origin` — remote tip compared against local `HEAD`;
-if it moved, `git merge origin/obv/linkedup-journey-foundation-f1` (no rebase,
-no force-push) and a fresh gate run before the push. The push uses a
-short-lived inline git credential helper with the workspace GitHub token
-(never echoed or stored). Result is recorded in the task report: pushed SHAs,
-remote-tip check after push, and the exact command list with exit codes
-(kept in the thread log, not duplicated here in full).
+Before push: `git fetch origin` — remote tip `a0040f4` = local `HEAD~1` (the
+remote had not moved; the evidence commit is a clean fast-forward, no merge
+needed). Gates were green on this exact tree (see table above).
+
+**Push attempt: FAILED — credential blocker, commit preserved locally.**
+Two attempts, both with the token in a short-lived inline credential helper
+(`username=x-access-token`, then `username=obvious-autobuild[bot]`), both
+rejected:
+
+```text
+remote: Invalid username or token. Password authentication is not supported for Git operations.
+fatal: Authentication failed for 'https://github.com/SamGu-NRX/LinkedUp.git/'
+```
+
+Diagnosis: the same token **reads** fine — `git -c credential.helper=… ls-remote
+origin refs/heads/alpha` exits 0 and returns the ref — so the credential is
+valid for authentication but is rejected on the write path (push permission
+missing or the token is not the push credential for this repo; consistent with
+the known fleet-wide `GITHUB_TOKEN` push rejection seen today by the UNTangle
+and Connvo threads). Per the workspace rule no other credential or workaround
+was attempted. No token value was echoed, logged, or stored; the remote URL in
+`.git/config` carries no credential.
+
+**Local state awaiting the credential fix:** `ce36f5e` (this evidence file) on
+top of remote tip `a0040f4` — a plain `git push origin
+obv/linkedup-journey-foundation-f1` with a working push credential completes
+the task; then re-verify `git ls-remote` matches `ce36f5e`.
 
 ## Full command list (chronological, with exit codes)
 
@@ -287,6 +307,11 @@ pnpm exec vitest run tests/unit/gate-proof.route.test.tsx                       
 # facts
 grep -rn "publicMetadata" src/ --include="*.ts" --include="*.tsx"                         # exit 0, 2 hits
 git log --format='%h %an <%ae>' origin/alpha..HEAD | sort | uniq -c | sort -rn            # 16 × Sam Gu
+# push (BLOCKED — see Push protocol application)
+git -c credential.helper='!f() { echo username=x-access-token; echo password=$SECRET_GITHUB_TOKEN; }; f' \
+  push origin obv/linkedup-journey-foundation-f1                      # exit 128, Invalid username or token
+git -c credential.helper='…' ls-remote origin refs/heads/alpha         # exit 0 (read path works)
+git -c credential.helper='… push (username=obvious-autobuild[bot])     # exit 128, same error
 ```
 
 *(Host note: shared sandbox; heavy steps run serially under
