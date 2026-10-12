@@ -9,7 +9,7 @@
     "lint": "next lint",
     "db:pull": "npx drizzle-kit pull:pg",
     "db:generate": "npx drizzle-kit generate:pg",
-    "db:seed": "npx drizzle-kit seed:pg",
+    "db:seed": "tsx scripts/seed.ts",
     "db:reset": "npx drizzle-kit reset:pg",
     "db:studio": "npx drizzle-kit studio",
     "db:push": "npx drizzle-kit push:pg",
