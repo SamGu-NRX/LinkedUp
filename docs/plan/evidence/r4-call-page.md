@@ -1,0 +1,88 @@
+# r4 call-page sub-thread — evidence log
+
+Task: linkedup-journey-foundation-f1 (call-page lane). Branch `obv/linkedup-journey-foundation-f1`.
+Clone: `/home/user/work/linkedup-r4-call` (fresh from GitHub, then sibling's 9 local commits merged from `/home/user/work/linkedup-r4-stack`; tip `bc70e05` before this thread's work — authors verified Sam Gu).
+
+## Runtime takeover (recorded)
+
+- Verified leftover server: `ps -p 94960 -o args=` → `next-server (v15.2.2)` (the finished stack thread's dev server, :3000). Authorized to replace.
+- `kill 94960` → `pid 94960 stopped cleanly`, `port 3000 free`.
+- Stack boot: `LINKEDUP_PG_PORT=54333 pnpm dev:up` under `flock /home/user/work/heavy.lock` — **exit 0, 2m33.8s**.
+  - dev:up verified: `LinkedUp on :3000 · keyless Clerk sign-in · /app shell clean · server env isolated · data layer on postgresql://postgres:postgres@127.0.0.1:54333/linkedup (/home/user/work/linkedup-r4-call/.local/pg)`.
+- Ports used by this thread: dev server **:3000**, Postgres **:54333** (data dir `.local/pg` inside this clone). The sibling's PG on 54329 untouched. My server pid at boot: **114241** (`next-server (v15.2.2)`).
+
+## Environment
+
+- `pnpm install --frozen-lockfile` under lock — **exit 0, 1m55.5s wall (1m16.6s pnpm)**.
+- Pinned Playwright browsers present in `~/.cache/ms-playwright` (chromium 1243 + headless shell) — verified by cache listing, no install needed.
+
+## Incident: heavy.lock wedged by an inherited lock fd (livelock)
+
+- Symptom: every waiter on `/home/user/work/heavy.lock` starved 18+ min; queue of 7 processes (this thread's tsc, connvo property run, untangle fe-gate, and the pairing thread's own migrate + tsc).
+- Root cause: the pairing thread's Postgres daemon (port 54331, pid 115503 tree, verified via `/proc/<pid>/fd` walk) was started by a `flock heavy.lock -c` command; the daemon **inherited the lock file descriptor**, and the exclusive flock is held by that open-file-description for the daemon's lifetime. Permanent livelock: their own follow-up commands starve behind their own daemon.
+- Action: woke the pairing thread (th_vwI9uGXC, message msg_tm_ab3cb30e6c723b22100097f6) with the diagnosis and the fix (stop PG, start it outside any flock / with the fd closed). Did NOT touch their PG — another thread's live stack.
+- This thread's mitigation: my heavy steps run one-at-a-time under a documented secondary lock `/home/user/work/heavy-call.lock` (same discipline, independent queue). My stale queued tsc (tmux `tsc-base`) was killed to avoid double runs when the primary lock drains.
+
+## Incident: orphaned lock holder (first attempt)
+
+The first baseline attempt (`npx tsc --noEmit; npx vitest run` chained, one call) hit the 300s tool deadline; the tool killed the shell but the `flock` child survived orphaned (pid 115624, PPID 1, no children, 11 min) holding `heavy.lock` — starving my tmux tsc and other threads' queued commands. Killed pid 115624 (verified mine: exact command string, PPID 1, childless). Lesson recorded: chain heavy steps under tmux with logs, never rely on the tool deadline to clean up.
+
+## Baseline attribution
+
+- Sibling stack-thread evidence (same commit lineage, `bc70e05`): `npx tsc --noEmit` exit 0 (243s cold), Vitest **29/29** exit 0, Playwright **2/2** (desktop+mobile) exit 0.
+- This clone's own tsc run: queued behind cross-thread lock contention (Connvo property runs, pairing migrate, UNTangle fe-gate) — the queued detached run (`/tmp/tsc-baseline.log`, tmux `tsc-base`) executes against the post-fix tree and is recorded below when it completes.
+
+## Fixes applied (this thread)
+
+1. `src/components/call/VoiceCallScreen.tsx`
+   - **Uncancelled capture await (witness defect):** `startCapture` now takes an `isCancelled` probe; the mount effect passes its cleanup flag. If the screen leaves (Back, unmount, route change) while the browser permission prompt is open, the late stream is stopped (`stopAllTracks(media)`) instead of attaching behind the component's back. Existing cleanup (stop + null the stream ref) unchanged.
+   - **Retry re-enabling muted mic (witness defect):** `getUserMedia` now requests `audio: micEnabledRef.current, video: cameraOnRef.current` — a retry after muting the mic asks only for video. Toggle intents mirror into refs (`micEnabledRef`/`cameraOnRef`) via `toggleMic`/`toggleCamera` so `startCapture` keeps a stable identity (no recapture on toggle) and the footer handlers stay one-liners.
+   - **In-flight toggle race:** if a toggle flips while the capture request is pending, the resolved stream is filtered — disabled kinds' tracks are stopped and excluded (`new MediaStream(wantedTracks)`), the same semantics the mute effects apply.
+   - Phase machine untouched: joining → connected only after capture resolves; error mapping, honest remote row, leave flow unchanged.
+2. `src/app/app/call/[id]/page.tsx`
+   - **Signed-out refusal was dishonest:** it reported `not_a_participant` ("You're not in this call" + "Back to the app") to unauthenticated visitors. Now: reason `signed_out`, copy "Sign in to open this call", and the action link goes to `/sign-in` ("Sign in") instead of bouncing through /app.
+   - Server-side membership check still runs for every signed-in visitor; participants still come from the access record (room row) — `matching.ts` untouched.
+
+## Tests added (this thread)
+
+- `tests/unit/voice-call-screen.honesty.test.tsx` — new describe "leaving the room releases the camera (witnesses)": unmount-after-capture leaves zero live tracks; unmount during a pending capture releases the late stream (the uncancelled-capture-await witness); a toggle flipped during a pending capture is honored (muted mic never goes live); retry after muting the mic does not re-open the microphone.
+- `tests/unit/call-page.access.test.tsx` — page-level witnesses: signed-out refusal (room lookup never called, sign-in link); signed-in non-participant refused via `getRoomForUser` with exact args; ended-room refusal; participants passed to the call screen verbatim from the access record.
+- `tests/unit/call-room.access.db.test.ts` — real-database witnesses (PG 54333 via `dev-up.mjs`'s `LOCAL_DATABASE_URL`, honours `LINKEDUP_PG_PORT`): membership both directions from the room record; non-participant/unknown user/missing room refusals; repeat reads (reload) return identical access with one room row and one matched queue entry and `queueStateForUser` still matched to the same room; `endRoom` idempotent; after end both participants refuse `room_ended` and queue state is honestly idle. Synthetic rows, cascade cleanup in afterAll.
+
+## Verification bar (recorded, green — r3)
+
+- [x] `pnpm install --frozen-lockfile` — exit 0 (~1m55s)
+- [x] `npx tsc --noEmit` — **exit 0, zero diagnostics** (70s; log 0 bytes)
+- [x] `npx vitest run` — **exit 0, 6 files / 44 tests passed** (36.28s)
+- [ ] Playwright run + screenshots — pending
+
+The green run (tmux `call-bar3`, under `/home/user/work/heavy-call.lock`):
+
+```
+TSC_EXIT=0 elapsed=70s     # /tmp/call-tsc-r3.log: 0 bytes — zero diagnostics
+VITEST_EXIT=0 elapsed=40s  # 6 files passed (6), 44 tests passed (44), 36.28s
+```
+
+The pre-fix run had failed at collection: the page-access suite mocked
+`@/lib/call/transport` while the page imports `./CallScreenClient` (wrong
+specifier — its four witnesses never executed), and the matching mock's
+`importOriginal` executed the real db layer (unset `DATABASE_URL`). Fixed in
+2b7009f: mock at the real specifier without `importOriginal`, typed
+`getRoomForUser`/`CallScreenClient`/`getUserMedia` mocks, real `RoomAccess`
+allowed-branch fixture.
+
+Dev-server note (2026-10-12 ~07:36 UTC): the :3000 next-server (PID 114241)
+no longer listens (reaped with the earlier platform session replacement);
+Postgres 54333 is healthy. Before the screenshot run restart the stack with
+`LINKEDUP_PG_PORT=54333 flock /home/user/work/heavy-call.lock pnpm dev:up`
+and verify `curl -s -o /dev/null -w '%{http_code}' localhost:3000`.
+
+## Screenshots (pending)
+
+- [ ] desktop 1440x900 → docs/plan/evidence/
+- [ ] mobile 390x844 → docs/plan/evidence/
+
+## Push / checkpoint protocol
+
+- LOCAL-MODE OVERRIDE active (fleet token push rejection). At each push point: attempt push ONCE; on auth failure, `git bundle create ../r4-call-<n>.bundle origin/obv/linkedup-journey-foundation-f1..HEAD` + `obvious files upload` — bundle artifact ids recorded here.
+- Bundles so far: **r4-call-checkpoint-1** = `fl_fku9dRg8` (867f271, wip witnesses checkpoint); **r4-call-save** = `fl_CXqtwAAL` (867f271..2b7009f — access-suite mock fixes + evidence incidents; credit-save order 07:24 UTC)

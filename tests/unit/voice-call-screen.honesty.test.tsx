@@ -44,7 +44,7 @@ class FakeMediaStream {
 
 let audioTrack: FakeTrack;
 let videoTrack: FakeTrack;
-const getUserMedia = vi.fn<() => Promise<MediaStream>>();
+const getUserMedia = vi.fn<(constraints: MediaStreamConstraints) => Promise<MediaStream>>();
 
 function streamOf(tracks: FakeTrack[]): MediaStream {
   return new FakeMediaStream(tracks) as unknown as MediaStream;
@@ -271,5 +271,99 @@ describe("leaving", () => {
     expect(audioTrack.stop).toHaveBeenCalled();
     expect(videoTrack.stop).toHaveBeenCalled();
     expect(container.querySelector("[data-call-rating]")).toBeInTheDocument();
+  });
+});
+
+describe("leaving the room releases the camera (witnesses)", () => {
+  it("unmount after a live capture leaves zero live tracks", async () => {
+    const { container, unmount } = renderScreen();
+    await waitFor(() => {
+      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
+        "data-call-phase",
+        "connected",
+      );
+    });
+
+    // Leaving via unmount (Back, route change) must release the devices.
+    unmount();
+    expect(audioTrack.stop).toHaveBeenCalled();
+    expect(videoTrack.stop).toHaveBeenCalled();
+  });
+
+  it("unmount while the capture is still pending releases the late stream (uncancelled-capture-await witness)", async () => {
+    const lateAudio = makeTrack("audio");
+    const lateVideo = makeTrack("video");
+    let resolveCapture!: (stream: MediaStream) => void;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          resolveCapture = resolve;
+        }),
+    );
+
+    const { unmount } = renderScreen();
+    await waitFor(() => expect(resolveCapture).toBeDefined());
+    // The screen leaves while the browser permission prompt is open.
+    unmount();
+
+    // The late capture resolves anyway; every track it granted must be
+    // stopped instead of attaching behind the component's back.
+    resolveCapture(streamOf([lateAudio, lateVideo]));
+    await waitFor(() => expect(lateAudio.stop).toHaveBeenCalled());
+    expect(lateVideo.stop).toHaveBeenCalled();
+  });
+
+  it("a toggle flipped during a pending capture is honored — the muted mic never goes live", async () => {
+    let resolveCapture!: (stream: MediaStream) => void;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          resolveCapture = resolve;
+        }),
+    );
+
+    const { container } = renderScreen();
+    fireEvent.click(container.querySelector('[data-testid="toggle-mic"]') as HTMLElement);
+    resolveCapture(streamOf([audioTrack, videoTrack]));
+    await waitFor(() => {
+      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
+        "data-call-phase",
+        "connected",
+      );
+    });
+
+    // The in-flight capture's audio track was dropped, not attached live
+    // behind a control that says "muted".
+    expect(audioTrack.stop).toHaveBeenCalled();
+    expect(container.querySelector("[data-call-mic-state]")).toHaveAttribute(
+      "data-call-mic-state",
+      "muted",
+    );
+  });
+
+  it("retry after muting the mic does not re-open the microphone (retry-muted-mic witness)", async () => {
+    getUserMedia.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
+
+    const { container } = renderScreen();
+    await waitFor(() =>
+      expect(container.querySelector('[data-testid="retry-media"]')).toBeInTheDocument(),
+    );
+    fireEvent.click(container.querySelector('[data-testid="toggle-mic"]') as HTMLElement);
+    fireEvent.click(container.querySelector('[data-testid="retry-media"]') as HTMLElement);
+    await waitFor(() => {
+      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
+        "data-call-phase",
+        "connected",
+      );
+    });
+
+    // The retry asked only for video: the muted mic was NOT re-opened.
+    const constraints = getUserMedia.mock.calls[1]?.[0];
+    expect(constraints?.audio).toBe(false);
+    expect(constraints?.video).toBe(true);
+    expect(container.querySelector("[data-call-mic-state]")).toHaveAttribute(
+      "data-call-mic-state",
+      "muted",
+    );
   });
 });
