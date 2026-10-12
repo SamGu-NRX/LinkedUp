@@ -34,7 +34,11 @@ export default function SmartConnectionEngine({ queueType }: SmartConnectionEngi
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  // Set when an offered match is withdrawn because the other person left;
+  // the server has already put this person back in the queue.
+  const [partnerLeft, setPartnerLeft] = useState<string | null>(null);
   const joinedAtRef = useRef<number | null>(null);
+  const offeredRef = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await queueStateAction();
@@ -44,6 +48,9 @@ export default function SmartConnectionEngine({ queueType }: SmartConnectionEngi
       return;
     }
     setState(res.state);
+    if (res.state.status === "waiting" && offeredRef.current) setPartnerLeft(offeredRef.current);
+    offeredRef.current = res.state.status === "matched" ? res.state.partner.name : null;
+    if (res.state.status === "matched") setPartnerLeft(null);
     if (res.state.status === "waiting") {
       joinedAtRef.current = new Date(res.state.joinedAt).getTime();
       setElapsed(Math.floor((Date.now() - joinedAtRef.current) / 1000));
@@ -185,6 +192,9 @@ export default function SmartConnectionEngine({ queueType }: SmartConnectionEngi
           {queueLabel[queueType]} mode — you&apos;ll be matched as soon as another person joins.
         </p>
       </div>
+      <p data-queue-notice={partnerLeft ? "partner-left" : undefined} aria-live="polite" className="min-h-5 text-sm text-zinc-300">
+        {partnerLeft ? `${partnerLeft} left before the call started. You're back in the queue.` : null}
+      </p>
       <p data-queue-elapsed-seconds={elapsed} className="text-3xl font-light tabular-nums">
         {formatWait(elapsed)}
       </p>

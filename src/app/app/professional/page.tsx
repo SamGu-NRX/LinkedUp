@@ -16,7 +16,7 @@ export default function ProfessionalConnectionPage() {
 
   const handleStartQueue = (type: string) => {
     router.push(
-      `/professional/${type}?purpose=${encodeURIComponent(purpose)}&description=${encodeURIComponent(description)}`,
+      `/app/professional/${type}?purpose=${encodeURIComponent(purpose)}&description=${encodeURIComponent(description)}`,
     )
   }
 
