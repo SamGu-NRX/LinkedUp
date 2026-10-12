@@ -10,6 +10,9 @@ import { defineConfig } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Keyless Clerk keys + testing token, and cleanup of journey personas.
+  globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   // Journey tests drive 2-3 browser contexts inside ONE test process; they
   // are intentionally serial. Parallel workers would only multiply Chromium
   // memory on a small sandbox.
@@ -41,6 +44,9 @@ export default defineConfig({
   },
   webServer: {
     command: "pnpm dev:up",
+    // Serves the labelled journey-proof path (next.config.mjs) for the J
+    // suite; dev:up replaces a running server started without it.
+    env: { LINKEDUP_JOURNEY_PROOF: "1" },
     url: "http://localhost:3000",
     reuseExistingServer: true,
     timeout: 300_000,
@@ -54,6 +60,9 @@ export default defineConfig({
     },
     {
       name: "mobile",
+      // The journeys are about two people meeting, not layout; they run once,
+      // on desktop. Mobile keeps the smoke check.
+      testMatch: /smoke\.spec\.ts/,
       use: {
         browserName: "chromium",
         viewport: { width: 390, height: 844 },

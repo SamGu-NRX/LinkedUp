@@ -7,6 +7,7 @@
 // the first query confirms the server is this checkout's cluster.
 import { Pool, type QueryResultRow } from "pg";
 import { assertStackCluster, stackDatabaseUrl } from "../../stack-db";
+import { JOURNEY_EMAIL_MARK } from "./clerk-keyless";
 
 const connectionString = stackDatabaseUrl();
 
@@ -85,13 +86,62 @@ export async function roomRow(
  */
 export async function appendScorecard(entry: {
   case: string;
+  seed?: number;
   status: "passed" | "failed";
+  notes?: string[];
   durationMs: number;
   error?: string;
 }): Promise<void> {
-  const { appendFile } = await import("node:fs/promises");
-  await appendFile(
-    "test-results/j-scorecard.jsonl",
-    `${JSON.stringify(entry)}\n`,
+  const { appendFile, mkdir } = await import("node:fs/promises");
+  const path = await import("node:path");
+  const file = process.env.J_SCORECARD ?? "test-results/j-scorecard.jsonl";
+  await mkdir(path.dirname(file), { recursive: true });
+  await appendFile(file, `${JSON.stringify(entry)}\n`);
+}
+
+/**
+ * Remove journey personas' rows (users cascade to their interests, queue
+ * entries and rooms). Pairing takes the oldest waiting entries whoever owns
+ * them, so a persona left waiting would pair with the next case's users.
+ */
+export async function deleteJourneyRows(emails?: string[]): Promise<void> {
+  await stackVerified();
+  if (emails) {
+    if (emails.length === 0) return;
+    await dbPool.query(`DELETE FROM users WHERE email = ANY($1::text[])`, [emails]);
+    return;
+  }
+  await dbPool.query(`DELETE FROM users WHERE position($1 in email) > 0`, [JOURNEY_EMAIL_MARK]);
+}
+
+/** Interest names a user saved, sorted. */
+export async function interestNamesForUser(userId: number): Promise<string[]> {
+  const rows = await many<{ name: string }>(
+    `SELECT name FROM interests WHERE user_id = $1 ORDER BY name`,
+    [userId],
+  );
+  return rows.map((r) => r.name);
+}
+
+/** Every room either user has ever been in. */
+export async function roomsForUsers(userIds: number[]): Promise<
+  { id: string; status: string; user1_id: number; user2_id: number }[]
+> {
+  return many(
+    `SELECT id, status, user1_id, user2_id FROM rooms
+      WHERE user1_id = ANY($1::int[]) OR user2_id = ANY($1::int[])
+      ORDER BY created_at`,
+    [userIds],
+  );
+}
+
+/** A user's live (waiting or matched) queue entries, with liveness. */
+export async function liveQueueRows(userId: number): Promise<
+  { id: number; status: string; room_id: string | null; joined_at: Date; last_seen_at: Date }[]
+> {
+  return many(
+    `SELECT id, status, room_id, joined_at, last_seen_at FROM queue_entries
+      WHERE user_id = $1 AND status IN ('waiting', 'matched') ORDER BY id`,
+    [userId],
   );
 }

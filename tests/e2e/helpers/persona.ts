@@ -6,6 +6,8 @@
 // reruns never collide on emails or handles.
 import { expect, type Page } from "@playwright/test";
 import { setupClerkTestingToken } from "@clerk/testing/playwright";
+import { JOURNEY_EMAIL_MARK } from "./clerk-keyless";
+import { userRowByEmail } from "./db";
 
 export type Gender = "male" | "female" | "non-binary" | "prefer-not-to-say";
 
@@ -33,7 +35,7 @@ export function makePersona(
   return {
     firstName: `Journey${letter}`,
     lastName: `Tester${RUN_SALT.toString(36)}`,
-    email: `j${letter.toLowerCase()}+clerk_test_${RUN_SALT}_${Math.random()
+    email: `j${letter.toLowerCase()}${JOURNEY_EMAIL_MARK}_${RUN_SALT}_${Math.random()
       .toString(36)
       .slice(2, 7)}@example.com`,
     password: "Journey-Test-4242!",
@@ -49,27 +51,51 @@ export function makePersona(
   };
 }
 
-/** Signs up a persona through the real Clerk sign-up form (test token). */
+/** Clerk's fixed verification code for +clerk_test addresses on development instances. */
+export const CLERK_TEST_CODE = "424242";
+
+/**
+ * Signs up a persona through the real Clerk sign-up form: details, then the
+ * email verification step, where it types Clerk's test code. The testing
+ * token only lets the browser past Clerk's bot protection; it verifies
+ * nothing.
+ */
 export async function signUpPersona(
   page: Page,
   persona: Persona,
 ): Promise<void> {
   await setupClerkTestingToken({ page });
   await page.goto("/sign-up");
-  await page.waitForLoadState("domcontentloaded");
 
-  await page.locator('input[id="firstName-field"]').fill(persona.firstName);
-  await page.locator('input[id="lastName-field"]').fill(persona.lastName);
-  await page.locator('input[id="emailAddress-field"]').fill(persona.email);
-  await page.locator('input[id="password-field"]').fill(persona.password);
-
+  const fillIfPresent = async (selector: string, value: string) => {
+    const field = page.locator(selector);
+    if (await field.count()) await field.fill(value);
+  };
+  await page.locator('input[name="emailAddress"]').waitFor({ timeout: 60_000 });
+  await fillIfPresent('input[name="firstName"]', persona.firstName);
+  await fillIfPresent('input[name="lastName"]', persona.lastName);
+  await page.locator('input[name="emailAddress"]').fill(persona.email);
+  await fillIfPresent('input[name="password"]', persona.password);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.waitForURL(/sign-up\/verify/, { timeout: 60_000 });
 
-  const otp = page.getByRole("textbox", { name: /verification code/i });
-  await otp.waitFor({ state: "visible", timeout: 30_000 });
-  // The testing token auto-fills/verifies; wait for Clerk's success state.
-  await page.getByText("Success").first().waitFor({ timeout: 30_000 });
+  // Clerk renders the code as one autocomplete=one-time-code input; typing
+  // the six digits submits it.
+  const code = page.locator('input[autocomplete="one-time-code"]').first();
+  await code.waitFor({ state: "visible", timeout: 60_000 });
+  await code.pressSequentially(CLERK_TEST_CODE, { delay: 50 });
+  // Signed up means Clerk has an active session. Clerk's own redirect after
+  // sign-up does not finish on this stack: its server action posts to
+  // /sign-up/verify-email-address, which the reserved middleware redirects
+  // to /onboarding (signed in, no onboarding claim), and the page stays put.
+  // Signed up = Clerk's client holds a session for this browser. The next
+  // page load turns it into the app's session cookie.
+  await page.waitForFunction(
+    () =>
+      ((window as unknown as { Clerk?: { client?: { sessions?: unknown[] } } }).Clerk?.client?.sessions
+        ?.length ?? 0) > 0,
+    undefined,
+    { timeout: 60_000 },
+  );
 }
 
 const GENDER_LABEL: Record<Gender, string> = {
@@ -80,7 +106,10 @@ const GENDER_LABEL: Record<Gender, string> = {
 };
 
 /**
- * Walks the real five-step onboarding wizard for a signed-up persona.
+ * Walks the real five-step onboarding wizard for a signed-up persona and
+ * returns once Postgres records them onboarded. What the browser does next
+ * is the middleware loop (witnessed in journeys.spec.ts), so journeys
+ * continue through the journey-proof path.
  * The Clerk keyless-mode prompt overlay re-renders the tree, so portal
  * options are force-clicked after a settle beat.
  */
@@ -170,26 +199,41 @@ export async function completeOnboarding(
     .getByRole("button", { name: "Complete Profile" })
     .waitFor({ timeout: 20_000 });
   await page.getByRole("button", { name: "Complete Profile" }).click();
-  await page
-    .getByRole("heading", { name: "Welcome to the Club!" })
-    .waitFor({ timeout: 60_000 });
-  await page.getByRole("button", { name: "Start Connecting" }).click();
-  await page.waitForURL(/\/app/, { timeout: 30_000 });
+  // Done = the action marked the person onboarded in Postgres. The
+  // "Welcome to the Club!" screen does not reliably appear: the action's
+  // revalidation re-runs the /onboarding layout, which redirects a finished
+  // user to /app, which the reserved middleware sends back to /onboarding.
+  await expect
+    .poll(async () => (await userRowByEmail(persona.email))?.onboarding_complete ?? false, {
+      timeout: 60_000,
+      message: "users.onboarding_complete after Complete Profile",
+    })
+    .toBe(true);
 }
 
-/** Queue phases the engine renders on [data-queue-phase]. */
-export type QueuePhase = "loading" | "error" | "waiting" | "matched";
+/**
+ * The labelled journey-proof path (src/app/journey-proof/): the real queue
+ * and call room, served at the only URL the reserved middleware lets a
+ * signed-in user without the onboarding claim reach.
+ */
+export const PROOF_QUEUE = "/onboarding?journey-proof=queue";
+export const PROOF_CALL = "/onboarding?journey-proof=call&room=";
+const PROOF_CALL_URL = /\/onboarding\?journey-proof=call&room=([0-9a-f-]{36})/;
 
-/** Navigates to the smart-connection queue for a type; the engine auto-joins. */
+/** Opens the queue for a type; the engine joins on mount. */
 export async function gotoQueue(
   page: Page,
   queueType: "casual" | "professional",
 ): Promise<void> {
-  await page.goto(`/app/smart-connection?type=${queueType}`);
+  await page.goto(`${PROOF_QUEUE}&type=${queueType}`);
+  await page.locator('[data-journey-proof="queue"]').waitFor({ timeout: 60_000 });
   await page
     .locator('[data-queue-phase="waiting"], [data-queue-phase="matched"]')
     .waitFor({ state: "visible", timeout: 60_000 });
 }
+
+/** Queue phases the engine renders on [data-queue-phase]. */
+export type QueuePhase = "loading" | "error" | "waiting" | "matched";
 
 /** Waits until the queue engine reports the given phase. */
 export async function waitForQueuePhase(
@@ -205,8 +249,9 @@ export async function waitForQueuePhase(
 /** Accepts the match and lands in the call room; returns the room id. */
 export async function acceptMatch(page: Page): Promise<string> {
   await page.locator("[data-call-accept]").click();
-  await page.waitForURL(/\/app\/call\/[0-9a-f-]{36}/, { timeout: 30_000 });
-  return page.url().match(/\/app\/call\/([0-9a-f-]{36})/)![1];
+  await page.waitForURL(PROOF_CALL_URL, { timeout: 30_000 });
+  await page.locator("[data-call-root]").waitFor({ state: "visible", timeout: 60_000 });
+  return page.url().match(PROOF_CALL_URL)![1];
 }
 
 /** Best-effort: expect() wrapper so failures carry readable context. */
