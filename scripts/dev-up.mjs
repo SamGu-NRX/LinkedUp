@@ -5,23 +5,32 @@
  *   pnpm dev:up
  *
  * 1. Ensures .env.local carries the project DATABASE_URL (127.0.0.1:54329/linkedup).
- * 2. Initializes (initdb) and starts a PROJECT-OWNED PostgreSQL 17 cluster in
- *    .local/pg on a localhost-only port (54329). System clusters, system
- *    credentials and sudo are never touched.
+ * 2. Initializes (initdb) and starts a PROJECT-OWNED PostgreSQL cluster in
+ *    .local/pg on a localhost-only port (54329), with whichever PostgreSQL
+ *    14+ server binaries the machine has (Linux packages or Homebrew).
+ *    System clusters, system credentials and sudo are never touched.
  * 3. Creates the `linkedup` database if missing.
  * 4. Applies Drizzle migrations (drizzle-kit migrate, idempotent).
  * 5. Runs the repo seed script when one exists (scripts/seed.* / src/db/seed.*).
  * 6. Starts keyless `next dev` and PROVES the actual keyless app — not just an
  *    HTTP 200: the landing page is LinkedUp's, /sign-in renders Clerk without
- *    any keys, /app redirects unauthenticated requests, and the running
- *    server's own /proc environment plus the app's data layer (scripts/
- *    verify-db-identity.mjs, the app's own db client) prove the app is
+ *    any keys, /app serves the app shell, and the app's data layer (scripts/
+ *    verify-db-identity.mjs, the app's own db client) proves the app is
  *    connected to the same project database the migrations ran on.
  *
+ * Env isolation: Next loads .env, .env.local, .env.development and
+ * .env.development.local for every variable the process does not already
+ * set. dev:up strips Clerk/Stream/database variables from the server's
+ * process env, and REFUSES to start while any of those files defines one
+ * (other than .env.local's DATABASE_URL, which must be the project
+ * database): otherwise a checkout with Clerk keys in an env file would run
+ * against that tenant.
+ *
  * Safety: this script only ever stops processes IT started, verified by its
- * pid file AND /proc identity (process group, command line, working
- * directory). A foreign process holding the dev port makes dev:up refuse to
- * start instead of killing it.
+ * pid file AND the live process's identity (process group, command line,
+ * working directory; /proc on Linux, ps and lsof on macOS). A foreign
+ * process holding the dev port makes dev:up refuse to start instead of
+ * killing it.
  *
  * Idempotent: a healthy, correctly-configured server on the dev port is
  * reused; one of ours with a stale configuration is replaced.
@@ -57,7 +66,13 @@ const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
 /** Project-owned Postgres port: distinctive, localhost-only, NOT the system 5432. */
 export const PG_PORT = readPort(process.env.LINKEDUP_PG_PORT, 54329);
 export const PG_DATA_DIR = path.join(ROOT, ".local", "pg");
-export const PG_SOCKET_DIR = path.join(ROOT, ".local", "pg-sock");
+// The socket directory goes inside pg_ctl's -o option string, which is
+// split on spaces, and a Unix socket path is capped near 104 bytes on macOS:
+// keep it short and space-free, per checkout.
+export const PG_SOCKET_DIR = path.join(
+  "/tmp",
+  `linkedup-pg-${crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8)}`,
+);
 export const PG_LOG_PATH = path.join(ROOT, ".local", "pg.log");
 export const LOCAL_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/linkedup`;
 export const ADMIN_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/postgres`;
@@ -83,11 +98,24 @@ function readPort(value, fallback) {
   return port;
 }
 
-/** Locate the PostgreSQL 17 server binaries (initdb, pg_ctl); null when absent. */
+/** Directories that may hold PostgreSQL server binaries, newest major first. */
+export function pgBinCandidates(pathEnv = process.env.PATH ?? "") {
+  const majors = [17, 16, 15, 14];
+  return [
+    ...majors.flatMap((v) => [
+      `/usr/lib/postgresql/${v}/bin`,
+      `/usr/local/pg${v}/bin`,
+      `/opt/homebrew/opt/postgresql@${v}/bin`,
+      `/usr/local/opt/postgresql@${v}/bin`,
+    ]),
+    ...pathEnv.split(path.delimiter).filter(Boolean),
+  ];
+}
+
+/** Locate PostgreSQL server binaries (initdb, pg_ctl, psql, pg_isready); null when absent. */
 function findPgBin() {
-  const candidates = ["/usr/lib/postgresql/17/bin", "/usr/local/pg17/bin"];
-  for (const dir of candidates) {
-    if (existsSync(path.join(dir, "initdb"))) return dir;
+  for (const dir of pgBinCandidates()) {
+    if (["initdb", "pg_ctl", "psql", "pg_isready"].every((b) => existsSync(path.join(dir, b)))) return dir;
   }
   return null;
 }
@@ -95,12 +123,14 @@ function findPgBin() {
 function requirePgBin() {
   if (!PG_BIN) {
     die(
-      "PostgreSQL 17 server binaries not found (looked in /usr/lib/postgresql/17/bin). " +
-        "Install postgresql-17 and rerun.",
+      "PostgreSQL server binaries (initdb, pg_ctl, psql, pg_isready) not found on PATH or in the " +
+        "usual Linux/Homebrew locations. Install PostgreSQL 14 or newer and rerun.",
     );
   }
   return PG_BIN;
 }
+
+const pg = (bin) => path.join(requirePgBin(), bin);
 
 /** execFileSync that throws a readable Error on nonzero exit. */
 function run(cmd, args, opts = {}) {
@@ -138,9 +168,43 @@ export function parseListeningPids(ssOutput, port) {
   return [...pids];
 }
 
+/** PIDs from `lsof -nP -iTCP:<port> -sTCP:LISTEN -t` output (one pid per line). */
+export function parseLsofPids(lsofOutput) {
+  return [...new Set(lsofOutput.split("\n").map((l) => Number(l.trim())).filter((n) => Number.isInteger(n) && n > 0))];
+}
+
 /**
- * Classifies the process recorded in `meta` (our pid file) against live /proc
- * facts. Returns:
+ * Env-file problems that would let Next load credentials or another database
+ * into the dev server. Next reads these files for every variable the process
+ * env does not set, so stripping the process env alone is not isolation.
+ * `files` maps a file name to its content (absent files omitted).
+ */
+export const NEXT_ENV_FILES = [".env", ".env.local", ".env.development", ".env.development.local"];
+export function envFileProblems(files, { databaseUrl }) {
+  const problems = [];
+  for (const [name, content] of Object.entries(files)) {
+    for (const raw of content.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) continue;
+      const m = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+      if (!m) continue;
+      const [, key, value] = m;
+      if (/CLERK|STREAM/i.test(key)) {
+        problems.push(`${name} defines ${key}: dev would leave keyless mode`);
+      } else if (/^(DATABASE_URL|POSTGRES_URL|DIRECT_URL|SUPABASE_DB_URL)$/.test(key)) {
+        const unquoted = value.replace(/^["']|["']$/g, "");
+        if (!(name === ".env.local" && key === "DATABASE_URL" && unquoted === databaseUrl)) {
+          problems.push(`${name} defines ${key}: only .env.local's DATABASE_URL=${databaseUrl} is allowed`);
+        }
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * Classifies the process recorded in `meta` (our pid file) against live
+ * process facts. Returns:
  *   "none"    — no usable record (never started here, or recorded for a
  *               different port/root): a port holder is foreign.
  *   "stale"   — the recorded process no longer exists.
@@ -224,43 +288,70 @@ export function dbIdentityMismatches(report, expected) {
 }
 
 // ---------------------------------------------------------------------------
-// /proc readers (same-user introspection of live processes)
+// Live-process readers (same-user introspection): /proc on Linux, ps/lsof
+// elsewhere. cmdline comes back NUL-separated in both cases.
 // ---------------------------------------------------------------------------
 
-function procCmdline(pid) {
+const HAS_PROC = existsSync("/proc/self/stat");
+
+function capture(cmd, args) {
   try {
-    return readFileSync(`/proc/${pid}/cmdline`, "utf8");
+    return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   } catch {
     return null;
   }
+}
+
+function procCmdline(pid) {
+  if (HAS_PROC) {
+    try {
+      return readFileSync(`/proc/${pid}/cmdline`, "utf8");
+    } catch {
+      return null;
+    }
+  }
+  const out = capture("ps", ["-ww", "-o", "command=", "-p", String(pid)]);
+  // ps joins argv with spaces; none of the arguments checked contain spaces.
+  return out && out.trim() ? out.trim().split(/\s+/).join("\u0000") : null;
 }
 
 function procCwd(pid) {
-  try {
-    return readlinkSync(`/proc/${pid}/cwd`);
-  } catch {
-    return null;
+  if (HAS_PROC) {
+    try {
+      return readlinkSync(`/proc/${pid}/cwd`);
+    } catch {
+      return null;
+    }
   }
+  const out = capture("lsof", ["-a", "-p", String(pid), "-d", "cwd", "-Fn"]);
+  const line = out?.split("\n").find((l) => l.startsWith("n"));
+  return line ? line.slice(1) : null;
 }
 
 function procPgid(pid) {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    const fields = stat.slice(stat.lastIndexOf(")") + 1).trim().split(/\s+/);
-    return Number(fields[2]); // after (comm): state, ppid, pgrp
-  } catch {
-    return null;
+  if (HAS_PROC) {
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      const fields = stat.slice(stat.lastIndexOf(")") + 1).trim().split(/\s+/);
+      return Number(fields[2]); // after (comm): state, ppid, pgrp
+    } catch {
+      return null;
+    }
   }
+  const out = capture("ps", ["-o", "pgid=", "-p", String(pid)]);
+  const n = Number(out?.trim());
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-function procEnvEntries(pid) {
-  try {
-    return readFileSync(`/proc/${pid}/environ`, "utf8")
-      .split("\u0000")
-      .filter(Boolean);
-  } catch {
-    return null;
+/** PIDs listening on a TCP port (lsof where it exists, else ss). */
+function listeningPids(port) {
+  if (existsSync("/usr/sbin/lsof") || existsSync("/usr/bin/lsof")) {
+    // lsof exits 1 when nothing listens: capture() returns null then.
+    return parseLsofPids(capture("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"]) ?? "");
   }
+  const ss = capture("ss", ["-ltnp"]);
+  if (ss === null) die("need lsof or ss to inspect the dev port");
+  return parseListeningPids(ss, port);
 }
 
 function describePids(pids) {
@@ -297,13 +388,30 @@ function ensureEnvFile() {
   log(".env.local DATABASE_URL set to the local database");
 }
 
+/** Refuse to serve while an env file Next loads carries credentials or another database. */
+function assertEnvFilesIsolated() {
+  const files = {};
+  for (const name of NEXT_ENV_FILES) {
+    const p = path.join(ROOT, name);
+    if (existsSync(p)) files[name] = readFileSync(p, "utf8");
+  }
+  const problems = envFileProblems(files, { databaseUrl: LOCAL_DATABASE_URL });
+  if (problems.length) {
+    die(
+      `env files Next would load are not isolated:\n  - ${problems.join("\n  - ")}\n` +
+        "Move those variables out of this checkout's env files (dev:up never edits them beyond .env.local's DATABASE_URL).",
+    );
+  }
+  log(`env files isolated (${Object.keys(files).join(", ") || "none present"})`);
+}
+
 // ---------------------------------------------------------------------------
 // 2. Project-owned PostgreSQL cluster (.local/pg on :54329, localhost-only)
 // ---------------------------------------------------------------------------
 
 function pgIsReady() {
   try {
-    run("pg_isready", ["-h", "127.0.0.1", "-p", String(PG_PORT)], { capture: true });
+    run(pg("pg_isready"), ["-h", "127.0.0.1", "-p", String(PG_PORT)], { capture: true });
     return true;
   } catch {
     return false;
@@ -312,7 +420,18 @@ function pgIsReady() {
 
 function initdbIfNeeded() {
   const pgBin = requirePgBin();
-  if (existsSync(path.join(PG_DATA_DIR, "PG_VERSION"))) return;
+  if (existsSync(path.join(PG_DATA_DIR, "PG_VERSION"))) {
+    // A cluster made by another major version cannot be started by this one.
+    const clusterMajor = readFileSync(path.join(PG_DATA_DIR, "PG_VERSION"), "utf8").trim();
+    const binMajor = (run(path.join(pgBin, "pg_ctl"), ["--version"], { capture: true }).match(/(\d+)\./) ?? [])[1];
+    if (binMajor && clusterMajor !== binMajor) {
+      die(
+        `${PG_DATA_DIR} holds a PostgreSQL ${clusterMajor} cluster but the server binaries are ${binMajor}. ` +
+          "Remove .local/pg (project data only) or install the matching PostgreSQL.",
+      );
+    }
+    return;
+  }
   mkdirSync(PG_DATA_DIR, { recursive: true });
   mkdirSync(PG_SOCKET_DIR, { recursive: true });
   // A leftover empty/broken directory (a previously interrupted init) would
@@ -338,6 +457,7 @@ function initdbIfNeeded() {
 
 function startProjectPostgres() {
   const pgBin = requirePgBin();
+  mkdirSync(PG_SOCKET_DIR, { recursive: true }); // /tmp may have been cleaned
   // -o flags pin the project port, a project socket directory and a
   // localhost-only listener — the system cluster on 5432 is never involved.
   run(path.join(pgBin, "pg_ctl"), [
@@ -353,7 +473,7 @@ function ensurePostgres() {
   if (pgIsReady()) {
     // Something answers on our port: it must be THIS project's cluster.
     const dataDir = run(
-      "psql",
+      pg("psql"),
       [ADMIN_DATABASE_URL, "-tAc", "SHOW data_directory"],
       { capture: true },
     ).trim();
@@ -377,14 +497,14 @@ function ensurePostgres() {
   log(`project PostgreSQL ready on 127.0.0.1:${PG_PORT} (started in ${Date.now() - startedAt}ms)`);
 
   const hasDb = run(
-    "psql",
+    pg("psql"),
     [ADMIN_DATABASE_URL, "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'linkedup'"],
     { capture: true },
   ).trim();
   if (hasDb === "1") {
     log("database 'linkedup' already exists — kept");
   } else {
-    run("psql", [ADMIN_DATABASE_URL, "-c", "CREATE DATABASE linkedup"]);
+    run(pg("psql"), [ADMIN_DATABASE_URL, "-c", "CREATE DATABASE linkedup"]);
     log("database 'linkedup' created");
   }
 }
@@ -550,9 +670,7 @@ async function startDevServer() {
  *      (measured: clerkMiddleware without keys serves the shell with 200);
  *      unauthenticated redirect semantics are the journey suite's job, this
  *      step proves the stack runs keyless and clean,
- *   4. the RUNNING server's /proc environment is the isolated configuration
- *      (DATABASE_URL pinned to the project cluster, zero Clerk/Stream keys),
- *   5. the app's data layer reports it is connected to the project database
+ *   4. the app's data layer reports it is connected to the project database
  *      (scripts/verify-db-identity.mjs under the server's exact env).
  */
 async function verifyAppAndKeylessMode() {
@@ -595,22 +713,10 @@ async function verifyAppAndKeylessMode() {
     die("/app did not render the LinkedUp app shell (no dashboard content) — is something else serving the port?");
   }
 
-  const envEntries = procEnvEntries(meta.pid);
-  if (!envEntries) die(`could not read /proc/${meta.pid}/environ to verify the server's environment`);
-  const dbUrlEntry = envEntries.find((k) => k.startsWith("DATABASE_URL="));
-  if (dbUrlEntry !== `DATABASE_URL=${LOCAL_DATABASE_URL}`) {
-    die(
-      `the running dev server's DATABASE_URL is ${dbUrlEntry ?? "(unset)"}, expected ` +
-        `${LOCAL_DATABASE_URL} — environment isolation failed`,
-    );
-  }
-  const clerkStreamKeys = envEntries
-    .filter((entry) => /CLERK|STREAM/i.test(entry.slice(0, entry.indexOf("="))))
-    .map((entry) => entry.slice(0, entry.indexOf("=")));
-  if (clerkStreamKeys.length) {
-    die(`the running dev server still has Clerk/Stream variables: ${clerkStreamKeys.join(", ")}`);
-  }
-
+  // The server's env was built by serverEnvFrom (no Clerk/Stream/database
+  // variables inherited) and assertEnvFilesIsolated refused any env file
+  // that would put them back; the data layer check below proves which
+  // database the app's own client reaches.
   log("asserting the app data layer uses the project database (app's own client)");
   run("pnpm", ["exec", "tsx", "scripts/verify-db-identity.mjs"], {
     env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
@@ -618,7 +724,7 @@ async function verifyAppAndKeylessMode() {
 
   log(
     `verified: LinkedUp on :${APP_PORT} · keyless Clerk sign-in · /app shell clean · ` +
-      `server env isolated · data layer on ${LOCAL_DATABASE_URL} (${PG_DATA_DIR})`,
+      `env files isolated · data layer on ${LOCAL_DATABASE_URL} (${PG_DATA_DIR})`,
   );
 }
 
@@ -629,7 +735,7 @@ async function verifyAppAndKeylessMode() {
  */
 async function ensureDevServer() {
   const meta = readDevMeta();
-  const holders = parseListeningPids(run("ss", ["-ltnp"], { capture: true }), APP_PORT);
+  const holders = listeningPids(APP_PORT);
   const identity = classifyServerIdentity({
     meta,
     cmdline: meta ? procCmdline(meta.pid) : null,
@@ -681,9 +787,41 @@ function dumpLogTail() {
 // main
 // ---------------------------------------------------------------------------
 
+/**
+ * `--down`: stop what dev:up started — the dev server recorded in its pid
+ * file (identity verified as above) and the project Postgres cluster in
+ * .local/pg (pg_ctl on that data directory only). Data stays on disk.
+ */
+function down() {
+  const meta = readDevMeta();
+  const identity = classifyServerIdentity({
+    meta,
+    cmdline: meta ? procCmdline(meta.pid) : null,
+    cwd: meta ? procCwd(meta.pid) : null,
+    root: ROOT,
+    port: APP_PORT,
+  });
+  if (identity === "ours") {
+    stopOurServer(meta);
+    log(`stopped the dev server (pid ${meta.pid})`);
+  } else if (identity === "foreign") {
+    log(`the recorded pid ${meta.pid} is not our dev server any more — left alone`);
+  }
+  clearDevMeta();
+  if (existsSync(path.join(PG_DATA_DIR, "postmaster.pid"))) {
+    run(pg("pg_ctl"), ["-D", PG_DATA_DIR, "-m", "fast", "-w", "stop"]);
+    log("stopped the project PostgreSQL cluster");
+  }
+}
+
 async function main() {
-  log(`stack: project Postgres 17 on 127.0.0.1:${PG_PORT} (data ${PG_DATA_DIR}), dev server on :${APP_PORT}`);
+  if (process.argv.includes("--down")) {
+    down();
+    return;
+  }
+  log(`stack: project Postgres on 127.0.0.1:${PG_PORT} (data ${PG_DATA_DIR}, binaries ${PG_BIN ?? "missing"}), dev server on :${APP_PORT}`);
   ensureEnvFile();
+  assertEnvFilesIsolated();
   ensurePostgres();
   runMigrations();
   runSeedIfPresent();

@@ -13,7 +13,10 @@
  * Prints the identity report as JSON; exits 1 on any mismatch.
  */
 import { sql } from "drizzle-orm";
-import { db } from "../src/db/index.ts";
+// Dynamic import: under Node 22+ the .ts module can load as CommonJS (the
+// package has no "type": "module"), and a named ESM import of it then fails.
+const dbModule = await import("../src/db/index.ts");
+const db = dbModule.db ?? dbModule.default?.db;
 import { dbIdentityMismatches, PG_DATA_DIR, PG_PORT } from "./dev-up.mjs";
 
 const rowsResult = await db.execute(sql`

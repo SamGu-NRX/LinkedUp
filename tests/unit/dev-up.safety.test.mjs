@@ -15,8 +15,11 @@ import { describe, expect, it } from "vitest";
 import {
   classifyServerIdentity,
   dbIdentityMismatches,
+  envFileProblems,
   metaMatchesExpectation,
   parseListeningPids,
+  parseLsofPids,
+  pgBinCandidates,
   serverEnvFrom,
 } from "../../scripts/dev-up.mjs";
 
@@ -198,5 +201,52 @@ describe("dbIdentityMismatches — the data layer must sit on the project cluste
   it("fails loudly on a missing or malformed report", () => {
     expect(dbIdentityMismatches(null, expected)).toEqual(["no identity report"]);
     expect(dbIdentityMismatches({}, expected).join(" ")).toMatch(/database name/);
+  });
+});
+
+describe("envFileProblems — env files Next loads must not undo the isolation", () => {
+  const databaseUrl = "postgresql://postgres:postgres@127.0.0.1:54329/linkedup";
+
+  it("accepts .env.local holding only the project DATABASE_URL, and comments", () => {
+    expect(
+      envFileProblems({ ".env.local": `# local\nDATABASE_URL=${databaseUrl}\n` }, { databaseUrl }),
+    ).toEqual([]);
+  });
+
+  it("refuses Clerk or Stream keys in any env file Next reads", () => {
+    const problems = envFileProblems(
+      {
+        ".env": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_x\n",
+        ".env.development.local": "export CLERK_SECRET_KEY=sk_test_x\n",
+        ".env.local": `DATABASE_URL=${databaseUrl}\nNEXT_PUBLIC_STREAM_API_KEY=abc\n`,
+      },
+      { databaseUrl },
+    );
+    expect(problems).toHaveLength(3);
+    expect(problems.join("\n")).toMatch(/CLERK_SECRET_KEY/);
+  });
+
+  it("refuses another database, or a database URL anywhere but .env.local", () => {
+    expect(
+      envFileProblems({ ".env.local": "DATABASE_URL=postgres://u:p@db.supabase.co:5432/postgres\n" }, { databaseUrl }),
+    ).toHaveLength(1);
+    expect(envFileProblems({ ".env": `DATABASE_URL=${databaseUrl}\n` }, { databaseUrl })).toHaveLength(1);
+    expect(envFileProblems({ ".env.development": "DIRECT_URL=postgres://x\n" }, { databaseUrl })).toHaveLength(1);
+  });
+});
+
+describe("parseLsofPids", () => {
+  it("reads one pid per line and ignores noise", () => {
+    expect(parseLsofPids("123\n456\n123\n\n")).toEqual([123, 456]);
+    expect(parseLsofPids("")).toEqual([]);
+  });
+});
+
+describe("pgBinCandidates", () => {
+  it("looks at Linux packages and Homebrew for 17 down to 14, then PATH", () => {
+    const dirs = pgBinCandidates("/a/bin:/b/bin");
+    expect(dirs[0]).toBe("/usr/lib/postgresql/17/bin");
+    expect(dirs).toContain("/opt/homebrew/opt/postgresql@15/bin");
+    expect(dirs.slice(-2)).toEqual(["/a/bin", "/b/bin"]);
   });
 });
