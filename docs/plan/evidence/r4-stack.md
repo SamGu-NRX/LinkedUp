@@ -126,6 +126,12 @@ recorded here after creation (see the trailing list, appended by commit).
 
 <!-- BUNDLES -->
 
+- `r4-stack-checkpoint-1` — artifact **fl_sEq00ELD** (28,738 bytes), bundle of
+  `origin/obv/linkedup-journey-foundation-f1..87803f7`: all seven work commits
+  (a, b, c, d, seed, readiness budget, /app correction) plus this evidence
+  file. Restore with
+  `git bundle verify r4-stack-checkpoint-1.bundle && git fetch r4-stack-checkpoint-1.bundle 'refs/heads/*:refs/remotes/bundle/*'`.
+
 ## Honest limitations
 
 - `/app` unauthenticated **redirect** semantics are not proven here (keyless
