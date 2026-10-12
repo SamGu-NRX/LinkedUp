@@ -15,12 +15,18 @@ import type { VoiceCallProps } from "@/types/call";
  * and control buttons carrying stable data-testids so the J-suite can
  * drive and observe the call without depending on visual styling.
  *
- * LS0 behavior: the screen mounts in "joining" and advances to
- * "connected" only when the browser owns a live local capture. Mic and
- * camera toggles really stop and re-acquire tracks. There is no
- * simulated remote media — the partner tile reports exactly what exists
- * ("audio not connected") until the transport milestone (LS1) wires
- * remote streams.
+ * LS0 behavior: the call phase is about the CALL, not this device. With
+ * no media transport yet (LS1 adds it), the phase stays "joining"; it
+ * becomes "failed" when the browser refuses camera and microphone, and
+ * "left" when the person ends the call. Local capture readiness is tracked
+ * separately (data-call-local-media). Mic and camera toggles really stop
+ * and re-acquire tracks. There is no simulated remote media — the partner
+ * tile reports exactly what exists ("audio not connected").
+ *
+ * Every capture request carries a generation number. Leaving, unmounting
+ * and a newer request each advance it, and a request that resolves for an
+ * old generation stops its tracks at once — the initial request, a retry,
+ * or a toggle re-acquire alike — so no track outlives the room.
  */
 type CallPhase = "joining" | "connected" | "reconnecting" | "failed" | "left";
 
@@ -59,6 +65,8 @@ export default function VoiceCallScreen({
   onRateCall,
 }: VoiceCallProps) {
   const [phase, setPhase] = useState<CallPhase>("joining");
+  // This device's capture: live tracks owned by the screen. Not the call.
+  const [localReady, setLocalReady] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
@@ -71,6 +79,9 @@ export default function VoiceCallScreen({
   // intent without a new identity (which would re-run the mount capture).
   const micEnabledRef = useRef(true);
   const cameraOnRef = useRef(true);
+  /** Bumped by leave, unmount and each new full capture request. */
+  const captureGenRef = useRef(0);
+  const leftRef = useRef(false);
 
   const toggleMic = useCallback(() => {
     const next = !micEnabledRef.current;
@@ -93,9 +104,18 @@ export default function VoiceCallScreen({
     setStream(next);
   }, []);
 
-  const startCapture = useCallback(async (isCancelled?: () => boolean) => {
-    const cancelled = isCancelled ?? (() => false);
+  /** Release this device: invalidate pending requests, stop every live track. */
+  const releaseCapture = useCallback(() => {
+    captureGenRef.current += 1;
+    stopAllTracks(streamRef.current);
+    streamRef.current = null;
+  }, []);
+
+  const startCapture = useCallback(async () => {
+    const gen = ++captureGenRef.current;
+    const current = () => gen === captureGenRef.current && !leftRef.current;
     setCaptureError(null);
+    setPhase((p) => (p === "failed" ? "joining" : p));
     try {
       // Ask only for the kinds the user's toggles currently allow — a retry
       // after muting the mic must not silently re-open the microphone.
@@ -103,10 +123,9 @@ export default function VoiceCallScreen({
         audio: micEnabledRef.current,
         video: cameraOnRef.current,
       });
-      if (cancelled()) {
-        // The screen left (unmount, route change) while the browser prompt
-        // was open: release everything the browser just granted. No track
-        // may outlive the room.
+      if (!current()) {
+        // Left, unmounted or superseded while the browser prompt was open:
+        // release everything the browser just granted.
         stopAllTracks(media);
         return;
       }
@@ -120,9 +139,9 @@ export default function VoiceCallScreen({
       });
       stopAllTracks(streamRef.current);
       setStreamAndRef(new MediaStream(wantedTracks));
-      setPhase("connected");
+      setLocalReady(true);
     } catch (error) {
-      if (cancelled()) return;
+      if (!current()) return;
       // Browsers throw DOMException, but read the name off any error —
       // wrappers and polyfills exist in the wild.
       const name =
@@ -135,6 +154,8 @@ export default function VoiceCallScreen({
           message:
             "Camera and microphone access was blocked. Allow access in your browser settings, then retry.",
         });
+        // Without permission there is no call to have: say so.
+        setPhase("failed");
       } else if (name === "NotFoundError" || name === "OverconstrainedError") {
         setCaptureError({
           kind: "no-device",
@@ -150,24 +171,48 @@ export default function VoiceCallScreen({
     }
   }, [setStreamAndRef]);
 
-  // Acquire local media on mount (startCapture is stable). The
-  // device-permission prompt shows here; nothing is presented as
-  // "connected" before it.
+  // Acquire local media on mount (startCapture is stable). Unmounting
+  // (Back, route change) releases the devices and invalidates any request
+  // still waiting on the browser prompt.
   useEffect(() => {
-    let cancelled = false;
-    void startCapture(() => cancelled);
-    return () => {
-      // Leaving the room (Back, unmount, route change) releases the devices;
-      // the flag closes the race where the prompt resolves after leaving.
-      cancelled = true;
-      stopAllTracks(streamRef.current);
-      streamRef.current = null;
-    };
-  }, [startCapture]);
+    void startCapture();
+    return releaseCapture;
+  }, [startCapture, releaseCapture]);
+
+  /** Re-acquire one kind after a toggle, unless a leave or newer capture intervened. */
+  const reacquire = useCallback(
+    async (kind: "audio" | "video", isCancelled: () => boolean) => {
+      const gen = captureGenRef.current;
+      const stale = () => isCancelled() || gen !== captureGenRef.current || leftRef.current;
+      try {
+        const fresh = await navigator.mediaDevices.getUserMedia(
+          kind === "audio" ? { audio: true } : { video: true },
+        );
+        if (stale()) {
+          stopAllTracks(fresh);
+          return;
+        }
+        const current = streamRef.current;
+        setStreamAndRef(new MediaStream([...(current?.getTracks() ?? []), ...fresh.getTracks()]));
+      } catch (error) {
+        if (stale()) return;
+        const name = error instanceof DOMException ? error.name : "";
+        const what = kind === "audio" ? "Microphone" : "Camera";
+        setCaptureError({
+          kind: name === "NotAllowedError" ? "permission" : "no-device",
+          message:
+            name === "NotAllowedError"
+              ? `${what} access was blocked. Allow access in your browser settings, then retry.`
+              : `No ${what.toLowerCase()} was found. Connect one, then retry.`,
+        });
+      }
+    },
+    [setStreamAndRef],
+  );
 
   // Camera off: really stop the video track. Camera on: re-acquire it.
   useEffect(() => {
-    if (phase !== "connected") return;
+    if (!localReady) return;
     if (!cameraOn) {
       const current = streamRef.current;
       current?.getVideoTracks().forEach((track) => track.stop());
@@ -178,36 +223,15 @@ export default function VoiceCallScreen({
     }
     if (streamRef.current?.getVideoTracks().some((t) => t.readyState === "live")) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const fresh = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (cancelled) {
-          stopAllTracks(fresh);
-          return;
-        }
-        const current = streamRef.current;
-        setStreamAndRef(new MediaStream([...(current?.getTracks() ?? []), ...fresh.getTracks()]));
-      } catch (error) {
-        if (!cancelled) {
-          const name = error instanceof DOMException ? error.name : "";
-          setCaptureError({
-            kind: name === "NotAllowedError" ? "permission" : "no-device",
-            message:
-              name === "NotAllowedError"
-                ? "Camera access was blocked. Allow access in your browser settings, then retry."
-                : "No camera was found. Connect one, then retry.",
-          });
-        }
-      }
-    })();
+    void reacquire("video", () => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [cameraOn, phase, setStreamAndRef]);
+  }, [cameraOn, localReady, reacquire, setStreamAndRef]);
 
   // Mic off: really stop the audio track. Mic on: re-acquire it.
   useEffect(() => {
-    if (phase !== "connected") return;
+    if (!localReady) return;
     if (!micEnabled) {
       const current = streamRef.current;
       current?.getAudioTracks().forEach((track) => track.stop());
@@ -218,32 +242,11 @@ export default function VoiceCallScreen({
     }
     if (streamRef.current?.getAudioTracks().some((t) => t.readyState === "live")) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const fresh = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (cancelled) {
-          stopAllTracks(fresh);
-          return;
-        }
-        const current = streamRef.current;
-        setStreamAndRef(new MediaStream([...(current?.getTracks() ?? []), ...fresh.getTracks()]));
-      } catch (error) {
-        if (!cancelled) {
-          const name = error instanceof DOMException ? error.name : "";
-          setCaptureError({
-            kind: name === "NotAllowedError" ? "permission" : "no-device",
-            message:
-              name === "NotAllowedError"
-                ? "Microphone access was blocked. Allow access in your browser settings, then retry."
-                : "No microphone was found. Connect one, then retry.",
-          });
-        }
-      }
-    })();
+    void reacquire("audio", () => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [micEnabled, phase, setStreamAndRef]);
+  }, [micEnabled, localReady, reacquire, setStreamAndRef]);
 
   // Local preview element follows the stream while the camera is live.
   useEffect(() => {
@@ -263,11 +266,13 @@ export default function VoiceCallScreen({
 
   const localAudioLive = stream?.getAudioTracks().some((t) => t.readyState === "live") ?? false;
   const localVideoLive = stream?.getVideoTracks().some((t) => t.readyState === "live") ?? false;
-  const micState = phase === "connected" && micEnabled && localAudioLive ? "live" : "muted";
+  const micState = localReady && micEnabled && localAudioLive ? "live" : "muted";
 
   const handleLeave = () => {
-    stopAllTracks(streamRef.current);
+    leftRef.current = true;
+    releaseCapture();
     setStreamAndRef(null);
+    setLocalReady(false);
     setPhase("left");
     onEndCall();
   };
@@ -278,6 +283,7 @@ export default function VoiceCallScreen({
     <main
       data-call-root=""
       data-call-phase={phase}
+      data-call-local-media={localReady ? "ready" : "pending"}
       role="region"
       aria-label="Voice call"
       className={cn(

@@ -1,54 +1,63 @@
 // tests/unit/voice-call-screen.honesty.test.tsx
 //
-// Honesty unit suite for the LS0 voice-call surface. It pins the DOM
-// contract the journey suite drives (phase machine, participant rows,
-// stable testids) and the honest-capture behaviors: no simulated remote
-// media, real track stop/restart, permission/no-device recovery.
+// The LS0 call surface, observed through real track state. The fake media
+// layer behaves like a browser: every getUserMedia call creates NEW tracks,
+// stop() ends a track (readyState "ended"), and every track ever created is
+// kept, so "nothing is left capturing" is checked by counting live tracks,
+// not by checking that stop() was called.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import VoiceCallScreen, { formatElapsed } from "@/components/call/VoiceCallScreen";
 import type { Participant } from "@/types/call";
 
-const SOURCE_PATH = path.resolve(__dirname, "../../src/components/call/VoiceCallScreen.tsx");
-
-type FakeTrack = {
-  kind: "audio" | "video";
-  readyState: "live" | "ended";
-  stop: ReturnType<typeof vi.fn>;
-};
-
-function makeTrack(kind: "audio" | "video"): FakeTrack {
-  return { kind, readyState: "live", stop: vi.fn() };
+class FakeTrack {
+  readyState: "live" | "ended" = "live";
+  constructor(readonly kind: "audio" | "video") {}
+  stop() {
+    this.readyState = "ended";
+  }
 }
 
-// Minimal MediaStream stand-in: the component rebuilds streams with
-// new MediaStream(tracks) and reads getAudioTracks/getVideoTracks.
 class FakeMediaStream {
-  private readonly tracks: FakeTrack[];
-  constructor(tracks: FakeTrack[] = []) {
-    this.tracks = tracks;
-  }
-  getTracks(): FakeTrack[] {
+  constructor(private readonly tracks: FakeTrack[] = []) {}
+  getTracks() {
     return this.tracks;
   }
-  getAudioTracks(): FakeTrack[] {
+  getAudioTracks() {
     return this.tracks.filter((t) => t.kind === "audio");
   }
-  getVideoTracks(): FakeTrack[] {
+  getVideoTracks() {
     return this.tracks.filter((t) => t.kind === "video");
   }
 }
 
-let audioTrack: FakeTrack;
-let videoTrack: FakeTrack;
-const getUserMedia = vi.fn<(constraints: MediaStreamConstraints) => Promise<MediaStream>>();
+/** Every track the fake browser ever handed out. */
+let created: FakeTrack[] = [];
+const live = (kind?: "audio" | "video") =>
+  created.filter((t) => t.readyState === "live" && (!kind || t.kind === kind));
 
-function streamOf(tracks: FakeTrack[]): MediaStream {
-  return new FakeMediaStream(tracks) as unknown as MediaStream;
-}
+type Pending = { resolve: () => void; reject: (e: unknown) => void };
+/** When set, getUserMedia waits for the test to resolve it (an open prompt). */
+let holdNext = false;
+let pending: Pending[] = [];
+
+const getUserMedia = vi.fn(async (constraints: MediaStreamConstraints) => {
+  const make = () => {
+    const tracks: FakeTrack[] = [];
+    if (constraints.audio) tracks.push(new FakeTrack("audio"));
+    if (constraints.video) tracks.push(new FakeTrack("video"));
+    created.push(...tracks);
+    return new FakeMediaStream(tracks) as unknown as MediaStream;
+  };
+  if (!holdNext) return make();
+  holdNext = false;
+  return new Promise<MediaStream>((resolve, reject) => {
+    pending.push({ resolve: () => resolve(make()), reject });
+  });
+});
+
+const denied = () => Object.assign(new Error("denied"), { name: "NotAllowedError" });
 
 const participants: [Participant, Participant] = [
   { id: "me", name: "You", avatarUrl: "" },
@@ -69,32 +78,20 @@ function renderScreen() {
   );
 }
 
-function stubMediaDevices() {
-  Object.defineProperty(navigator, "mediaDevices", {
-    value: { getUserMedia },
-    configurable: true,
-  });
-}
+const root = (c: HTMLElement) => c.querySelector("[data-call-root]")!;
 
 beforeEach(() => {
-  audioTrack = makeTrack("audio");
-  videoTrack = makeTrack("video");
-  // Shared track instances: the component's stream holds exactly the
-  // objects the tests spy on (stop assertions work across re-acquires).
-  getUserMedia.mockImplementation(async (constraints?: MediaStreamConstraints) => {
-    const tracks: FakeTrack[] = [];
-    if (constraints?.audio) tracks.push(audioTrack);
-    if (constraints?.video) tracks.push(videoTrack);
-    return streamOf(tracks);
-  });
-  stubMediaDevices();
+  created = [];
+  pending = [];
+  holdNext = false;
+  getUserMedia.mockClear();
+  Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia }, configurable: true });
   vi.stubGlobal("MediaStream", FakeMediaStream);
 });
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  vi.restoreAllMocks();
 });
 
 describe("formatElapsed", () => {
@@ -105,265 +102,131 @@ describe("formatElapsed", () => {
   });
 });
 
-describe("source honesty", () => {
-  const source = readFileSync(SOURCE_PATH, "utf8");
-
-  it("starts the phase machine at joining and never simulates remote audio", () => {
-    expect(source).toContain('useState<CallPhase>("joining")');
-    expect(source).not.toContain("data-remote-audio");
-    expect(source).toContain("waiting for media transport");
-    // The elapsed timer only runs in the connected phase.
-    expect(source).toContain('if (phase !== "connected") return;');
-  });
-});
-
-describe("capture lifecycle", () => {
-  it("shows a permission error and recovers through the retry button", async () => {
-    getUserMedia.mockRejectedValueOnce(
-      Object.assign(new Error("denied"), { name: "NotAllowedError" }),
-    );
+describe("call phase is about the call, not this device", () => {
+  it("stays joining with live local capture: there is no transport yet", async () => {
     const { container } = renderScreen();
-
-    await waitFor(() => {
-      expect(
-        container.querySelector('[data-call-capture-error="permission"]'),
-      ).toBeInTheDocument();
-    });
-    expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-      "data-call-phase",
-      "joining",
-    );
-
-    // Retry succeeds: the phase only advances when capture is live.
-    fireEvent.click(container.querySelector('[data-testid="retry-media"]') as HTMLElement);
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-local-media", "ready"));
+    expect(root(container)).toHaveAttribute("data-call-phase", "joining");
+    expect(container.querySelector("[data-call-timer]")).toHaveTextContent("00:00");
+    const remote = container.querySelector('[data-testid="remote-media"]')!;
+    expect(remote).toHaveAttribute("data-audio-muted", "true");
+    expect(remote).toHaveTextContent("waiting for media transport");
   });
 
-  it("reports a missing device distinctly", async () => {
-    getUserMedia.mockRejectedValueOnce(
-      Object.assign(new Error("none"), { name: "NotFoundError" }),
-    );
-    const { container } = renderScreen();
-    await waitFor(() => {
-      expect(
-        container.querySelector('[data-call-capture-error="no-device"]'),
-      ).toBeInTheDocument();
-    });
+  it("fails when the browser refuses access, and retry returns to joining", async () => {
+    getUserMedia.mockRejectedValueOnce(denied());
+    const { container, getByTestId } = renderScreen();
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-phase", "failed"));
+    expect(container.querySelector('[data-call-capture-error="permission"]')).toBeInTheDocument();
+    fireEvent.click(getByTestId("retry-media"));
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-local-media", "ready"));
+    expect(root(container)).toHaveAttribute("data-call-phase", "joining");
+    expect(live()).toHaveLength(2);
   });
 
-  it("reaches connected with live local state and an honest remote row", async () => {
-    const { container } = renderScreen();
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
-
-    // Local row: real capture means the mic is genuinely live.
-    const localRow = container.querySelector('[data-participant-id="me"]') as HTMLElement;
-    expect(localRow.querySelector("[data-call-mic-state]")).toHaveAttribute(
-      "data-call-mic-state",
-      "live",
-    );
-
-    // Remote row: reports exactly what exists — nothing connected.
-    const remoteWrapper = container.querySelector('[data-testid="remote-media"]') as HTMLElement;
-    expect(remoteWrapper).toHaveAttribute("data-audio-muted", "true");
-    expect(remoteWrapper).toHaveAttribute("data-video-off", "true");
-    expect(
-      container.querySelector("[data-call-transport-note]"),
-    ).toHaveTextContent("waiting for media transport");
-  });
-});
-
-describe("real track stop/restart", () => {
-  it("stops the audio track on mute and re-acquires on unmute", async () => {
-    const { container } = renderScreen();
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
-    const localRow = container.querySelector('[data-participant-id="me"]') as HTMLElement;
-    const micToggle = container.querySelector('[data-testid="toggle-mic"]') as HTMLElement;
-    const callsBefore = getUserMedia.mock.calls.length;
-
-    fireEvent.click(micToggle);
-    await waitFor(() => {
-      expect(localRow.querySelector("[data-call-mic-state]")).toHaveAttribute(
-        "data-call-mic-state",
-        "muted",
-      );
-    });
-    expect(audioTrack.stop).toHaveBeenCalled();
-    expect(getUserMedia.mock.calls.length).toBe(callsBefore);
-
-    fireEvent.click(micToggle);
-    await waitFor(() => {
-      expect(localRow.querySelector("[data-call-mic-state]")).toHaveAttribute(
-        "data-call-mic-state",
-        "live",
-      );
-    });
-    expect(getUserMedia.mock.calls.length).toBeGreaterThan(callsBefore);
-  });
-
-  it("stops the video track when the camera turns off and drops the preview", async () => {
-    const { container } = renderScreen();
-    await waitFor(() => {
-      expect(
-        container.querySelector("[data-call-local-preview]"),
-      ).toBeInTheDocument();
-    });
-    const cameraToggle = container.querySelector("[data-call-camera]") as HTMLElement;
-
-    fireEvent.click(cameraToggle);
-    await waitFor(() => {
-      expect(videoTrack.stop).toHaveBeenCalled();
-    });
-    expect(
-      container.querySelector("[data-call-local-preview]"),
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(cameraToggle);
-    await waitFor(() => {
-      expect(
-        container.querySelector("[data-call-local-preview]"),
-      ).toBeInTheDocument();
-    });
-  });
-});
-
-describe("leaving", () => {
-  it("stops all tracks, reports left, and shows the rating section", async () => {
-    const onEndCall = vi.fn();
-    const { container } = render(
-      <VoiceCallScreen
-        callType="casual"
-        participants={participants}
-        initialDuration={300}
-        onEndCall={onEndCall}
-        onExtendCall={vi.fn()}
-        onToggleMute={vi.fn()}
-        onRateCall={vi.fn()}
-      />,
-    );
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
-
-    fireEvent.click(container.querySelector('[data-testid="leave-call"]') as HTMLElement);
-    expect(onEndCall).toHaveBeenCalledTimes(1);
-    expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-      "data-call-phase",
-      "left",
-    );
-    expect(audioTrack.stop).toHaveBeenCalled();
-    expect(videoTrack.stop).toHaveBeenCalled();
-    expect(container.querySelector("[data-call-rating]")).toBeInTheDocument();
-  });
-});
-
-describe("leaving the room releases the camera (witnesses)", () => {
-  it("unmount after a live capture leaves zero live tracks", async () => {
-    const { container, unmount } = renderScreen();
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
-
-    // Leaving via unmount (Back, route change) must release the devices.
-    unmount();
-    expect(audioTrack.stop).toHaveBeenCalled();
-    expect(videoTrack.stop).toHaveBeenCalled();
-  });
-
-  it("unmount while the capture is still pending releases the late stream (uncancelled-capture-await witness)", async () => {
-    const lateAudio = makeTrack("audio");
-    const lateVideo = makeTrack("video");
-    let resolveCapture!: (stream: MediaStream) => void;
-    getUserMedia.mockImplementationOnce(
-      () =>
-        new Promise<MediaStream>((resolve) => {
-          resolveCapture = resolve;
-        }),
-    );
-
-    const { unmount } = renderScreen();
-    await waitFor(() => expect(resolveCapture).toBeDefined());
-    // The screen leaves while the browser permission prompt is open.
-    unmount();
-
-    // The late capture resolves anyway; every track it granted must be
-    // stopped instead of attaching behind the component's back.
-    resolveCapture(streamOf([lateAudio, lateVideo]));
-    await waitFor(() => expect(lateAudio.stop).toHaveBeenCalled());
-    expect(lateVideo.stop).toHaveBeenCalled();
-  });
-
-  it("a toggle flipped during a pending capture is honored — the muted mic never goes live", async () => {
-    let resolveCapture!: (stream: MediaStream) => void;
-    getUserMedia.mockImplementationOnce(
-      () =>
-        new Promise<MediaStream>((resolve) => {
-          resolveCapture = resolve;
-        }),
-    );
-
-    const { container } = renderScreen();
-    fireEvent.click(container.querySelector('[data-testid="toggle-mic"]') as HTMLElement);
-    resolveCapture(streamOf([audioTrack, videoTrack]));
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
-
-    // The in-flight capture's audio track was dropped, not attached live
-    // behind a control that says "muted".
-    expect(audioTrack.stop).toHaveBeenCalled();
-    expect(container.querySelector("[data-call-mic-state]")).toHaveAttribute(
-      "data-call-mic-state",
-      "muted",
-    );
-  });
-
-  it("retry after muting the mic does not re-open the microphone (retry-muted-mic witness)", async () => {
-    getUserMedia.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
-
+  it("reports a missing device without calling the call failed", async () => {
+    getUserMedia.mockRejectedValueOnce(Object.assign(new Error("none"), { name: "NotFoundError" }));
     const { container } = renderScreen();
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="retry-media"]')).toBeInTheDocument(),
+      expect(container.querySelector('[data-call-capture-error="no-device"]')).toBeInTheDocument(),
     );
-    fireEvent.click(container.querySelector('[data-testid="toggle-mic"]') as HTMLElement);
-    fireEvent.click(container.querySelector('[data-testid="retry-media"]') as HTMLElement);
-    await waitFor(() => {
-      expect(container.querySelector("[data-call-root]")).toHaveAttribute(
-        "data-call-phase",
-        "connected",
-      );
-    });
+    expect(root(container)).toHaveAttribute("data-call-phase", "joining");
+  });
+});
 
-    // The retry asked only for video: the muted mic was NOT re-opened.
-    const constraints = getUserMedia.mock.calls[1]?.[0];
-    expect(constraints?.audio).toBe(false);
-    expect(constraints?.video).toBe(true);
-    expect(container.querySelector("[data-call-mic-state]")).toHaveAttribute(
-      "data-call-mic-state",
-      "muted",
-    );
+describe("toggles really stop and re-acquire tracks", () => {
+  it("mute ends the audio track; unmute captures a new one", async () => {
+    const { container, getByTestId } = renderScreen();
+    await waitFor(() => expect(live("audio")).toHaveLength(1));
+    fireEvent.click(getByTestId("toggle-mic"));
+    await waitFor(() => expect(live("audio")).toHaveLength(0));
+    expect(container.querySelector("[data-call-mic-state]")).toHaveAttribute("data-call-mic-state", "muted");
+    fireEvent.click(getByTestId("toggle-mic"));
+    await waitFor(() => expect(live("audio")).toHaveLength(1));
+    expect(created.filter((t) => t.kind === "audio")).toHaveLength(2);
+  });
+
+  it("camera off ends the video track and drops the preview", async () => {
+    const { container } = renderScreen();
+    await waitFor(() => expect(container.querySelector("[data-call-local-preview]")).toBeInTheDocument());
+    fireEvent.click(container.querySelector("[data-call-camera]")!);
+    await waitFor(() => expect(live("video")).toHaveLength(0));
+    expect(container.querySelector("[data-call-local-preview]")).not.toBeInTheDocument();
+  });
+});
+
+describe("nothing outlives the room", () => {
+  it("leaving after capture leaves zero live tracks and shows the rating", async () => {
+    const { container, getByTestId } = renderScreen();
+    await waitFor(() => expect(live()).toHaveLength(2));
+    fireEvent.click(getByTestId("leave-call"));
+    expect(live()).toHaveLength(0);
+    expect(root(container)).toHaveAttribute("data-call-phase", "left");
+    expect(container.querySelector("[data-call-rating]")).toBeInTheDocument();
+  });
+
+  it("unmounting after capture leaves zero live tracks", async () => {
+    const { unmount } = renderScreen();
+    await waitFor(() => expect(live()).toHaveLength(2));
+    unmount();
+    expect(live()).toHaveLength(0);
+  });
+
+  it("leaving while the first capture is pending: the late stream is stopped and the phase stays left", async () => {
+    holdNext = true;
+    const { container, getByTestId } = renderScreen();
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(getByTestId("leave-call"));
+    await act(async () => pending[0].resolve());
+    expect(live()).toHaveLength(0);
+    expect(root(container)).toHaveAttribute("data-call-phase", "left");
+    expect(root(container)).toHaveAttribute("data-call-local-media", "pending");
+  });
+
+  it("unmounting while a RETRY is pending: the late stream is stopped", async () => {
+    getUserMedia.mockRejectedValueOnce(denied());
+    const { container, getByTestId, unmount } = renderScreen();
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-phase", "failed"));
+    holdNext = true;
+    fireEvent.click(getByTestId("retry-media"));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    unmount();
+    await act(async () => pending[0].resolve());
+    expect(created.length).toBeGreaterThan(0);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("leaving while a RETRY is pending: the late stream is stopped", async () => {
+    getUserMedia.mockRejectedValueOnce(denied());
+    const { container, getByTestId } = renderScreen();
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-phase", "failed"));
+    holdNext = true;
+    fireEvent.click(getByTestId("retry-media"));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(getByTestId("leave-call"));
+    await act(async () => pending[0].resolve());
+    expect(live()).toHaveLength(0);
+    expect(root(container)).toHaveAttribute("data-call-phase", "left");
+  });
+
+  it("a mic muted while the capture is pending never goes live", async () => {
+    holdNext = true;
+    const { getByTestId } = renderScreen();
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.click(getByTestId("toggle-mic"));
+    await act(async () => pending[0].resolve());
+    expect(live("audio")).toHaveLength(0);
+    expect(live("video")).toHaveLength(1);
+  });
+
+  it("a retry after muting the mic asks for video only", async () => {
+    getUserMedia.mockRejectedValueOnce(denied());
+    const { container, getByTestId } = renderScreen();
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-phase", "failed"));
+    fireEvent.click(getByTestId("toggle-mic"));
+    fireEvent.click(getByTestId("retry-media"));
+    await waitFor(() => expect(live("video")).toHaveLength(1));
+    expect(getUserMedia).toHaveBeenLastCalledWith({ audio: false, video: true });
+    expect(live("audio")).toHaveLength(0);
   });
 });
