@@ -121,6 +121,7 @@ describe("CallPage access control (page-level witnesses)", () => {
 
     expect(callScreenClientMock).toHaveBeenCalledTimes(1);
     // Participants come from the access record (room row), verbatim.
-    expect(callScreenClientMock.mock.calls[0][0]).toEqual({ access });
+    // The route signals through /api/call/signal and exits to /app.
+    expect(callScreenClientMock.mock.calls[0][0]).toEqual({ access, signalingEndpoint: "/api/call/signal", exitHref: "/app" });
   });
 });

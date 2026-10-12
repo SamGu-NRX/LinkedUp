@@ -14,6 +14,8 @@ import { notFound } from "next/navigation";
 
 export const JOURNEY_PROOF_QUEUE = "/onboarding?journey-proof=queue";
 export const JOURNEY_PROOF_CALL_PREFIX = "/onboarding?journey-proof=call&room=";
+/** The signaling endpoint, reached the same way (next.config.mjs rewrites it to /api/call/signal). */
+export const JOURNEY_PROOF_SIGNAL = "/onboarding?journey-proof=signal";
 
 export function requireJourneyProof(): void {
   if (process.env.LINKEDUP_JOURNEY_PROOF !== "1") notFound();

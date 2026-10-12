@@ -29,7 +29,15 @@ const refusalCopy: Record<string, { title: string; detail: string }> = {
   },
 };
 
-export default async function CallRoom({ id }: { id: string }) {
+export default async function CallRoom({
+  id,
+  signalingEndpoint = "/api/call/signal",
+  exitHref = "/app",
+}: {
+  id: string;
+  signalingEndpoint?: string;
+  exitHref?: string;
+}) {
   const { userId } = await auth();
   const access = userId
     ? await getRoomForUser(userId, id)
@@ -41,12 +49,17 @@ export default async function CallRoom({ id }: { id: string }) {
       <main
         data-call-refusal=""
         data-refusal-reason={access.reason}
+        // The call contract: a refused visitor's call has failed, and why
+        // is in call-error.
+        data-call-phase="failed"
         className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center text-zinc-100"
       >
         <h1 className="text-2xl font-semibold">{copy.title}</h1>
-        <p className="max-w-md text-sm text-zinc-400">{copy.detail}</p>
+        <p data-testid="call-error" className="max-w-md text-sm text-zinc-400">
+          {copy.detail}
+        </p>
         <Link
-          href={access.reason === "signed_out" ? "/sign-in" : "/app"}
+          href={access.reason === "signed_out" ? "/sign-in" : exitHref}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
           {access.reason === "signed_out" ? "Sign in" : "Back to the app"}
@@ -55,5 +68,5 @@ export default async function CallRoom({ id }: { id: string }) {
     );
   }
 
-  return <CallScreenClient access={access} />;
+  return <CallScreenClient access={access} signalingEndpoint={signalingEndpoint} exitHref={exitHref} />;
 }

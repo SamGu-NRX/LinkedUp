@@ -1,0 +1,4 @@
+# Generated media (y4m/wav fixtures) are rebuilt on demand by
+# `pnpm call-eval:fixtures` — never commit the binaries.
+*
+!.gitignore

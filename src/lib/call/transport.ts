@@ -1,69 +1,81 @@
 /**
- * The seam every call transport implements (docs/plan/CALL-PLAN.md, D5).
+ * The transport seam every Connvo call transport implements.
  *
- * Round 1 tries competing transports (P2P over Convex signaling, a self-hosted SFU) behind one UI and one harness,
- * so the UI and the two-peer harness depend only on this file. Local capture belongs to the caller: a transport
- * sends the tracks it is given and never stops them, and leave() closes every connection it opened.
+ * Source of truth: docs/plan/CALL-PLAN.md decisions D4/D5 and the harness
+ * DOM contract. Rules that hold for every implementation:
+ *
+ * - Local capture is owned by the UI's local-media hook, not the transport.
+ *   A transport never stops a track it did not create, and `leave()` closes
+ *   every connection it opened (D5).
+ * - Local stream changes (initial capture, mute-release, device switch) are
+ *   published via `publishLocalStream`; the transport forwards them to
+ *   remote peers (replaceTrack or renegotiation, its choice).
+ * - Remote mute/camera state shown by the DOM contract (`data-audio-muted`,
+ *   `data-video-off`) arrives through `TransportEvents.onRemoteState`
+ *   signaling; media analysis is a separate ground-truth check, not the
+ *   source of UI state.
  */
 
-export type ParticipantId = string;
+export type CallPhase =
+  | "idle"
+  | "joining"
+  | "connected"
+  | "reconnecting"
+  | "failed"
+  | "left";
 
-export type CallPhase = "idle" | "joining" | "connected" | "reconnecting" | "failed" | "left";
-
-export type CallErrorCode =
-  | "unauthorized" // the backend refused this user for this meeting
-  | "meeting-not-active"
-  | "signaling-unavailable"
-  | "connection-failed" // could not establish or recover media after retries
-  | "aborted";
-
-export interface CallError {
-  code: CallErrorCode;
-  /** Human-readable detail for logs; the UI maps `code` to its own copy. */
-  detail: string;
+export interface LocalCallState {
+  micOn: boolean;
+  cameraOn: boolean;
 }
 
-export type RemoteConnectionState = "connecting" | "connected" | "reconnecting" | "disconnected";
-
-export interface RemoteParticipant {
-  id: ParticipantId;
-  displayName: string;
-  /** Null until a track arrives, and again after the participant stops sending it. */
-  audio: MediaStreamTrack | null;
-  video: MediaStreamTrack | null;
-  /** The sender's declared state, signalled explicitly rather than inferred from silence or black frames. */
-  audioMuted: boolean;
-  videoOff: boolean;
-  connection: RemoteConnectionState;
+export interface RemoteParticipantState {
+  participantId: string;
+  micOn: boolean;
+  cameraOn: boolean;
 }
 
-export interface CallSnapshot {
-  phase: CallPhase;
-  /** Set when phase is "failed"; may also accompany "reconnecting". */
-  error: CallError | null;
-  /** Ordered by join time; never contains the local user, never contains duplicates. */
-  participants: readonly RemoteParticipant[];
-}
-
-export interface JoinOptions {
+export interface TransportContext {
+  /** Meeting row id; the signaling path must authorize it. */
   meetingId: string;
-  /** Tracks to publish; either may be null (joined muted or with the camera off). */
-  audio: MediaStreamTrack | null;
-  video: MediaStreamTrack | null;
-  /** Aborting it while joining rejects join() with code "aborted" and releases everything opened so far. */
-  signal?: AbortSignal;
+  /** The local participant's stable id (the JWT `sub`). */
+  selfId: string;
+  /** Returns a fresh bearer token for the signaling/auth path. */
+  identityToken: () => Promise<string>;
+  /**
+   * The local capture stream, owned by the UI's local-media hook (D5).
+   * May be null while capture is being re-acquired.
+   */
+  getLocalStream: () => MediaStream | null;
+  /** Optional RTCConfiguration override (the harness may force relay for H-15). */
+  rtcConfig?: RTCConfiguration;
+}
+
+export type TransportErrorKind = "auth" | "network" | "media" | "unknown";
+
+export interface TransportError {
+  kind: TransportErrorKind;
+  message: string;
+  retryable: boolean;
+}
+
+export interface TransportEvents {
+  onPhase: (phase: CallPhase) => void;
+  onRemoteJoined: (p: { participantId: string }) => void;
+  onRemoteLeft: (p: { participantId: string; reason: string }) => void;
+  onRemoteStream: (p: { participantId: string; stream: MediaStream }) => void;
+  onRemoteState: (p: RemoteParticipantState) => void;
+  onError: (e: TransportError) => void;
 }
 
 export interface CallTransport {
-  /** Resolves once connected to the meeting (not once every peer is connected); rejects with a CallError. */
-  join(options: JoinOptions): Promise<void>;
-  /** Swap or remove the published track for one kind without leaving, e.g. a device switch or camera off. */
-  replaceTrack(kind: "audio" | "video", track: MediaStreamTrack | null): Promise<void>;
-  /** Tell the other side the declared mute or camera state. */
-  setPublishedState(state: { audioMuted: boolean; videoOff: boolean }): Promise<void>;
-  /** Idempotent. Closes all connections and server sessions this transport opened; does not stop local tracks. */
+  readonly name: string;
+  connect(ctx: TransportContext, events: TransportEvents): Promise<void>;
+  publishLocalStream(stream: MediaStream | null): void;
+  publishLocalState(state: LocalCallState): void;
+  /**
+   * Leaves the call and closes every connection this transport opened.
+   * Must not stop tracks it did not create (D5).
+   */
   leave(): Promise<void>;
-  getSnapshot(): CallSnapshot;
-  /** Called after every snapshot change. Returns an unsubscribe function. */
-  subscribe(listener: (snapshot: CallSnapshot) => void): () => void;
 }
