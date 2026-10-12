@@ -6,7 +6,7 @@
 // naive non-transactional twin (pairWaitingUsersNaive) exists ONLY as a
 // concurrency-test witness: it demonstrates the race the transactional
 // path prevents, and is never used by the app.
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { queueEntries, rooms, users } from "@/db/schema";
 
@@ -36,7 +36,11 @@ export function isQueueEntryStale(
   return now.getTime() - joined.getTime() > STALE_ENTRY_MS;
 }
 
-/** Lazily expire stale waiting entries. Called on every queue touch. */
+/**
+ * Lazily expire stale waiting entries. Called on every queue touch.
+ * The window comes from STALE_ENTRY_MS and the caller's `now` — one source
+ * of truth, deterministic for tests.
+ */
 export async function expireStaleQueueEntries(now: Date = new Date()): Promise<void> {
   await db
     .update(queueEntries)
@@ -44,9 +48,30 @@ export async function expireStaleQueueEntries(now: Date = new Date()): Promise<v
     .where(
       and(
         eq(queueEntries.status, "waiting"),
-        sql`${queueEntries.joinedAt} < now() - interval '5 minutes'`,
+        lt(queueEntries.joinedAt, new Date(now.getTime() - STALE_ENTRY_MS)),
       ),
     );
+}
+
+/**
+ * Lazily release matched entries whose room is gone or no longer active.
+ * Without this, a finished call strands its entries `matched` forever:
+ * queueJoin keeps returning the dead room and the user can never re-queue.
+ * Called on every queue touch, like the staleness sweep.
+ */
+export async function releaseEndedRoomEntries(now: Date = new Date()): Promise<void> {
+  await db.execute(sql`
+    UPDATE queue_entries
+    SET status = 'exited', exited_at = ${now}
+    WHERE status = 'matched'
+      AND (
+        room_id IS NULL
+        OR NOT EXISTS (
+          SELECT 1 FROM rooms r
+          WHERE r.id = queue_entries.room_id AND r.status = 'active'
+        )
+      )
+  `);
 }
 
 export async function queueJoin(options: {
@@ -58,6 +83,7 @@ export async function queueJoin(options: {
   const now = options.now ?? new Date();
 
   await expireStaleQueueEntries(now);
+  await releaseEndedRoomEntries(now);
 
   // Already waiting or matched? Report the live state instead of double-joining.
   const existing = await db.query.queueEntries.findFirst({
@@ -73,7 +99,7 @@ export async function queueJoin(options: {
   await db.insert(queueEntries).values({ userId, queueType, status: "waiting", joinedAt: now });
 
   // Try to pair immediately (our own entry can be the second member).
-  const paired = await pairWaitingUsersTransactional(queueType, now);
+  const paired = await pairIfPartnerWaiting(queueType, now);
   if (paired && (paired.winnerId === userId || paired.loserId === userId)) {
     return { status: "matched", roomId: paired.roomId };
   }
@@ -90,10 +116,27 @@ export async function queueCancel(userId: number, now: Date = new Date()): Promi
 
 export async function queueStateForUser(userId: number): Promise<QueueStateForUser> {
   await expireStaleQueueEntries();
+  await releaseEndedRoomEntries();
 
-  const entry = await db.query.queueEntries.findFirst({
+  let entry = await db.query.queueEntries.findFirst({
     where: and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ["waiting", "matched"])),
   });
+
+  // Read-path pairing: two simultaneous joiners can each fail to claim the
+  // other (lock races leave both briefly waiting). The next poll finishes
+  // the pair, so a queue that is ready never stalls behind a lost race.
+  if (entry?.status === "waiting") {
+    const paired = await pairIfPartnerWaiting(entry.queueType as QueueType, new Date());
+    if (paired) {
+      entry =
+        (await db.query.queueEntries.findFirst({
+          where: and(
+            eq(queueEntries.userId, userId),
+            inArray(queueEntries.status, ["waiting", "matched"]),
+          ),
+        })) ?? entry;
+    }
+  }
 
   if (!entry) return { status: "idle" };
 
@@ -178,46 +221,34 @@ export async function endRoom(roomId: string, now: Date = new Date()): Promise<b
 }
 
 /**
- * Transactional pairing. Reads two waiting entries with FOR UPDATE SKIP
- * LOCKED (no double-claim under concurrency), inserts the room, and flips
- * both entries to `matched` — all or nothing.
+ * Transactional pairing. One statement claims BOTH members with FOR UPDATE
+ * SKIP LOCKED (atomic — a concurrent pairing either sees both rows or none,
+ * never half), inserts the room, and flips both entries to `matched` — all
+ * or nothing.
  */
 export async function pairWaitingUsersTransactional(
   queueType: QueueType,
   now: Date = new Date(),
 ): Promise<{ roomId: string; winnerId: number; loserId: number } | null> {
   return db.transaction(async (tx) => {
-    const winnerRows = await tx.execute<{ id: number }>(sql`
-      SELECT id FROM queue_entries
+    const pairRows = await tx.execute<{ id: number; userId: number }>(sql`
+      SELECT id, user_id AS "userId" FROM queue_entries
       WHERE queue_type = ${queueType} AND status = 'waiting'
-      ORDER BY joined_at ASC
+      ORDER BY joined_at ASC, id ASC
+      LIMIT 2
       FOR UPDATE SKIP LOCKED
-      LIMIT 1
     `);
-    const winner = winnerRows[0];
-    if (!winner) return null;
-
-    const loserRows = await tx.execute<{ id: number }>(sql`
-      SELECT id FROM queue_entries
-      WHERE queue_type = ${queueType} AND status = 'waiting' AND id != ${winner.id}
-      ORDER BY joined_at ASC
-      FOR UPDATE SKIP LOCKED
-      LIMIT 1
-    `);
-    const loser = loserRows[0];
-    if (!loser) return null;
-
-    const winnerEntry = await tx.query.queueEntries.findFirst({ where: eq(queueEntries.id, winner.id) });
-    const loserEntry = await tx.query.queueEntries.findFirst({ where: eq(queueEntries.id, loser.id) });
-    if (!winnerEntry || !loserEntry) return null;
+    const winner = pairRows[0];
+    const loser = pairRows[1];
+    if (!winner || !loser) return null;
 
     const [room] = await tx
       .insert(rooms)
       .values({
         queueType,
         status: "active",
-        user1Id: winnerEntry.userId,
-        user2Id: loserEntry.userId,
+        user1Id: winner.userId,
+        user2Id: loser.userId,
         createdAt: now,
       })
       .returning({ id: rooms.id });
@@ -227,8 +258,33 @@ export async function pairWaitingUsersTransactional(
       .set({ status: "matched", roomId: room.id })
       .where(inArray(queueEntries.id, [winner.id, loser.id]));
 
-    return { roomId: room.id, winnerId: winnerEntry.userId, loserId: loserEntry.userId };
+    return { roomId: room.id, winnerId: winner.userId, loserId: loser.userId };
   });
+}
+
+async function countWaitingEntries(queueType: QueueType): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(queueEntries)
+    .where(and(eq(queueEntries.queueType, queueType), eq(queueEntries.status, "waiting")));
+  return row?.count ?? 0;
+}
+
+/**
+ * Pair now if at least two entries wait; retry briefly when a concurrent
+ * claim wins the lock race and leaves this attempt with nothing locked.
+ */
+async function pairIfPartnerWaiting(
+  queueType: QueueType,
+  now: Date,
+): Promise<{ roomId: string; winnerId: number; loserId: number } | null> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if ((await countWaitingEntries(queueType)) < 2) return null;
+    const paired = await pairWaitingUsersTransactional(queueType, now);
+    if (paired) return paired;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return null;
 }
 
 /**
