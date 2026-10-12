@@ -16,7 +16,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    include: ["tests/unit/**/*.test.{ts,tsx,mjs}"],
+    include: ["tests/unit/**/*.test.{ts,tsx,mjs}", "tools/call-eval/**/*.test.mjs"],
     // Files run one at a time. Two files share the stack's queue table, and
     // pairing takes the oldest waiting entries of a type whoever owns them:
     // in parallel, call-room.access.db's waiting neighbour paired with a

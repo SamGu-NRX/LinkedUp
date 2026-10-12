@@ -16,7 +16,9 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "dev:up": "node scripts/dev-up.mjs",
-    "dev:down": "node scripts/dev-up.mjs --down"
+    "dev:down": "node scripts/dev-up.mjs --down",
+    "call-eval": "node tools/call-eval/scripts/run-eval.mjs",
+    "call-eval:fixtures": "node tools/call-eval/scripts/generate-fixtures.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",
