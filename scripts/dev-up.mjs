@@ -67,7 +67,11 @@ const PG_BIN = findPgBin();
 const ROOT_TAG = crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8);
 const DEV_LOG_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.log`);
 const DEV_META_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.json`);
-const READINESS_TIMEOUT_MS = 240_000;
+// Measured 2026-10-12 on the shared 2-core sandbox: with a foreign matrix run
+// at load ~40, initdb took 48s and the landing page's first compile exceeded
+// 240s (still running when this budget expired — the server itself was Ready
+// in 6.3s). 600s covers a loaded box; under normal load the wait ends early.
+const READINESS_TIMEOUT_MS = 600_000;
 /** Strings in served HTML that mean the stack left keyless mode (key set, secret missing). */
 const KEYLESS_FAILURE_MARKERS = ["Missing secretKey", "Application not found"];
 
