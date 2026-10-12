@@ -40,10 +40,15 @@ vi.mock("@/app/app/call/[id]/CallScreenClient", () => ({
 }));
 
 const { default: CallPage } = await import("@/app/app/call/[id]/page");
+const { default: CallRoom } = await import("@/app/app/call/[id]/CallRoom");
 
+// The route hands its id to CallRoom (shared with the journey-proof path);
+// CallRoom is an async server component, so it is awaited, then rendered.
 async function renderCallPage(id = "room-1") {
-  const element = await CallPage({ params: Promise.resolve({ id }) });
-  return render(element);
+  const routed = await CallPage({ params: Promise.resolve({ id }) });
+  expect(routed.type).toBe(CallRoom);
+  expect(routed.props).toEqual({ id });
+  return render(await CallRoom({ id }));
 }
 
 // The real allowed-branch shape from src/lib/matching.ts — the page hands

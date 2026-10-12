@@ -14,6 +14,10 @@ import type { QueueStateForUser } from "@/lib/matching";
 
 interface SmartConnectionEngineProps {
   queueType: "professional" | "casual";
+  /** The room id is appended. The journey-proof test path passes its own. */
+  callPathPrefix?: string;
+  /** Where leaving the queue goes. */
+  leaveHref?: string;
 }
 
 const queueLabel: Record<"professional" | "casual", string> = {
@@ -27,7 +31,11 @@ const queueLabel: Record<"professional" | "casual", string> = {
  * match data. Elapsed time is computed from the server-persisted
  * `joinedAt`, so a reload keeps the true wait time.
  */
-export default function SmartConnectionEngine({ queueType }: SmartConnectionEngineProps) {
+export default function SmartConnectionEngine({
+  queueType,
+  callPathPrefix = "/app/call/",
+  leaveHref = "/app",
+}: SmartConnectionEngineProps) {
   const router = useRouter();
   const [state, setState] = useState<QueueStateForUser>({ status: "idle" });
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
@@ -97,12 +105,12 @@ export default function SmartConnectionEngine({ queueType }: SmartConnectionEngi
   const handleLeave = async () => {
     setLeaving(true);
     await queueLeaveAction();
-    router.push("/app");
+    router.push(leaveHref);
   };
 
   const handleAccept = async () => {
     if (state.status !== "matched") return;
-    router.push(`/app/call/${state.roomId}`);
+    router.push(`${callPathPrefix}${state.roomId}`);
   };
 
   if (phase === "loading") {

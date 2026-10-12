@@ -19,14 +19,16 @@
 //      middleware bounces them first. Finished users ping-pong
 //      /app <-> /onboarding.
 //
-// Why the presented token lacks the claim even for finished users: the only
-// write is src/app/onboarding/_actions.ts:77 (client.users.updateUser with
-// publicMetadata.onboardingComplete), which runs AFTER the DB persist. A
-// session token minted before it — the token the user is navigating with
-// at the moment onboarding completes — does not carry the claim until Clerk
-// refreshes it, and no backfill path exists for anyone else (seeded users,
-// pre-existing users). The middleware gate therefore disagrees with the
-// DB-backed gate exactly when onboarding completes.
+// Why the presented token lacks the claim even for finished users: the app
+// writes publicMetadata.onboardingComplete (src/app/onboarding/_actions.ts),
+// but publicMetadata reaches a session token as `metadata` only when the
+// Clerk instance's session token is customized to include it. That is a
+// dashboard setting; Clerk's Backend API (InstanceAPI.update) cannot set it,
+// and the keyless instance the stack runs on has the default token. So the
+// claim is never present, not merely stale: in the live stack a finished
+// persona made 686 requests for /onboarding in 10 s and never settled
+// (tests/e2e/journeys.spec.ts, the witness test). A token refresh does not
+// end the loop. Whether Sam's tenant has the customization is unknown here.
 //
 // This witness asserts the FIXED-WORLD behavior: a signed-in user whose
 // DB-backed gate says onboarding is complete must NOT be redirected to
