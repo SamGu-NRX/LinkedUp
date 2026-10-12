@@ -30,6 +30,9 @@ yarn-error.log*
 .env*
 !.env*.example
 
+# dev:up project-owned state (initdb data dir, socket dir, postgres log)
+/.local/
+
 # vercel
 .vercel
 

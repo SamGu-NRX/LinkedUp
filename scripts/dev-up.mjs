@@ -4,8 +4,10 @@
  *
  *   pnpm dev:up
  *
- * 1. Ensures .env.local carries the local DATABASE_URL (localhost:5432).
- * 2. Starts the local PostgreSQL 17 cluster ("17 main") if it is down.
+ * 1. Ensures .env.local carries the project DATABASE_URL (127.0.0.1:54329/linkedup).
+ * 2. Initializes (initdb) and starts a PROJECT-OWNED PostgreSQL 17 cluster in
+ *    .local/pg on a localhost-only port (54329). System clusters, system
+ *    credentials and sudo are never touched.
  * 3. Creates the `linkedup` database if missing.
  * 4. Applies Drizzle migrations (drizzle-kit migrate, idempotent).
  * 5. Runs the repo seed script when one exists (scripts/seed.* / src/db/seed.*).
@@ -24,9 +26,11 @@ import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import {
   existsSync,
+  mkdirSync,
   openSync,
   readFileSync,
   readlinkSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -45,11 +49,14 @@ const die = (msg) => {
 /** Dev-server port. Override with LINKEDUP_DEV_PORT when :3000 is taken by a foreign process. */
 const APP_PORT = readPort(process.env.LINKEDUP_DEV_PORT, 3000);
 const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
-const LOCAL_DATABASE_URL =
-  "postgresql://postgres:postgres@localhost:5432/linkedup";
-const ADMIN_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres";
-const PG_CLUSTER_VERSION = "17";
-const PG_CLUSTER_NAME = "main";
+/** Project-owned Postgres port: distinctive, localhost-only, NOT the system 5432. */
+export const PG_PORT = readPort(process.env.LINKEDUP_PG_PORT, 54329);
+export const PG_DATA_DIR = path.join(ROOT, ".local", "pg");
+export const PG_SOCKET_DIR = path.join(ROOT, ".local", "pg-sock");
+export const PG_LOG_PATH = path.join(ROOT, ".local", "pg.log");
+export const LOCAL_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/linkedup`;
+export const ADMIN_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/postgres`;
+const PG_BIN = findPgBin();
 // Per-checkout tag: /tmp is shared across sandboxes and checkouts, and the
 // record must never be confused between two trees (its root is identity).
 const ROOT_TAG = crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8);
@@ -63,6 +70,25 @@ function readPort(value, fallback) {
     die(`invalid port ${JSON.stringify(value)} (need an integer in 1..65535)`);
   }
   return port;
+}
+
+/** Locate the PostgreSQL 17 server binaries (initdb, pg_ctl); null when absent. */
+function findPgBin() {
+  const candidates = ["/usr/lib/postgresql/17/bin", "/usr/local/pg17/bin"];
+  for (const dir of candidates) {
+    if (existsSync(path.join(dir, "initdb"))) return dir;
+  }
+  return null;
+}
+
+function requirePgBin() {
+  if (!PG_BIN) {
+    die(
+      "PostgreSQL 17 server binaries not found (looked in /usr/lib/postgresql/17/bin). " +
+        "Install postgresql-17 and rerun.",
+    );
+  }
+  return PG_BIN;
 }
 
 /** execFileSync that throws a readable Error on nonzero exit. */
@@ -205,71 +231,83 @@ function ensureEnvFile() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. PostgreSQL cluster
+// 2. Project-owned PostgreSQL cluster (.local/pg on :54329, localhost-only)
 // ---------------------------------------------------------------------------
 
-function pgClusterStatus() {
-  const out = run("pg_lsclusters", [], { capture: true });
-  const match = out.match(
-    new RegExp(`^${PG_CLUSTER_VERSION}\\s+${PG_CLUSTER_NAME}\\s+\\d+\\s+(\\w+)`, "m"),
-  );
-  return match ? match[1] : null;
-}
-
-function startPgCluster() {
-  // First attempt without sudo is expected to fail for non-root shells —
-  // capture it so the permission error does not alarm the user.
+function pgIsReady() {
   try {
-    run("pg_ctlcluster", [PG_CLUSTER_VERSION, PG_CLUSTER_NAME, "start"], { capture: true });
+    run("pg_isready", ["-h", "127.0.0.1", "-p", String(PG_PORT)], { capture: true });
+    return true;
   } catch {
-    // Non-root shells need sudo for the Debian cluster wrapper.
-    try {
-      run("sudo", ["-n", "pg_ctlcluster", PG_CLUSTER_VERSION, PG_CLUSTER_NAME, "start"]);
-    } catch (err) {
-      die(`could not start PostgreSQL cluster ${PG_CLUSTER_VERSION} ${PG_CLUSTER_NAME}: ${err.message}`);
-    }
+    return false;
   }
 }
 
-function waitForPgReady() {
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    try {
-      run("pg_isready", ["-h", "127.0.0.1", "-p", "5432"], { capture: true });
-      return;
-    } catch {
-      process.stdout.write(".");
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
-    }
+function initdbIfNeeded() {
+  const pgBin = requirePgBin();
+  if (existsSync(path.join(PG_DATA_DIR, "PG_VERSION"))) return;
+  mkdirSync(PG_DATA_DIR, { recursive: true });
+  mkdirSync(PG_SOCKET_DIR, { recursive: true });
+  // A leftover empty/broken directory (a previously interrupted init) would
+  // make initdb refuse; start clean.
+  if (existsSync(PG_DATA_DIR)) rmSync(PG_DATA_DIR, { recursive: true, force: true });
+  mkdirSync(PG_DATA_DIR, { recursive: true });
+  const pwFile = path.join(PG_DATA_DIR, "..", "pg-pwfile");
+  writeFileSync(pwFile, "postgres\n");
+  try {
+    run(path.join(pgBin, "initdb"), [
+      "-D", PG_DATA_DIR,
+      "--username=postgres",
+      "--pwfile", pwFile,
+      "--auth-host=scram-sha-256",
+      "--auth-local=trust",
+      "--encoding=UTF8",
+    ]);
+  } finally {
+    unlinkSync(pwFile);
   }
-  die("PostgreSQL did not become ready within 30s");
+  log(`initialized project Postgres cluster in ${PG_DATA_DIR}`);
+}
+
+function startProjectPostgres() {
+  const pgBin = requirePgBin();
+  // -o flags pin the project port, a project socket directory and a
+  // localhost-only listener — the system cluster on 5432 is never involved.
+  run(path.join(pgBin, "pg_ctl"), [
+    "-D", PG_DATA_DIR,
+    "-l", PG_LOG_PATH,
+    "-o", `-p ${PG_PORT} -k ${PG_SOCKET_DIR} -c listen_addresses=127.0.0.1`,
+    "-w",
+    "start",
+  ]);
 }
 
 function ensurePostgres() {
-  const status = pgClusterStatus();
-  if (status === "online") {
-    log(`PostgreSQL ${PG_CLUSTER_VERSION} ${PG_CLUSTER_NAME} already online — kept`);
-  } else {
-    log(`PostgreSQL ${PG_CLUSTER_VERSION} ${PG_CLUSTER_NAME} is ${status ?? "unknown"} — starting`);
-    startPgCluster();
-  }
-  waitForPgReady();
-
-  // The role password must match the local DATABASE_URL (localhost TCP only).
-  if (!canConnect(ADMIN_DATABASE_URL)) {
-    log("setting postgres role password for local TCP auth");
-    try {
-      run("sudo", [
-        "-n", "-u", "postgres", "psql", "-p", "5432",
-        "-c", "ALTER USER postgres PASSWORD 'postgres';",
-      ]);
-    } catch (err) {
-      die(`could not set the postgres role password: ${err.message}`);
+  if (pgIsReady()) {
+    // Something answers on our port: it must be THIS project's cluster.
+    const dataDir = run(
+      "psql",
+      [ADMIN_DATABASE_URL, "-tAc", "SHOW data_directory"],
+      { capture: true },
+    ).trim();
+    if (dataDir !== `${PG_DATA_DIR}/` && dataDir !== PG_DATA_DIR) {
+      die(
+        `port ${PG_PORT} answers but it is not this project's cluster (data_directory ${dataDir}). ` +
+          "Free the port or set LINKEDUP_PG_PORT.",
+      );
     }
-    if (!canConnect(ADMIN_DATABASE_URL)) {
-      die("cannot authenticate to local PostgreSQL as postgres:postgres@localhost:5432");
-    }
+    log(`project PostgreSQL already running on :${PG_PORT} — kept`);
+    return;
   }
+  const startedAt = Date.now();
+  initdbIfNeeded();
+  startProjectPostgres();
+  const deadline = Date.now() + 30_000;
+  while (!pgIsReady()) {
+    if (Date.now() > deadline) die("project PostgreSQL did not become ready within 30s");
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
+  }
+  log(`project PostgreSQL ready on 127.0.0.1:${PG_PORT} (started in ${Date.now() - startedAt}ms)`);
 
   const hasDb = run(
     "psql",
@@ -281,15 +319,6 @@ function ensurePostgres() {
   } else {
     run("psql", [ADMIN_DATABASE_URL, "-c", "CREATE DATABASE linkedup"]);
     log("database 'linkedup' created");
-  }
-}
-
-function canConnect(url) {
-  try {
-    run("psql", [url, "-tAc", "SELECT 1"], { capture: true });
-    return true;
-  } catch {
-    return false;
   }
 }
 
