@@ -8,6 +8,13 @@
       "when": 1791738290228,
       "tag": "0000_journey_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791833967901,
+      "tag": "0001_queue_last_seen",
+      "breakpoints": true
     }
   ]
 }

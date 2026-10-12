@@ -106,6 +106,9 @@ export const queueEntries = pgTable(
     status: varchar("status", { length: 20 }).notNull().default("waiting"),
     roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    // Liveness: the last time the person's queue screen polled. Stale
+    // entries expire on this, not on joinedAt (src/lib/matching.ts).
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     exitedAt: timestamp("exited_at", { withTimezone: true }),
   },
   (table) => [

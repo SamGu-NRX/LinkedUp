@@ -1,23 +1,26 @@
 // @vitest-environment node
 // tests/unit/matching.witness.test.ts — Postgres witness tests for the
 // transactional queue (CALL-PLAN.md, J eval cases). Every test in this file
-// runs against the REAL local Postgres (DATABASE_URL → this thread's own
-// instance on 127.0.0.1:54331). No database mocks anywhere.
+// runs against the REAL project Postgres that `pnpm dev:up` runs
+// (127.0.0.1:54329, pinned and checked by ./support/use-stack-db). No
+// database mocks anywhere.
 //
-// Witness users are synthetic rows with clerk ids prefixed `witness_`; each
-// run cleans its own rows through the users cascade (rooms and queue
+// Witness users are synthetic rows with clerk ids prefixed `witness_pair_`;
+// each test cleans its own rows through the users cascade (rooms and queue
 // entries reference users with onDelete cascade / set null).
 
+import "./support/use-stack-db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
-import postgres from "postgres";
+import { and, desc, eq, inArray, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { queueEntries, rooms, users } from "@/db/schema";
 import {
   STALE_ENTRY_MS,
   endRoom,
+  expireStaleQueueEntries,
   getRoomForUser,
-  pairWaitingUsersNaive,
+  pairWaitingUsersTransactional,
+  pairWaitingUsersWith,
   queueCancel,
   queueJoin,
   queueStateForUser,
@@ -80,6 +83,21 @@ async function settleState(
 
 beforeAll(async () => {
   await deleteWitnessRows();
+  // Pairing takes the oldest waiting entries of a type, whoever owns them.
+  // A live entry left by someone else (a journey run, a dev session) would
+  // pair with these witnesses and make every count below wrong, so refuse
+  // to start instead of guessing.
+  const foreign = await db
+    .select({ id: queueEntries.id, clerkId: users.clerkId })
+    .from(queueEntries)
+    .innerJoin(users, eq(users.id, queueEntries.userId))
+    .where(and(inArray(queueEntries.status, ["waiting", "matched"]), notLike(users.clerkId, WITNESS_PREFIX)));
+  if (foreign.length > 0) {
+    throw new Error(
+      `matching witnesses need a queue with no other live entries; found ${foreign.length} ` +
+        `(clerk ids ${foreign.map((f) => f.clerkId).join(", ")}). Stop the other run or let them expire.`,
+    );
+  }
 });
 
 // Each test starts from an empty witness namespace — leftover live entries
@@ -176,50 +194,75 @@ describe("J-case: both queue at once (concurrency)", () => {
     }
   }, 240_000);
 
-  it("witness: the same interleaving without the transaction double-pairs users", async () => {
-    // Deterministic demo that the invariants above bite when the pairing
-    // transaction is removed: two raw connections both read the two waiting
-    // entries WITHOUT locks (the naive path), then both blindly write.
-    const a = await makeUser("naive_a");
-    const b = await makeUser("naive_b");
+  // The pairing body forced through one interleaving: the first pairing
+  // claims (SELECT ... FOR UPDATE SKIP LOCKED), then the second claims, and
+  // only then does either write. Run once inside the production transaction
+  // and once with the transaction removed; only the transaction separates a
+  // single pair from a double one.
+  type Exec = Parameters<typeof pairWaitingUsersWith>[0];
+  function around(exec: Exec, before: () => Promise<void>, after: () => Promise<void>): Exec {
+    const execute = (async (query: Parameters<Exec["execute"]>[0]) => {
+      await before();
+      const claimed = await exec.execute(query);
+      await after();
+      return claimed;
+    }) as Exec["execute"];
+    return { execute, insert: exec.insert.bind(exec), update: exec.update.bind(exec) } as Exec;
+  }
+  function claimSequence() {
+    let firstClaimed!: () => void;
+    let secondClaimed!: () => void;
+    const first = new Promise<void>((resolve) => {
+      firstClaimed = resolve;
+    });
+    const second = new Promise<void>((resolve) => {
+      secondClaimed = resolve;
+    });
+    return {
+      first: (exec: Exec) =>
+        around(exec, async () => {}, async () => {
+          firstClaimed();
+          await second;
+        }),
+      second: (exec: Exec) => around(exec, () => first, async () => secondClaimed()),
+    };
+  }
+  async function twoWaiting(tag: string) {
+    const a = await makeUser(`${tag}_a`);
+    const b = await makeUser(`${tag}_b`);
     await db.insert(queueEntries).values([
       { userId: a.id, queueType: "casual", status: "waiting" },
       { userId: b.id, queueType: "casual", status: "waiting" },
     ]);
+    return [a, b] as const;
+  }
 
-    const url = process.env.DATABASE_URL as string;
-    const c1 = postgres(url, { max: 1, idle_timeout: 1 });
-    const c2 = postgres(url, { max: 1, idle_timeout: 1 });
-    try {
-      const pick = (conn: postgres.Sql) =>
-        conn`SELECT id, user_id FROM queue_entries
-             WHERE queue_type = 'casual' AND status = 'waiting'
-             ORDER BY joined_at ASC, id ASC LIMIT 2`;
-      const r1 = await pick(c1);
-      const r2 = await pick(c2);
-      expect(r1.length).toBe(2);
-      expect(r2.length).toBe(2);
-      const u1 = r1[0].user_id as number;
-      const u2 = r1[1].user_id as number;
-      const e1 = r1[0].id as number;
-      const e2 = r1[1].id as number;
-
-      // Both connections saw the same two entries — each now "pairs" them.
-      for (const conn of [c1, c2]) {
-        const [room] = await conn`INSERT INTO rooms (queue_type, status, user1_id, user2_id)
-          VALUES ('casual', 'active', ${u1}, ${u2}) RETURNING id`;
-        await conn`UPDATE queue_entries SET status = 'matched', room_id = ${room.id}
-          WHERE id IN (${e1}, ${e2})`;
-      }
-
-      // The invariant the transactional test asserts is violated: two rooms
-      // share the same two users.
-      const roomRows = await roomsFor([a.id, b.id]);
-      expect(roomRows.length, "double-pairing without the transaction").toBeGreaterThan(1);
-    } finally {
-      await c1.end({ timeout: 1 });
-      await c2.end({ timeout: 1 });
+  it("the production pairing, two claims interleaved inside its transaction, forms one room", async () => {
+    for (let round = 0; round < 10; round += 1) {
+      const [a, b] = await twoWaiting(`tx${round}`);
+      const seq = claimSequence();
+      const results = await Promise.all([
+        db.transaction((tx) => pairWaitingUsersWith(seq.first(tx), "casual")),
+        db.transaction((tx) => pairWaitingUsersWith(seq.second(tx), "casual")),
+      ]);
+      expect(results.filter(Boolean), `round ${round}: one pairing claimed the pair`).toHaveLength(1);
+      expect(await roomsFor([a.id, b.id]), `round ${round}: one room`).toHaveLength(1);
+      await deleteWitnessRows();
     }
+  }, 60_000);
+
+  it("witness: the same body and interleaving with the transaction removed double-pairs", async () => {
+    const [a, b] = await twoWaiting("notx");
+    // Without a transaction each statement commits alone, so the row locks
+    // from FOR UPDATE end with the first SELECT and the second claim sees
+    // both entries too.
+    const seq = claimSequence();
+    const results = await Promise.all([
+      pairWaitingUsersWith(seq.first(db), "casual"),
+      pairWaitingUsersWith(seq.second(db), "casual"),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(2);
+    expect((await roomsFor([a.id, b.id])).length, "double-pairing without the transaction").toBe(2);
   }, 60_000);
 });
 
@@ -238,12 +281,8 @@ describe("J-case: one cancels", () => {
     const stateB = await settleState(b.id, { budgetMs: 2_000 });
     expect(stateB.status).toBe("waiting");
 
-    // Even a direct pairing attempt finds nothing to pair with B — and never
-    // touches A's exited row.
-    const paired = await pairWaitingUsersNaive("casual", new Date());
-    if (paired) {
-      expect([paired.winnerId, paired.loserId]).not.toContain(a.id);
-    }
+    // Even a direct pairing attempt finds nothing to pair with B.
+    expect(await pairWaitingUsersTransactional("casual", new Date())).toBeNull();
 
     // A's latest entry is terminal (exited), not matchable.
     const aEntries = await db
@@ -258,44 +297,120 @@ describe("J-case: one cancels", () => {
     const aRooms = await roomsFor([a.id]);
     expect(aRooms).toHaveLength(0);
   }, 60_000);
+
+  async function matchedPair(tag: string) {
+    const a = await makeUser(`${tag}_a`);
+    const b = await makeUser(`${tag}_b`);
+    await queueJoin({ userId: a.id, queueType: "casual" });
+    await queueJoin({ userId: b.id, queueType: "casual" });
+    const [sa, sb] = await Promise.all([settleState(a.id), settleState(b.id)]);
+    expect(sa.status).toBe("matched");
+    expect(sb.status).toBe("matched");
+    return { a, b, roomId: (sa as Extract<QueueStateForUser, { status: "matched" }>).roomId };
+  }
+
+  it("declining an offered match releases it: the room ends and the partner waits again", async () => {
+    const { a, b, roomId } = await matchedPair("decline");
+
+    await queueCancel(a.id);
+
+    const room = await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) });
+    expect(room?.status, "the offered room ends").toBe("ended");
+    const [aLatest] = await db
+      .select()
+      .from(queueEntries)
+      .where(eq(queueEntries.userId, a.id))
+      .orderBy(desc(queueEntries.id));
+    expect(aLatest.status).toBe("exited");
+    const liveB = await liveEntriesFor(b.id);
+    expect(liveB, "the partner has one live entry").toHaveLength(1);
+    expect(liveB[0].status).toBe("waiting");
+    expect(liveB[0].roomId).toBeNull();
+    expect((await queueStateForUser(b.id)).status).toBe("waiting");
+    expect((await getRoomForUser(b.clerkId, roomId)).allowed, "the released room admits nobody").toBe(false);
+
+    // The partner is matchable again: the next person pairs with them.
+    const c = await makeUser("decline_c");
+    await queueJoin({ userId: c.id, queueType: "casual" });
+    const [sb, sc] = await Promise.all([settleState(b.id), settleState(c.id)]);
+    expect(sb.status).toBe("matched");
+    expect(sc.status).toBe("matched");
+    if (sb.status === "matched" && sc.status === "matched") expect(sb.roomId).toBe(sc.roomId);
+    expect(await roomsFor([a.id]), "A is in no new room").toHaveLength(1);
+  }, 60_000);
+
+  it("both members declining at once: no deadlock, both leave, the room ends", async () => {
+    for (let round = 0; round < 10; round += 1) {
+      const { a, b, roomId } = await matchedPair(`bothdecline${round}`);
+      await Promise.all([queueCancel(a.id), queueCancel(b.id)]);
+      expect(await liveEntriesFor(a.id), `round ${round}: A left`).toHaveLength(0);
+      expect(await liveEntriesFor(b.id), `round ${round}: B left`).toHaveLength(0);
+      const room = await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) });
+      expect(room?.status).toBe("ended");
+      await deleteWitnessRows();
+    }
+  }, 120_000);
 });
 
-describe("J-case: staleness", () => {
-  it("an entry that ages past the timeout expires and is never paired afterward", async () => {
-    const a = await makeUser("stale_a");
-    const b = await makeUser("stale_b");
-
-    // A's entry is already older than the stale window when it appears.
+describe("J-case: liveness", () => {
+  it("a waiting person who keeps polling is never expired, however long they wait", async () => {
+    const a = await makeUser("patient_a");
+    const longAgo = new Date(Date.now() - 10 * 60_000);
     await db.insert(queueEntries).values({
       userId: a.id,
       queueType: "casual",
       status: "waiting",
-      joinedAt: new Date(Date.now() - (STALE_ENTRY_MS + 60_000)),
+      joinedAt: longAgo,
+      lastSeenAt: new Date(Date.now() - 2_000),
+    });
+
+    const state = await queueStateForUser(a.id);
+    expect(state.status, "ten minutes in the queue, polled two seconds ago").toBe("waiting");
+    const [row] = await liveEntriesFor(a.id);
+    expect(Math.abs(row.lastSeenAt.getTime() - Date.now()), "the poll refreshed liveness").toBeLessThan(5_000);
+    expect(row.joinedAt.getTime(), "the join time is kept for ordering and the wait clock").toBe(longAgo.getTime());
+  }, 60_000);
+
+  it("polling pushes expiry out: a sweep just after the old deadline keeps the entry", async () => {
+    const a = await makeUser("poll_a");
+    const seen = new Date(Date.now() - (STALE_ENTRY_MS - 1_000));
+    await db.insert(queueEntries).values({
+      userId: a.id,
+      queueType: "casual",
+      status: "waiting",
+      joinedAt: seen,
+      lastSeenAt: seen,
+    });
+    await queueStateForUser(a.id);
+    await expireStaleQueueEntries(new Date(seen.getTime() + STALE_ENTRY_MS + 5_000));
+    expect(await liveEntriesFor(a.id)).toHaveLength(1);
+  }, 60_000);
+
+  it("a person who stops polling expires once the window passes and is never paired afterward", async () => {
+    const a = await makeUser("stale_a");
+    const b = await makeUser("stale_b");
+
+    // A joined a minute ago and has not polled for longer than the window.
+    await db.insert(queueEntries).values({
+      userId: a.id,
+      queueType: "casual",
+      status: "waiting",
+      joinedAt: new Date(Date.now() - 60_000),
+      lastSeenAt: new Date(Date.now() - (STALE_ENTRY_MS + 5_000)),
     });
 
     // B joining runs the lazy expiry first, then pairing.
     const joinB = await queueJoin({ userId: b.id, queueType: "casual" });
     expect(joinB.status).toBe("waiting");
 
-    // A's entry was expired, not matched.
-    const aEntries = await db
-      .select()
-      .from(queueEntries)
-      .where(eq(queueEntries.userId, a.id));
+    const aEntries = await db.select().from(queueEntries).where(eq(queueEntries.userId, a.id));
     expect(aEntries).toHaveLength(1);
     expect(aEntries[0].status).toBe("expired");
 
     // Forcing pairing still never pairs the stale entry: B waits alone.
-    const forced = await pairWaitingUsersNaive("casual", new Date());
-    if (forced) {
-      expect([forced.winnerId, forced.loserId]).not.toContain(a.id);
-    }
-    const aRooms = await roomsFor([a.id]);
-    expect(aRooms).toHaveLength(0);
-
-    // ...and A's row can never become matchable again: it is terminal.
-    const live = await liveEntriesFor(a.id);
-    expect(live).toHaveLength(0);
+    expect(await pairWaitingUsersTransactional("casual", new Date())).toBeNull();
+    expect(await roomsFor([a.id])).toHaveLength(0);
+    expect(await liveEntriesFor(a.id)).toHaveLength(0);
   }, 60_000);
 });
 
