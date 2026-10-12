@@ -9,6 +9,7 @@
 import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { queueEntries, rooms, users } from "@/db/schema";
+import { closeRoomSessions } from "@/lib/call/mesh";
 
 export type QueueType = "casual" | "professional";
 
@@ -290,6 +291,10 @@ export async function endRoom(roomId: string, now: Date = new Date()): Promise<b
     .set({ status: "ended", endedAt: now })
     .where(and(eq(rooms.id, roomId), eq(rooms.status, "active")))
     .returning({ id: rooms.id });
+  // The call goes with the room: its open sessions close as "ended". (A
+  // poll in an ended room also closes the poller's session, so this is
+  // promptness, not correctness.)
+  await closeRoomSessions(roomId, now);
   return updated.length > 0;
 }
 

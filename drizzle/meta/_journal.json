@@ -15,6 +15,13 @@
       "when": 1791833967901,
       "tag": "0001_queue_last_seen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791838364238,
+      "tag": "0002_call_signaling",
+      "breakpoints": true
     }
   ]
 }
