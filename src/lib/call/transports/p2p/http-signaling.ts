@@ -44,6 +44,15 @@ export const POLL_STALL_MS = 6000;
  */
 export const UNKNOWN_SENDER_HOLD_MS = 5000;
 
+/**
+ * Times a send batch is tried before it is dropped, and the wait before the
+ * first retry (doubling after). A batch that failed on the network or that
+ * the server aborted (503) changed nothing, so sending it again is safe;
+ * dropping it would lose an offer or candidates the mesh is waiting on.
+ */
+export const SEND_ATTEMPTS = 4;
+export const SEND_RETRY_MS = 150;
+
 /** Codes that mean "asking again gets the same answer". */
 const REFUSALS = new Set(["UNAUTHORIZED", "FORBIDDEN", "VALIDATION", "ROOM_ENDED", "CALL_FULL"]);
 
@@ -257,11 +266,19 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
               return peer ? [{ toSessionId: peer.sessionId, signal: toWire(signal) }] : [];
             });
             if (!signals.length) continue;
-            try {
-              await call({ op: "send", roomId, sessionId, signals });
-            } catch {
-              // An undelivered signal is not retried: the mesh renegotiates
-              // (ICE restart, watchdog) when a connection does not come up.
+            for (let attempt = 1; attempt <= SEND_ATTEMPTS && !closed; attempt++) {
+              try {
+                await call({ op: "send", roomId, sessionId, signals });
+                break;
+              } catch (err) {
+                // A refusal (ended room, full queue, rate limit) gets the same
+                // answer again; the mesh renegotiates if a connection does
+                // not come up. Network failures and aborted sends retry,
+                // ahead of anything queued after them, so order holds.
+                const transient = !(err instanceof HttpRefusal) || err.code === "RETRY" || err.code.startsWith("HTTP_5");
+                if (!transient || attempt === SEND_ATTEMPTS) break;
+                await new Promise((r) => setTimeout(r, SEND_RETRY_MS * 2 ** (attempt - 1)));
+              }
             }
           }
         } finally {

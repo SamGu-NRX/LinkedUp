@@ -99,6 +99,10 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     if (error instanceof MeshError) return refuse(error.code, error.message, error.status);
+    // A transaction Postgres aborted to break a deadlock or a serialization
+    // conflict did nothing: the client may send it again.
+    const pgCode = (error as { code?: string } | null)?.code;
+    if (pgCode === "40P01" || pgCode === "40001") return refuse("RETRY", "The call service was busy. Try again.", 503);
     if (error instanceof z.ZodError) return refuse("VALIDATION", error.issues[0]?.message ?? "Bad request", 400);
     throw error;
   }

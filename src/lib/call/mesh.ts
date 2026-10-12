@@ -374,10 +374,12 @@ export async function sendSignals(
     sessionIdSchema.parse(item.toSessionId);
     checkSignalSize(item.signal);
   }
-  const room = await memberRoom(db, roomId, userId);
-  if (room.status !== "active") throw new MeshError("ROOM_ENDED", "This call has ended.");
-
   return db.transaction(async (tx) => {
+    // Lock order, as in joinCall: the room row first, then sessions. Without
+    // it an A->B send (A's row, then B's) and a B->A send (B's, then A's)
+    // each held one lock the other needed, and Postgres aborted one.
+    const room = await memberRoom(tx, roomId, userId, true);
+    if (room.status !== "active") throw new MeshError("ROOM_ENDED", "This call has ended.");
     const sender = await ownSession(tx, roomId, from, userId, true);
     if (sender.state !== "open") return { delivered: batch.map(() => false) };
 
