@@ -44,7 +44,7 @@ class FakeMediaStream {
 
 let audioTrack: FakeTrack;
 let videoTrack: FakeTrack;
-const getUserMedia = vi.fn<() => Promise<MediaStream>>();
+const getUserMedia = vi.fn<(constraints: MediaStreamConstraints) => Promise<MediaStream>>();
 
 function streamOf(tracks: FakeTrack[]): MediaStream {
   return new FakeMediaStream(tracks) as unknown as MediaStream;
@@ -358,9 +358,9 @@ describe("leaving the room releases the camera (witnesses)", () => {
     });
 
     // The retry asked only for video: the muted mic was NOT re-opened.
-    const constraints = getUserMedia.mock.calls[1]?.[0] as MediaStreamConstraints;
-    expect(constraints.audio).toBe(false);
-    expect(constraints.video).toBe(true);
+    const constraints = getUserMedia.mock.calls[1]?.[0];
+    expect(constraints?.audio).toBe(false);
+    expect(constraints?.video).toBe(true);
     expect(container.querySelector("[data-call-mic-state]")).toHaveAttribute(
       "data-call-mic-state",
       "muted",

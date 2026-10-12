@@ -18,21 +18,26 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { RoomAccess } from "@/lib/matching";
 
 const { authMock, getRoomForUserMock, callScreenClientMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
-  getRoomForUserMock: vi.fn(),
-  callScreenClientMock: vi.fn(() => null),
+  getRoomForUserMock: vi.fn<(clerkUserId: string, roomId: string) => Promise<unknown>>(),
+  callScreenClientMock: vi.fn<(props: { access: unknown }) => null>(() => null),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: authMock }));
 
-vi.mock("@/lib/matching", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  getRoomForUser: getRoomForUserMock,
-}));
+// Mock the whole module: the page uses only getRoomForUser, and spreading
+// importOriginal would execute the real db layer (DATABASE_URL unset at
+// collection time).
+vi.mock("@/lib/matching", () => ({ getRoomForUser: getRoomForUserMock }));
 
-vi.mock("@/lib/call/transport", () => ({ CallScreenClient: callScreenClientMock }));
+// The page renders ./CallScreenClient (a route-dir wrapper around
+// VoiceCallScreen); mock THAT specifier so the DOM stays isolated.
+vi.mock("@/app/app/call/[id]/CallScreenClient", () => ({
+  default: callScreenClientMock,
+}));
 
 const { default: CallPage } = await import("@/app/app/call/[id]/page");
 
@@ -41,15 +46,15 @@ async function renderCallPage(id = "room-1") {
   return render(element);
 }
 
-const me = { id: 1, clerkId: "clerk_me", email: "me@example.com", firstName: "Me" };
-const partner = { id: 2, clerkId: "clerk_partner", email: "partner@example.com", firstName: "Partner" };
-
-function allowedAccess() {
+// The real allowed-branch shape from src/lib/matching.ts — the page hands
+// this record to the call screen verbatim.
+function allowedAccess(): Extract<RoomAccess, { allowed: true }> {
   return {
-    allowed: true as const,
-    room: { id: "room-1", queueType: "casual", status: "active", user1Id: 1, user2Id: 2 },
-    me,
-    partner,
+    allowed: true,
+    roomId: "room-1",
+    queueType: "casual",
+    me: { id: 1, name: "Me", avatarUrl: "" },
+    partner: { id: 2, name: "Partner", avatarUrl: "" },
   };
 }
 

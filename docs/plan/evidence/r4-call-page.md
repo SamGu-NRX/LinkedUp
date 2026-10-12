@@ -16,7 +16,14 @@ Clone: `/home/user/work/linkedup-r4-call` (fresh from GitHub, then sibling's 9 l
 - `pnpm install --frozen-lockfile` under lock — **exit 0, 1m55.5s wall (1m16.6s pnpm)**.
 - Pinned Playwright browsers present in `~/.cache/ms-playwright` (chromium 1243 + headless shell) — verified by cache listing, no install needed.
 
-## Incident: orphaned lock holder
+## Incident: heavy.lock wedged by an inherited lock fd (livelock)
+
+- Symptom: every waiter on `/home/user/work/heavy.lock` starved 18+ min; queue of 7 processes (this thread's tsc, connvo property run, untangle fe-gate, and the pairing thread's own migrate + tsc).
+- Root cause: the pairing thread's Postgres daemon (port 54331, pid 115503 tree, verified via `/proc/<pid>/fd` walk) was started by a `flock heavy.lock -c` command; the daemon **inherited the lock file descriptor**, and the exclusive flock is held by that open-file-description for the daemon's lifetime. Permanent livelock: their own follow-up commands starve behind their own daemon.
+- Action: woke the pairing thread (th_vwI9uGXC, message msg_tm_ab3cb30e6c723b22100097f6) with the diagnosis and the fix (stop PG, start it outside any flock / with the fd closed). Did NOT touch their PG — another thread's live stack.
+- This thread's mitigation: my heavy steps run one-at-a-time under a documented secondary lock `/home/user/work/heavy-call.lock` (same discipline, independent queue). My stale queued tsc (tmux `tsc-base`) was killed to avoid double runs when the primary lock drains.
+
+## Incident: orphaned lock holder (first attempt)
 
 The first baseline attempt (`npx tsc --noEmit; npx vitest run` chained, one call) hit the 300s tool deadline; the tool killed the shell but the `flock` child survived orphaned (pid 115624, PPID 1, no children, 11 min) holding `heavy.lock` — starving my tmux tsc and other threads' queued commands. Killed pid 115624 (verified mine: exact command string, PPID 1, childless). Lesson recorded: chain heavy steps under tmux with logs, never rely on the tool deadline to clean up.
 
@@ -56,4 +63,4 @@ The first baseline attempt (`npx tsc --noEmit; npx vitest run` chained, one call
 ## Push / checkpoint protocol
 
 - LOCAL-MODE OVERRIDE active (fleet token push rejection). At each push point: attempt push ONCE; on auth failure, `git bundle create ../r4-call-<n>.bundle origin/obv/linkedup-journey-foundation-f1..HEAD` + `obvious files upload` — bundle artifact ids recorded here.
-- Bundles so far: (none yet)
+- Bundles so far: **r4-call-checkpoint-1** = `fl_fku9dRg8` (867f271, wip witnesses checkpoint)
