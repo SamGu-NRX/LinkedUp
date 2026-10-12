@@ -166,6 +166,52 @@ export function metaMatchesExpectation(meta, { port, root, databaseUrl }) {
   );
 }
 
+/**
+ * The dev server's environment: an isolated, verified local configuration.
+ * Strips any Clerk/Stream credentials (dev stays keyless) and any inherited
+ * database URL — an inherited DATABASE_URL (e.g. a hosted Supabase URL
+ * exported in the calling shell) would otherwise win over .env.local and let
+ * the app drift from the database the migrations ran on — then pins
+ * DATABASE_URL to the project cluster.
+ */
+export function serverEnvFrom(env, { databaseUrl }) {
+  const out = { ...env };
+  for (const key of Object.keys(out)) {
+    if (/CLERK|STREAM/i.test(key)) delete out[key];
+    if (/^(DATABASE_URL|POSTGRES_URL|DIRECT_URL|SUPABASE_DB_URL)$/.test(key)) {
+      delete out[key];
+    }
+  }
+  out.DATABASE_URL = databaseUrl;
+  out.LINKEDUP_DEV_UP = "1";
+  return out;
+}
+
+/**
+ * Compares the app data layer's identity report (scripts/verify-db-identity.mjs)
+ * with the expected project cluster. Returns the list of mismatches
+ * (empty = verified).
+ */
+export function dbIdentityMismatches(report, expected) {
+  if (!report || typeof report !== "object") return ["no identity report"];
+  const db = report.database ?? {};
+  const failures = [];
+  if (db.name !== expected.databaseName) {
+    failures.push(
+      `database name ${JSON.stringify(db.name)} != ${JSON.stringify(expected.databaseName)}`,
+    );
+  }
+  if (Number(db.serverPort) !== expected.port) {
+    failures.push(`server port ${JSON.stringify(db.serverPort)} != ${expected.port}`);
+  }
+  if (db.dataDirectory !== expected.dataDirectory) {
+    failures.push(
+      `data directory ${JSON.stringify(db.dataDirectory)} != ${JSON.stringify(expected.dataDirectory)}`,
+    );
+  }
+  return failures;
+}
+
 // ---------------------------------------------------------------------------
 // /proc readers (same-user introspection of live processes)
 // ---------------------------------------------------------------------------
@@ -191,6 +237,16 @@ function procPgid(pid) {
     const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
     const fields = stat.slice(stat.lastIndexOf(")") + 1).trim().split(/\s+/);
     return Number(fields[2]); // after (comm): state, ppid, pgrp
+  } catch {
+    return null;
+  }
+}
+
+function procEnvEntries(pid) {
+  try {
+    return readFileSync(`/proc/${pid}/environ`, "utf8")
+      .split("\u0000")
+      .filter(Boolean);
   } catch {
     return null;
   }
@@ -329,7 +385,7 @@ function ensurePostgres() {
 function runMigrations() {
   log("applying Drizzle migrations (drizzle-kit migrate)");
   run("pnpm", ["exec", "drizzle-kit", "migrate"], {
-    env: { ...process.env, DATABASE_URL: LOCAL_DATABASE_URL },
+    env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
   });
 }
 
@@ -348,13 +404,10 @@ function runSeedIfPresent() {
     log("no seed script found (scripts/seed.* or src/db/seed.*) — skipping seed");
     return;
   }
-  log(`seeding via ${seedFile}`);
-  const seedEnv = { ...process.env, DATABASE_URL: LOCAL_DATABASE_URL };
-  if (seedFile.endsWith(".ts")) {
-    run("pnpm", ["exec", "tsx", seedFile], { env: seedEnv });
-  } else {
-    run("node", [seedFile], { env: seedEnv });
-  }
+  log(`seeding via ${seedFile} (idempotent)`);
+  run("pnpm", ["exec", "tsx", seedFile], {
+    env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -424,7 +477,7 @@ async function startDevServer() {
     cwd: ROOT,
     detached: true, // own process group: survives dev:up, killable as -pgid
     stdio: ["ignore", out, out],
-    env: keylessEnv(),
+    env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
   });
   const meta = {
     kind: "linkedup-dev-server",
@@ -455,6 +508,42 @@ async function startDevServer() {
   }
   dumpLogTail();
   die(`dev server not ready (HTTP 200 on /) within ${READINESS_TIMEOUT_MS / 1000}s`);
+}
+
+/**
+ * (c) Migrations and the app must hit the SAME database. Next loads env files
+ * itself, so stripping the child's environment is not enough — verify both
+ * sides: the RUNNING server's /proc environment (DATABASE_URL pinned to the
+ * project cluster, zero Clerk/Stream keys) and the app's data layer
+ * (scripts/verify-db-identity.mjs, using the app's own db client) reporting
+ * the project cluster.
+ */
+function verifyDataLayerIdentity() {
+  const meta = readDevMeta();
+  if (!meta) die("no dev server record — cannot verify the running app");
+
+  const envEntries = procEnvEntries(meta.pid);
+  if (!envEntries) die(`could not read /proc/${meta.pid}/environ to verify the server's environment`);
+  const dbUrlEntry = envEntries.find((k) => k.startsWith("DATABASE_URL="));
+  if (dbUrlEntry !== `DATABASE_URL=${LOCAL_DATABASE_URL}`) {
+    die(
+      `the running dev server's DATABASE_URL is ${dbUrlEntry ?? "(unset)"}, expected ` +
+        `${LOCAL_DATABASE_URL} — environment isolation failed`,
+    );
+  }
+  const clerkStreamKeys = envEntries
+    .filter((entry) => /CLERK|STREAM/i.test(entry.slice(0, entry.indexOf("="))))
+    .map((entry) => entry.slice(0, entry.indexOf("=")));
+  if (clerkStreamKeys.length) {
+    die(`the running dev server still has Clerk/Stream variables: ${clerkStreamKeys.join(", ")}`);
+  }
+
+  log("asserting the app data layer uses the project database (app's own client)");
+  run("pnpm", ["exec", "tsx", "scripts/verify-db-identity.mjs"], {
+    env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
+  });
+
+  log(`verified: server env isolated · data layer on ${LOCAL_DATABASE_URL} (${PG_DATA_DIR})`);
 }
 
 /** Dev must stay keyless: strip any Clerk/Stream credentials from the child env. */
@@ -532,6 +621,7 @@ async function main() {
   runSeedIfPresent();
 
   await ensureDevServer();
+  verifyDataLayerIdentity();
 
   log("keyless dev server is ready (HTTP 200 on /)");
   const routes = ["/", "/sign-in", "/app"];
