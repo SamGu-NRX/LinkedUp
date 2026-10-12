@@ -88,3 +88,28 @@ Note: `/dashboard` is a 404 — no such page exists in the skeleton (the app das
 7. Tooling for the above: Vitest done in M2; **Playwright tooling + smoke journey done in this checkpoint** (`292aa77`). Still pending: the full journey specs, call-page screenshots at 1440x900 and 390x844, and a prep-for-prod pass before the final push.
 
 **How to continue:** check out `obv/linkedup-journey-foundation-f1`, `pnpm install`, then `pnpm dev:up` — it creates `.env.local` if missing, brings up Postgres 17, migrates, seeds (when a seed exists), and serves keyless dev on :3000. Then `pnpm exec playwright test` (boots the stack itself if it is not up), `npx tsc --noEmit && npx next lint`, and the inline-key `pnpm build` (all green at this checkpoint). Keep commits authored as Sam Gu with the Co-authored-by trailer; update this file with each push.
+
+---
+
+## Takeover r3 — parent join log
+
+Round r3 took over from the two context-exhausted writer threads. The parent thread coordinates sub-threads and joins each result here: description, Proof (commands, exit codes, key output), Handoff (done / not done / next) at a pushed SHA.
+
+### Join 1 — Baseline (sub-thread 1) — SUCCESS — verified at head `b93ef42` (nothing pushed, by design)
+
+**Description:** fresh-clone verification of the branch as inherited — head/ancestry, toolchain, install, typecheck, lint, build, Vitest. Nothing fixed, nothing pushed; tracked tree clean (`git status --porcelain` shows only untracked `logs/`).
+
+**Proof** (fresh clone; each check under `flock /home/user/work/heavy.lock`):
+
+| Check | Command | Result |
+|---|---|---|
+| Head / ancestry | `git log -1`; `git merge-base --is-ancestor <c> HEAD` for 58ec020, ecd18b2, b93ef42 | head `b93ef4288a8db91a91263703dec6a5a4a00e2864` (matches expected); all three YES |
+| Install | `pnpm install --frozen-lockfile` | exit 0 (25.6s) |
+| Typecheck | `npx tsc --noEmit` | exit 0, 0 errors (~243s cold; no `typecheck` npm script exists) |
+| Lint | `npx next lint` | exit 0, 0 errors; 3 inherited `<img>` warnings (page.tsx:76, one-on-one-meeting.tsx:175,204) |
+| Build | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsubG9jYWxob3N0JA pnpm build` | exit 0, 18 routes (~69s); requires `.env.local` holding `DATABASE_URL` (INHERITED precondition — first failure output recorded verbatim in the baseline log; postgres.js connects lazily, no live DB needed for build) |
+| Unit tests | `pnpm exec vitest run` | exit 0, 8/8 passed (tests/unit/voice-call-screen.honesty.test.tsx) |
+
+Toolchain: node v20.20.2, pnpm 9.15.9 (lockfile 9.0, compatible), bun 1.3.14, git 2.47.3; chromium-1243 + headless-shell already cached for the pinned `@playwright/test` 1.63.0 — no browser download needed. Full record: `logs/baseline.md` + per-check logs in the r3 baseline clone.
+
+**Handoff:** Done — verified baseline at `b93ef42` with the exact verification bar (commands above) that every later r3 sub-thread reuses. Not done — nothing else was in scope. Next — reserved-file repair (sub-thread R, running): revert `src/middleware.ts` to exactly `origin/alpha`'s version in its own commit (c2034dc violated the reserved-file rule), add the failing `test.fails()` witness for the `publicMetadata.onboardingComplete` redirect loop, prove the DB-backed gate through a clearly labelled non-reserved test route, then surface the middleware question for Sam. Open question (recorded, unanswered): write the Clerk claim from onboarding, or change the middleware — Sam's decision.
