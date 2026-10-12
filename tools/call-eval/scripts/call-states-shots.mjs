@@ -12,7 +12,8 @@
  * outsider refused.
  *
  * Clerk's keyless-mode prompt and Next's dev indicator (development-only
- * overlays) are hidden in the captures; they are not part of the app.
+ * overlays) are hidden in the captures; they are not part of the app. The
+ * fixture camera's file-path label is replaced in the camera menu capture.
  *
  *   node tools/call-eval/scripts/call-states-shots.mjs --base-url=http://localhost:3000 [--out=<dir>]
  */
@@ -138,6 +139,13 @@ try {
   // The camera menu.
   await a.page.click('[data-testid="device-settings"]');
   await a.page.waitForTimeout(300);
+  // Chromium names a file-backed fake camera by its file path, which would
+  // put this machine's paths in the capture; relabel those options.
+  await a.page.evaluate(() => {
+    document.querySelectorAll("#device-camera option").forEach((o, i) => {
+      if (o.textContent?.includes("/")) o.textContent = `Camera ${i + 1} (test fixture)`;
+    });
+  });
   await shoot(a, "camera-menu");
   await a.page.keyboard.press("Escape");
 
