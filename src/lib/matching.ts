@@ -6,7 +6,7 @@
 // naive non-transactional twin (pairWaitingUsersNaive) exists ONLY as a
 // concurrency-test witness: it demonstrates the race the transactional
 // path prevents, and is never used by the app.
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { queueEntries, rooms, users } from "@/db/schema";
 
@@ -36,7 +36,11 @@ export function isQueueEntryStale(
   return now.getTime() - joined.getTime() > STALE_ENTRY_MS;
 }
 
-/** Lazily expire stale waiting entries. Called on every queue touch. */
+/**
+ * Lazily expire stale waiting entries. Called on every queue touch.
+ * The window comes from STALE_ENTRY_MS and the caller's `now` — one source
+ * of truth, deterministic for tests.
+ */
 export async function expireStaleQueueEntries(now: Date = new Date()): Promise<void> {
   await db
     .update(queueEntries)
@@ -44,9 +48,30 @@ export async function expireStaleQueueEntries(now: Date = new Date()): Promise<v
     .where(
       and(
         eq(queueEntries.status, "waiting"),
-        sql`${queueEntries.joinedAt} < now() - interval '5 minutes'`,
+        lt(queueEntries.joinedAt, new Date(now.getTime() - STALE_ENTRY_MS)),
       ),
     );
+}
+
+/**
+ * Lazily release matched entries whose room is gone or no longer active.
+ * Without this, a finished call strands its entries `matched` forever:
+ * queueJoin keeps returning the dead room and the user can never re-queue.
+ * Called on every queue touch, like the staleness sweep.
+ */
+export async function releaseEndedRoomEntries(now: Date = new Date()): Promise<void> {
+  await db.execute(sql`
+    UPDATE queue_entries
+    SET status = 'exited', exited_at = ${now}
+    WHERE status = 'matched'
+      AND (
+        room_id IS NULL
+        OR NOT EXISTS (
+          SELECT 1 FROM rooms r
+          WHERE r.id = queue_entries.room_id AND r.status = 'active'
+        )
+      )
+  `);
 }
 
 export async function queueJoin(options: {
@@ -58,6 +83,7 @@ export async function queueJoin(options: {
   const now = options.now ?? new Date();
 
   await expireStaleQueueEntries(now);
+  await releaseEndedRoomEntries(now);
 
   // Already waiting or matched? Report the live state instead of double-joining.
   const existing = await db.query.queueEntries.findFirst({
@@ -90,6 +116,7 @@ export async function queueCancel(userId: number, now: Date = new Date()): Promi
 
 export async function queueStateForUser(userId: number): Promise<QueueStateForUser> {
   await expireStaleQueueEntries();
+  await releaseEndedRoomEntries();
 
   let entry = await db.query.queueEntries.findFirst({
     where: and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ["waiting", "matched"])),

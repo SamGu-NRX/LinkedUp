@@ -15,6 +15,7 @@ import { db } from "@/db";
 import { queueEntries, rooms, users } from "@/db/schema";
 import {
   STALE_ENTRY_MS,
+  endRoom,
   getRoomForUser,
   pairWaitingUsersNaive,
   queueCancel,
@@ -339,6 +340,49 @@ describe("J-case: three users", () => {
     const pairSets = roomsFinal.map((r) => new Set([r.user1Id, r.user2Id]));
     expect(pairSets.some((set) => set.has(a.id) && set.has(c.id))).toBe(false);
   }, 120_000);
+});
+
+describe("ended rooms: re-joining after the call", () => {
+  it("a matched user whose room ended can re-join the queue (no matched-to-dead-room loop)", async () => {
+    const a = await makeUser("endloop_a");
+    const b = await makeUser("endloop_b");
+
+    await queueJoin({ userId: a.id, queueType: "casual" });
+    await queueJoin({ userId: b.id, queueType: "casual" });
+    const sa = (await settleState(a.id, { budgetMs: 5_000 })) as Extract<
+      Awaited<ReturnType<typeof queueStateForUser>>,
+      { status: "matched" }
+    >;
+    expect(sa.status).toBe("matched");
+
+    // The call ends (as the call route's leave action does).
+    await endRoom(sa.roomId);
+
+    // A tries to queue again immediately.
+    const rejoinA = await queueJoin({ userId: a.id, queueType: "casual" });
+    expect(rejoinA.status, "re-join after room end must not return the dead room").toBe("waiting");
+
+    // The state read agrees, and no stranded matched entry blocks the user.
+    const stateA = await queueStateForUser(a.id);
+    expect(stateA.status).toBe("waiting");
+
+    // The stale matched row was released (terminal), leaving one live entry.
+    const allA = await db
+      .select()
+      .from(queueEntries)
+      .where(eq(queueEntries.userId, a.id))
+      .orderBy(desc(queueEntries.id));
+    expect(allA[0].status).toBe("waiting");
+    if (allA.length > 1) {
+      expect(allA[1].status === "waiting" || allA[1].status === "matched").toBe(false);
+    }
+
+    // B is freed by the same lazy release on their next touch.
+    const stateB = await queueStateForUser(b.id);
+    expect(stateB.status).toBe("idle");
+    const liveB = await liveEntriesFor(b.id);
+    expect(liveB).toHaveLength(0);
+  }, 60_000);
 });
 
 describe("professional queue pairing contract", () => {
