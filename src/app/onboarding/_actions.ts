@@ -8,6 +8,18 @@ import { OnboardingFormData } from "@/schemas/onboarding";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 
+/**
+ * Save the wizard, then mark the person onboarded. Order matters because
+ * two gates read "onboarded": the app's layout reads users.onboarding_complete
+ * and the middleware reads Clerk's publicMetadata.onboardingComplete.
+ *   1. profile and interests, in one transaction (the flag untouched);
+ *   2. Clerk's metadata;
+ *   3. users.onboarding_complete, last.
+ * A failure at any step leaves the database flag unset, so the app keeps
+ * the person on /onboarding and a resubmit repeats every step (each is
+ * idempotent). Marking the database first, as before, could let someone
+ * into the app with no interests saved or with Clerk never told.
+ */
 export async function saveUserOnboardingData(data: OnboardingFormData) {
   const { userId } = await auth();
 
@@ -18,12 +30,6 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
   const client = await clerkClient();
 
   try {
-    // 1. Check if user exists in our database
-    const existingUser = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.clerkId, userId),
-    });
-
-    // 2. Get user email from Clerk
     const userDetails = await client.users.getUser(userId);
     const email = userDetails.emailAddresses[0]?.emailAddress;
 
@@ -31,72 +37,60 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
       return { error: "User email not found" };
     }
 
-    // 3. If user exists, update; otherwise, create. Names come from the
-    //    Clerk profile, not the wizard. Clerk's onboardingComplete
-    //    metadata is written only after persistence succeeds (step 4).
-    let userRecord;
-    if (existingUser) {
-      [userRecord] = await db
-        .update(users)
-        .set({
-          firstName: userDetails.firstName ?? existingUser.firstName,
-          lastName: userDetails.lastName ?? existingUser.lastName,
-          age: data.age,
-          gender: data.gender,
-          field: data.field,
-          jobTitle: data.jobTitle,
-          company: data.company,
-          linkedinUrl: data.linkedinUrl,
-          bio: data.bio,
-          onboardingComplete: true,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.clerkId, userId))
-        .returning();
-    } else {
-      [userRecord] = await db
+    // 1. Profile and interests. Names come from the Clerk profile, not the
+    //    wizard. A new row starts not onboarded (the column default).
+    const profile = {
+      firstName: userDetails.firstName,
+      lastName: userDetails.lastName,
+      age: data.age,
+      gender: data.gender,
+      field: data.field,
+      jobTitle: data.jobTitle,
+      company: data.company,
+      linkedinUrl: data.linkedinUrl,
+      bio: data.bio,
+    };
+    await db.transaction(async (tx) => {
+      const [userRecord] = await tx
         .insert(users)
-        .values({
-          clerkId: userId,
-          email,
-          firstName: userDetails.firstName,
-          lastName: userDetails.lastName,
-          age: data.age,
-          gender: data.gender,
-          field: data.field,
-          jobTitle: data.jobTitle,
-          company: data.company,
-          linkedinUrl: data.linkedinUrl,
-          bio: data.bio,
-          onboardingComplete: true,
+        .values({ clerkId: userId, email, ...profile })
+        .onConflictDoUpdate({
+          target: users.clerkId,
+          set: {
+            ...profile,
+            firstName: userDetails.firstName ?? undefined,
+            lastName: userDetails.lastName ?? undefined,
+            updatedAt: new Date(),
+          },
         })
-        .returning();
-    }
+        .returning({ id: users.id });
 
-    // 4. Persist success flag in Clerk metadata (after DB writes).
+      await tx.delete(interests).where(eq(interests.userId, userRecord.id));
+      if (data.interests.length > 0) {
+        await tx.insert(interests).values(
+          data.interests.map((interest) => ({
+            userId: userRecord.id,
+            name: interest.name,
+            category: interest.category,
+            iconName: interest.iconName,
+            customId: interest.id,
+          })),
+        );
+      }
+    });
+
+    // 2. Clerk's claim, read by the middleware.
     await client.users.updateUser(userId, {
       publicMetadata: {
         onboardingComplete: true,
       },
     });
 
-    // 5. Clear existing interests (if updating)
-    if (existingUser) {
-      await db.delete(interests).where(eq(interests.userId, existingUser.id));
-    }
-
-    // 6. Save interests
-    if (data.interests.length > 0) {
-      await db.insert(interests).values(
-        data.interests.map((interest) => ({
-          userId: userRecord.id,
-          name: interest.name,
-          category: interest.category,
-          iconName: interest.iconName,
-          customId: interest.id,
-        })),
-      );
-    }
+    // 3. The app's own flag, last.
+    await db
+      .update(users)
+      .set({ onboardingComplete: true, updatedAt: new Date() })
+      .where(eq(users.clerkId, userId));
 
     revalidatePath("/app");
     return { success: true };
