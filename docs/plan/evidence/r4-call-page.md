@@ -49,11 +49,33 @@ The first baseline attempt (`npx tsc --noEmit; npx vitest run` chained, one call
 - `tests/unit/call-page.access.test.tsx` — page-level witnesses: signed-out refusal (room lookup never called, sign-in link); signed-in non-participant refused via `getRoomForUser` with exact args; ended-room refusal; participants passed to the call screen verbatim from the access record.
 - `tests/unit/call-room.access.db.test.ts` — real-database witnesses (PG 54333 via `dev-up.mjs`'s `LOCAL_DATABASE_URL`, honours `LINKEDUP_PG_PORT`): membership both directions from the room record; non-participant/unknown user/missing room refusals; repeat reads (reload) return identical access with one room row and one matched queue entry and `queueStateForUser` still matched to the same room; `endRoom` idempotent; after end both participants refuse `room_ended` and queue state is honestly idle. Synthetic rows, cascade cleanup in afterAll.
 
-## Verification bar (pending — recorded when done)
+## Verification bar (recorded, green — r3)
 
-- [ ] `npx tsc --noEmit` (queued, post-fix tree) — exit _, _ s
-- [ ] `npx vitest run` — exit _, _ s, count _
+- [x] `pnpm install --frozen-lockfile` — exit 0 (~1m55s)
+- [x] `npx tsc --noEmit` — **exit 0, zero diagnostics** (70s; log 0 bytes)
+- [x] `npx vitest run` — **exit 0, 6 files / 44 tests passed** (36.28s)
 - [ ] Playwright run + screenshots — pending
+
+The green run (tmux `call-bar3`, under `/home/user/work/heavy-call.lock`):
+
+```
+TSC_EXIT=0 elapsed=70s     # /tmp/call-tsc-r3.log: 0 bytes — zero diagnostics
+VITEST_EXIT=0 elapsed=40s  # 6 files passed (6), 44 tests passed (44), 36.28s
+```
+
+The pre-fix run had failed at collection: the page-access suite mocked
+`@/lib/call/transport` while the page imports `./CallScreenClient` (wrong
+specifier — its four witnesses never executed), and the matching mock's
+`importOriginal` executed the real db layer (unset `DATABASE_URL`). Fixed in
+2b7009f: mock at the real specifier without `importOriginal`, typed
+`getRoomForUser`/`CallScreenClient`/`getUserMedia` mocks, real `RoomAccess`
+allowed-branch fixture.
+
+Dev-server note (2026-10-12 ~07:36 UTC): the :3000 next-server (PID 114241)
+no longer listens (reaped with the earlier platform session replacement);
+Postgres 54333 is healthy. Before the screenshot run restart the stack with
+`LINKEDUP_PG_PORT=54333 flock /home/user/work/heavy-call.lock pnpm dev:up`
+and verify `curl -s -o /dev/null -w '%{http_code}' localhost:3000`.
 
 ## Screenshots (pending)
 
@@ -63,4 +85,4 @@ The first baseline attempt (`npx tsc --noEmit; npx vitest run` chained, one call
 ## Push / checkpoint protocol
 
 - LOCAL-MODE OVERRIDE active (fleet token push rejection). At each push point: attempt push ONCE; on auth failure, `git bundle create ../r4-call-<n>.bundle origin/obv/linkedup-journey-foundation-f1..HEAD` + `obvious files upload` — bundle artifact ids recorded here.
-- Bundles so far: **r4-call-checkpoint-1** = `fl_fku9dRg8` (867f271, wip witnesses checkpoint)
+- Bundles so far: **r4-call-checkpoint-1** = `fl_fku9dRg8` (867f271, wip witnesses checkpoint); **r4-call-save** = `fl_CXqtwAAL` (867f271..2b7009f — access-suite mock fixes + evidence incidents; credit-save order 07:24 UTC)
