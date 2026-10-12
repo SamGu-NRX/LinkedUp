@@ -108,9 +108,9 @@ describe("call phase is about the call, not this device", () => {
     await waitFor(() => expect(root(container)).toHaveAttribute("data-call-local-media", "ready"));
     expect(root(container)).toHaveAttribute("data-call-phase", "joining");
     expect(container.querySelector("[data-call-timer]")).toHaveTextContent("00:00");
-    const remote = container.querySelector('[data-testid="remote-media"]')!;
-    expect(remote).toHaveAttribute("data-audio-muted", "true");
-    expect(remote).toHaveTextContent("waiting for media transport");
+    // No transport, no remote media: the partner is shown as not here yet.
+    expect(container.querySelector('[data-testid="remote-media"]')).not.toBeInTheDocument();
+    expect(container.querySelector("[data-call-partner-waiting]")).toHaveTextContent("Ada");
   });
 
   it("fails when the browser refuses access, and retry returns to joining", async () => {

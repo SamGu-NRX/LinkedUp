@@ -2,33 +2,48 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, PhoneOff, Clock, Star, Video, VideoOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Clock,
+  Mic,
+  MicOff,
+  PhoneOff,
+  RotateCcw,
+  Settings2,
+  Star,
+  Video,
+  VideoOff,
+  Volume2,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import type { CallPhase } from "@/lib/call/transport";
 import type { VoiceCallProps } from "@/types/call";
+import { useCallTransport, type CallConnection, type RemoteState } from "./useCallTransport";
 
 /**
- * VoiceCallScreen — the LS0 voice-call surface.
+ * VoiceCallScreen — the call room for a matched pair.
  *
- * Renders the call DOM contract documented for the journey suite:
- * a root region with a phase attribute, a call timer, participant rows,
- * and control buttons carrying stable data-testids so the J-suite can
- * drive and observe the call without depending on visual styling.
+ * DOM contract (the call harness, tools/call-eval): `[data-call-phase]` on
+ * the root, one of joining|connected|reconnecting|failed|left; each remote
+ * person in a `[data-testid="remote-media"]` tile with data-participant-id,
+ * data-audio-muted and data-video-off around their <video>; the local
+ * preview in `[data-testid="local-video"]`; buttons toggle-mic,
+ * toggle-camera, device-settings, leave-call, retry-media, and join-call to
+ * rejoin after leaving; errors in `[data-testid="call-error"]`.
  *
- * LS0 behavior: the call phase is about the CALL, not this device. With
- * no media transport yet (LS1 adds it), the phase stays "joining"; it
- * becomes "failed" when the browser refuses camera and microphone, and
- * "left" when the person ends the call. Local capture readiness is tracked
- * separately (data-call-local-media). Mic and camera toggles really stop
- * and re-acquire tracks. There is no simulated remote media — the partner
- * tile reports exactly what exists ("audio not connected").
+ * The phase is the call's, not this device's: "connected" only once the
+ * transport connects to the other person; "failed" when the browser refuses
+ * camera and microphone or the transport gives up; "left" after Leave.
+ * Without a `call` (no signaling configured) the phase stays "joining".
  *
- * Every capture request carries a generation number. Leaving, unmounting
- * and a newer request each advance it, and a request that resolves for an
- * old generation stops its tracks at once — the initial request, a retry,
- * or a toggle re-acquire alike — so no track outlives the room.
+ * Capture belongs to this screen. Every capture request carries a
+ * generation number; leaving, unmounting and a newer request each advance
+ * it, and a request that resolves for an old generation stops its tracks at
+ * once, so no track outlives the room. Mic and camera toggles really stop
+ * and re-acquire tracks; the transport only forwards what it is given.
  */
-type CallPhase = "joining" | "connected" | "reconnecting" | "failed" | "left";
+
+type ScreenPhase = "joining" | "failed" | "left";
 
 type CaptureError = {
   kind: "permission" | "no-device" | "unknown";
@@ -36,11 +51,12 @@ type CaptureError = {
 };
 
 const phaseLabel: Record<CallPhase, string> = {
+  idle: "Connecting…",
   joining: "Connecting…",
   connected: "Connected",
   reconnecting: "Reconnecting…",
   failed: "Connection failed",
-  left: "Call ended",
+  left: "You left the call",
 };
 
 // Exported for the honesty unit tests.
@@ -55,6 +71,14 @@ function stopAllTracks(stream: MediaStream | null): void {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
+/** Pressable controls: a quick scale on press, never on hover (touch). */
+const press =
+  "transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
+const control = cn(
+  press,
+  "grid size-12 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-400/60 disabled:opacity-50",
+);
+
 export default function VoiceCallScreen({
   callType,
   participants,
@@ -63,14 +87,18 @@ export default function VoiceCallScreen({
   onExtendCall,
   onToggleMute,
   onRateCall,
-}: VoiceCallProps) {
-  const [phase, setPhase] = useState<CallPhase>("joining");
+  call = null,
+  onDone,
+}: VoiceCallProps & { call?: CallConnection | null; onDone?: () => void }) {
+  const [screenPhase, setScreenPhase] = useState<ScreenPhase>("joining");
   // This device's capture: live tracks owned by the screen. Not the call.
   const [localReady, setLocalReady] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [captureError, setCaptureError] = useState<CaptureError | null>(null);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [cameraId, setCameraId] = useState<string>("");
   const [elapsed, setElapsed] = useState(0);
   const [rating, setRating] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -79,9 +107,19 @@ export default function VoiceCallScreen({
   // intent without a new identity (which would re-run the mount capture).
   const micEnabledRef = useRef(true);
   const cameraOnRef = useRef(true);
+  const cameraIdRef = useRef("");
   /** Bumped by leave, unmount and each new full capture request. */
   const captureGenRef = useRef(0);
   const leftRef = useRef(false);
+
+  const left = screenPhase === "left";
+  const transport = useCallTransport({
+    connection: call,
+    active: Boolean(call) && localReady && !left,
+    stream,
+    micOn: micEnabled,
+    cameraOn,
+  });
 
   const toggleMic = useCallback(() => {
     const next = !micEnabledRef.current;
@@ -97,7 +135,7 @@ export default function VoiceCallScreen({
   }, []);
 
   const localParticipant = participants[0];
-  const remoteParticipants = participants.slice(1);
+  const partner = participants[1];
 
   const setStreamAndRef = useCallback((next: MediaStream | null) => {
     streamRef.current = next;
@@ -111,17 +149,20 @@ export default function VoiceCallScreen({
     streamRef.current = null;
   }, []);
 
+  const videoConstraint = (): MediaTrackConstraints | boolean =>
+    cameraIdRef.current ? { deviceId: { exact: cameraIdRef.current } } : true;
+
   const startCapture = useCallback(async () => {
     const gen = ++captureGenRef.current;
     const current = () => gen === captureGenRef.current && !leftRef.current;
     setCaptureError(null);
-    setPhase((p) => (p === "failed" ? "joining" : p));
+    setScreenPhase((p) => (p === "failed" ? "joining" : p));
     try {
       // Ask only for the kinds the user's toggles currently allow — a retry
       // after muting the mic must not silently re-open the microphone.
       const media = await navigator.mediaDevices.getUserMedia({
         audio: micEnabledRef.current,
-        video: cameraOnRef.current,
+        video: cameraOnRef.current ? videoConstraint() : false,
       });
       if (!current()) {
         // Left, unmounted or superseded while the browser prompt was open:
@@ -145,30 +186,26 @@ export default function VoiceCallScreen({
       // Browsers throw DOMException, but read the name off any error —
       // wrappers and polyfills exist in the wild.
       const name =
-        error instanceof DOMException
-          ? error.name
-          : ((error as { name?: string } | null)?.name ?? "");
+        error instanceof DOMException ? error.name : ((error as { name?: string } | null)?.name ?? "");
       if (name === "NotAllowedError") {
         setCaptureError({
           kind: "permission",
           message:
-            "Camera and microphone access was blocked. Allow access in your browser settings, then retry.",
+            "Camera and microphone access was blocked. Allow access in your browser settings, then try again.",
         });
         // Without permission there is no call to have: say so.
-        setPhase("failed");
+        setScreenPhase("failed");
       } else if (name === "NotFoundError" || name === "OverconstrainedError") {
         setCaptureError({
           kind: "no-device",
-          message:
-            "No camera or microphone was found. Connect one (or check that another app isn't holding it), then retry.",
+          message: "No camera or microphone was found. Connect one, or close another app that is using it, then try again.",
         });
       } else {
-        setCaptureError({
-          kind: "unknown",
-          message: "Could not start local capture. Retry when ready.",
-        });
+        setCaptureError({ kind: "unknown", message: "Could not start your camera and microphone. Try again." });
       }
     }
+    // videoConstraint reads refs only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setStreamAndRef]);
 
   // Acquire local media on mount (startCapture is stable). Unmounting
@@ -186,7 +223,7 @@ export default function VoiceCallScreen({
       const stale = () => isCancelled() || gen !== captureGenRef.current || leftRef.current;
       try {
         const fresh = await navigator.mediaDevices.getUserMedia(
-          kind === "audio" ? { audio: true } : { video: true },
+          kind === "audio" ? { audio: true } : { video: videoConstraint() },
         );
         if (stale()) {
           stopAllTracks(fresh);
@@ -202,11 +239,13 @@ export default function VoiceCallScreen({
           kind: name === "NotAllowedError" ? "permission" : "no-device",
           message:
             name === "NotAllowedError"
-              ? `${what} access was blocked. Allow access in your browser settings, then retry.`
-              : `No ${what.toLowerCase()} was found. Connect one, then retry.`,
+              ? `${what} access was blocked. Allow access in your browser settings, then try again.`
+              : `No ${what.toLowerCase()} was found. Connect one, then try again.`,
         });
       }
     },
+    // videoConstraint reads refs only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [setStreamAndRef],
   );
 
@@ -248,12 +287,68 @@ export default function VoiceCallScreen({
     };
   }, [micEnabled, localReady, reacquire, setStreamAndRef]);
 
+  // Cameras to switch between, once the browser has granted access (labels
+  // and ids are hidden before that).
+  useEffect(() => {
+    if (!localReady || !navigator.mediaDevices?.enumerateDevices) return;
+    let cancelled = false;
+    const read = async () => {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (cancelled) return;
+      setCameras(devices.filter((d) => d.kind === "videoinput" && d.deviceId));
+      const live = streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId;
+      if (live && !cameraIdRef.current) setCameraId(live);
+    };
+    void read();
+    navigator.mediaDevices.addEventListener?.("devicechange", read);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener?.("devicechange", read);
+    };
+  }, [localReady]);
+
+  /** Switch cameras without leaving: the new track replaces the old one. */
+  const switchCamera = useCallback(
+    async (deviceId: string) => {
+      cameraIdRef.current = deviceId;
+      setCameraId(deviceId);
+      if (!cameraOnRef.current || !streamRef.current) return;
+      const gen = captureGenRef.current;
+      try {
+        const fresh = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+        if (gen !== captureGenRef.current || leftRef.current || !cameraOnRef.current) {
+          stopAllTracks(fresh);
+          return;
+        }
+        const current = streamRef.current;
+        current?.getVideoTracks().forEach((t) => t.stop());
+        setStreamAndRef(
+          new MediaStream([...(current?.getAudioTracks() ?? []), ...fresh.getVideoTracks()]),
+        );
+      } catch {
+        setCaptureError({ kind: "no-device", message: "That camera could not start. Pick another one." });
+      }
+    },
+    [setStreamAndRef],
+  );
+
   // Local preview element follows the stream while the camera is live.
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  const phase: CallPhase =
+    screenPhase === "left"
+      ? "left"
+      : screenPhase === "failed"
+        ? "failed"
+        : call
+          ? transport.phase === "idle" || transport.phase === "left"
+            ? "joining"
+            : transport.phase
+          : "joining";
 
   // Elapsed timer runs only while the call is actually connected.
   useEffect(() => {
@@ -273,11 +368,21 @@ export default function VoiceCallScreen({
     releaseCapture();
     setStreamAndRef(null);
     setLocalReady(false);
-    setPhase("left");
+    setScreenPhase("left");
     onEndCall();
   };
 
+  const handleRejoin = () => {
+    leftRef.current = false;
+    setScreenPhase("joining");
+    setElapsed(0);
+    void startCapture();
+  };
+
   const remaining = Math.max(initialDuration - elapsed, 0);
+  const remotes = [...transport.remotes.entries()];
+  const transportFailed = phase === "failed" && screenPhase !== "failed" && transport.error;
+  const nameFor = (id: string) => (partner && String(partner.id) === id ? partner.name : "Your match");
 
   return (
     <main
@@ -285,200 +390,448 @@ export default function VoiceCallScreen({
       data-call-phase={phase}
       data-call-local-media={localReady ? "ready" : "pending"}
       role="region"
-      aria-label="Voice call"
-      className={cn(
-        "flex h-screen w-full flex-col items-center justify-center gap-8 bg-zinc-950 text-zinc-100",
-        "transition-colors motion-safe:duration-300",
-      )}
+      aria-label="Call"
+      className="flex h-dvh w-full flex-col bg-zinc-950 text-zinc-100"
     >
-      <header className="flex flex-col items-center gap-2">
-        <p className="text-sm uppercase tracking-wide text-zinc-400">
-          {callType === "professional" ? "Professional call" : "Casual call"}
-        </p>
-        <h2 data-call-title="" className="text-2xl font-semibold">
-          {phaseLabel[phase]}
-        </h2>
-        <div
-          data-call-timer=""
-          aria-label={`Call time ${formatElapsed(elapsed)}`}
-          className="font-mono text-4xl tabular-nums"
-        >
-          {formatElapsed(elapsed)}
-        </div>
-        {phase === "connected" && (
-          <p className="text-xs text-zinc-500" data-call-remaining="">
-            {formatElapsed(remaining)} left in this session
+      <header className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-6">
+        <div className="min-w-0">
+          <p className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
+            {callType === "professional" ? "Professional call" : "Casual call"}
           </p>
-        )}
+          <h1 data-call-title="" className="truncate text-lg font-semibold sm:text-xl">
+            {left ? phaseLabel.left : partner ? `${partner.name}` : "Your call"}
+          </h1>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <div
+            data-call-timer=""
+            aria-label={`Call time ${formatElapsed(elapsed)}`}
+            className="font-mono text-lg tabular-nums sm:text-xl"
+          >
+            {formatElapsed(elapsed)}
+          </div>
+          {phase === "connected" && (
+            <p className="text-xs text-zinc-500" data-call-remaining="">
+              {formatElapsed(remaining)} left
+            </p>
+          )}
+        </div>
       </header>
 
-      {/* Local preview: the only video shown is this device's capture. */}
-      {localVideoLive && phase !== "left" && (
-        <video
-          data-call-local-preview=""
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="h-44 w-64 scale-x-[-1] rounded-xl border border-zinc-800 bg-black object-cover"
+      {left ? (
+        <LeftScreen
+          rating={rating}
+          onRate={(value) => {
+            setRating(value);
+            onRateCall(value);
+          }}
+          onRejoin={handleRejoin}
+          onDone={onDone}
         />
-      )}
-
-      <ul
-        data-call-participants=""
-        className="flex w-full max-w-sm flex-col gap-3"
-        aria-label="Call participants"
-      >
-        {localParticipant && (
-          <li
-            key={localParticipant.id}
-            data-call-participant=""
-            data-participant-id={localParticipant.id}
-            className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3"
-          >
-            <span className="text-sm font-medium">{localParticipant.name} (you)</span>
-            <span
-              data-call-mic-state={micState}
-              className={cn("ml-auto text-xs", micState === "muted" ? "text-red-400" : "text-green-400")}
-            >
-              {micState === "muted" ? "muted" : "mic live"}
-            </span>
-          </li>
-        )}
-        {remoteParticipants.map((participant) => (
-          <li
-            key={participant.id}
-            data-call-participant=""
-            data-participant-id={participant.id}
-            className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3"
-          >
-            <span className="text-sm font-medium">{participant.name}</span>
-            {/* Remote media wrapper: no remote stream exists in LS0, so the
-                wrapper reports muted video/audio honestly instead of
-                pretending to play. Real streams attach in LS1. */}
-            <div
-              data-testid="remote-media"
-              data-participant-id={participant.id}
-              data-audio-muted="true"
-              data-video-off="true"
-              className="ml-auto flex flex-col items-end"
-            >
-              <span data-call-transport-note="" className="text-xs text-zinc-500">
-                audio not connected — waiting for media transport
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      {captureError && phase !== "left" && (
-        <div
-          data-call-capture-error={captureError.kind}
-          role="alert"
-          className="flex max-w-sm flex-col items-center gap-3 text-center"
-        >
-          <p className="text-sm text-red-400">{captureError.message}</p>
-          <Button
-            data-testid="retry-media"
-            data-call-retry=""
-            onClick={() => {
-              void startCapture();
-            }}
-            variant="secondary"
-          >
-            Retry capture
-          </Button>
-        </div>
-      )}
-
-      {phase === "left" ? (
-        <section
-          aria-label="Rate your call"
-          className="flex flex-col items-center gap-3"
-          data-call-rating=""
-        >
-          <p className="text-sm text-zinc-300">How was your call?</p>
-          <div className="flex gap-2" role="radiogroup" aria-label="Call rating">
-            {[1, 2, 3, 4, 5].map((value) => (
-              <button
-                key={value}
-                role="radio"
-                aria-checked={rating === value}
-                aria-label={`${value} star${value > 1 ? "s" : ""}`}
-                onClick={() => {
-                  setRating(value);
-                  onRateCall(value);
-                }}
-                className="rounded p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
-              >
-                <Star
-                  className={cn(
-                    "h-6 w-6",
-                    rating !== null && value <= rating
-                      ? "fill-amber-400 text-amber-400"
-                      : "text-zinc-600",
-                  )}
-                />
-              </button>
-            ))}
-          </div>
-        </section>
       ) : (
-        <footer className="flex items-center gap-4">
-          <Button
-            data-testid="toggle-mic"
-            data-call-mic=""
-            aria-pressed={micEnabled}
-            aria-label={micEnabled ? "Mute microphone" : "Unmute microphone"}
-            onClick={toggleMic}
-            variant="secondary"
-            size="icon"
-            className="h-14 w-14 rounded-full"
-          >
-            {micEnabled ? (
-              <Mic className="h-6 w-6" aria-hidden />
-            ) : (
-              <MicOff className="h-6 w-6" aria-hidden />
+        <>
+          <div aria-live="polite" role="status" className="flex min-h-9 justify-center px-4 pt-2">
+            <StatusPill phase={phase} alone={remotes.length === 0} partnerName={partner?.name} />
+          </div>
+
+          <section className="relative mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col p-3 sm:p-6">
+            {localReady && captureError && (
+              <div
+                role="alert"
+                data-call-capture-error={captureError.kind}
+                className="mb-3 flex flex-wrap items-center justify-center gap-3 rounded-xl bg-rose-500/10 px-4 py-2 text-sm text-rose-200"
+              >
+                <span data-testid="call-error">{captureError.message}</span>
+                <button
+                  type="button"
+                  data-testid="retry-media"
+                  data-call-retry=""
+                  onClick={() => setCaptureError(null)}
+                  className={cn(press, "rounded-full bg-white/10 px-3 py-1 text-xs font-medium outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-emerald-400/60")}
+                >
+                  Dismiss
+                </button>
+              </div>
             )}
-          </Button>
-          <Button
-            data-call-camera=""
-            aria-pressed={cameraOn}
-            aria-label={cameraOn ? "Turn camera off" : "Turn camera on"}
-            onClick={toggleCamera}
-            variant="secondary"
-            size="icon"
-            className="h-14 w-14 rounded-full"
-          >
-            {cameraOn ? (
-              <Video className="h-6 w-6" aria-hidden />
+            {(captureError && !localReady) || transportFailed ? (
+              <ProblemPanel
+                captureKind={!localReady ? captureError?.kind : undefined}
+                message={
+                  (!localReady && captureError?.message) ||
+                  (transport.error ? transport.error.message : "The connection to the call was lost.")
+                }
+                onRetryMedia={captureError && !localReady ? () => void startCapture() : undefined}
+                onRetryCall={localReady && transport.error?.retryable ? transport.retry : undefined}
+                onDone={onDone}
+              />
+            ) : remotes.length === 0 ? (
+              <WaitingTile name={partner?.name} phase={phase} />
             ) : (
-              <VideoOff className="h-6 w-6" aria-hidden />
+              <div className="grid min-h-0 flex-1 gap-3">
+                {remotes.map(([id, r]) => (
+                  <RemoteTile key={id} id={id} name={nameFor(id)} remote={r} dim={phase === "reconnecting"} />
+                ))}
+              </div>
             )}
-          </Button>
-          <Button
-            data-call-extend=""
-            aria-label="Extend call by five minutes"
-            onClick={onExtendCall}
-            variant="secondary"
-            size="icon"
-            className="h-14 w-14 rounded-full"
+
+            {localVideoLive && (
+              <video
+                data-testid="local-video"
+                data-call-local-preview=""
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                aria-label="Your camera"
+                className="absolute right-5 bottom-5 z-10 aspect-video w-28 scale-x-[-1] rounded-xl bg-black object-cover shadow-lg ring-1 ring-white/10 sm:right-9 sm:bottom-9 sm:w-52"
+              />
+            )}
+          </section>
+
+          <ul className="sr-only" data-call-participants="" aria-label="Call participants">
+            {localParticipant && (
+              <li data-call-participant="" data-participant-id={localParticipant.id}>
+                {localParticipant.name} (you)
+                <span data-call-mic-state={micState}>{micState === "muted" ? "muted" : "mic live"}</span>
+              </li>
+            )}
+          </ul>
+
+          <footer
+            role="group"
+            aria-label="Call controls"
+            className="flex items-center justify-center gap-2 border-t border-white/5 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-3"
           >
-            <Clock className="h-6 w-6" aria-hidden />
-          </Button>
-          <Button
-            data-testid="leave-call"
-            data-call-end=""
-            aria-label="End call"
-            onClick={handleLeave}
-            variant="destructive"
-            size="icon"
-            className="h-16 w-16 rounded-full"
-          >
-            <PhoneOff className="h-7 w-7" aria-hidden />
-          </Button>
-        </footer>
+            <button
+              type="button"
+              data-testid="toggle-mic"
+              data-call-mic=""
+              aria-pressed={!micEnabled}
+              aria-label={micEnabled ? "Mute microphone" : "Unmute microphone"}
+              title={micEnabled ? "Mute microphone" : "Unmute microphone"}
+              onClick={toggleMic}
+              className={cn(control, micEnabled ? "bg-white/10 hover:bg-white/15" : "bg-rose-500 text-white hover:bg-rose-400")}
+            >
+              {micEnabled ? <Mic className="size-5" aria-hidden /> : <MicOff className="size-5" aria-hidden />}
+            </button>
+            <button
+              type="button"
+              data-testid="toggle-camera"
+              data-call-camera=""
+              aria-pressed={!cameraOn}
+              aria-label={cameraOn ? "Turn camera off" : "Turn camera on"}
+              title={cameraOn ? "Turn camera off" : "Turn camera on"}
+              onClick={toggleCamera}
+              className={cn(control, cameraOn ? "bg-white/10 hover:bg-white/15" : "bg-rose-500 text-white hover:bg-rose-400")}
+            >
+              {cameraOn ? <Video className="size-5" aria-hidden /> : <VideoOff className="size-5" aria-hidden />}
+            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  data-testid="device-settings"
+                  aria-label="Camera settings"
+                  title="Camera settings"
+                  className={cn(control, "bg-white/10 hover:bg-white/15")}
+                >
+                  <Settings2 className="size-5" aria-hidden />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                className="w-72 origin-(--radix-popover-content-transform-origin) border-white/10 bg-zinc-900 text-zinc-100 motion-reduce:animate-none"
+              >
+                <label htmlFor="device-camera" className="mb-1.5 block text-xs font-medium text-zinc-400">
+                  Camera
+                </label>
+                <select
+                  id="device-camera"
+                  value={cameraId}
+                  disabled={cameras.length === 0}
+                  onChange={(e) => void switchCamera(e.target.value)}
+                  className="h-10 w-full rounded-md border border-white/10 bg-zinc-950 px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-400/60"
+                >
+                  {cameras.length === 0 && <option value="">No camera found</option>}
+                  {cameras.map((d, i) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label || `Camera ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </PopoverContent>
+            </Popover>
+            <button
+              type="button"
+              data-call-extend=""
+              aria-label="Extend call by five minutes"
+              title="Extend call by five minutes"
+              onClick={onExtendCall}
+              className={cn(control, "hidden bg-white/10 hover:bg-white/15 sm:grid")}
+            >
+              <Clock className="size-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              data-testid="leave-call"
+              data-call-end=""
+              aria-label="Leave call"
+              onClick={handleLeave}
+              className={cn(
+                press,
+                "ml-1 flex h-12 shrink-0 items-center gap-2 rounded-full bg-rose-600 px-5 text-sm font-semibold text-white outline-none hover:bg-rose-500 focus-visible:ring-[3px] focus-visible:ring-rose-400/60",
+              )}
+            >
+              <PhoneOff className="size-5" aria-hidden />
+              <span>Leave</span>
+            </button>
+          </footer>
+        </>
       )}
     </main>
+  );
+}
+
+function StatusPill({ phase, alone, partnerName }: { phase: CallPhase; alone: boolean; partnerName?: string }) {
+  const text =
+    phase === "reconnecting"
+      ? "Reconnecting. The call continues when the connection comes back."
+      : phase === "joining" || phase === "idle"
+        ? "Connecting to the call…"
+        : phase === "connected" && alone
+          ? `Waiting for ${partnerName ?? "your match"} to join`
+          : null;
+  if (!text) return null;
+  return (
+    <p
+      key={text}
+      className={cn(
+        "rounded-full bg-white/5 px-3 py-1.5 text-sm",
+        "animate-in fade-in-0 duration-200 motion-reduce:animate-none",
+        phase === "reconnecting" ? "text-amber-300" : "text-zinc-300",
+      )}
+    >
+      {text}
+    </p>
+  );
+}
+
+function WaitingTile({ name, phase }: { name?: string; phase: CallPhase }) {
+  return (
+    <div
+      data-call-partner-waiting=""
+      className="grid min-h-0 flex-1 place-items-center rounded-2xl bg-zinc-900 ring-1 ring-white/5"
+    >
+      <div className="flex flex-col items-center gap-3 px-6 text-center">
+        <Initials name={name} />
+        <p className="text-sm text-zinc-400">
+          {phase === "connected" ? `${name ?? "Your match"} hasn't joined yet.` : `Connecting you with ${name ?? "your match"}…`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Initials({ name }: { name?: string }) {
+  const letters = (name ?? "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+  return (
+    <div className="grid size-20 place-items-center rounded-full bg-emerald-500/15 text-2xl font-semibold text-emerald-300 sm:size-24">
+      {letters || "?"}
+    </div>
+  );
+}
+
+/**
+ * One remote person. The <video> carries their audio too, so it stays
+ * mounted (and playing) while their camera is off; a placeholder covers it.
+ * If the browser blocks audio until a tap, the tile asks for one.
+ */
+function RemoteTile({ id, name, remote, dim }: { id: string; name: string; remote: RemoteState; dim: boolean }) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  const [needsTap, setNeedsTap] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.srcObject !== remote.stream) el.srcObject = remote.stream;
+    if (!remote.stream) return;
+    el.play().then(
+      () => setNeedsTap(false),
+      (err: unknown) => {
+        if ((err as { name?: string })?.name === "NotAllowedError") setNeedsTap(true);
+      },
+    );
+  }, [remote.stream, remote.version]);
+
+  return (
+    <div
+      data-testid="remote-media"
+      data-participant-id={id}
+      data-audio-muted={String(!remote.micOn)}
+      data-video-off={String(!remote.cameraOn)}
+      className={cn(
+        "relative min-h-0 overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5 transition-opacity duration-200 motion-reduce:transition-none",
+        dim && "opacity-60",
+      )}
+    >
+      <video ref={ref} autoPlay playsInline aria-label={`${name}'s video`} className="size-full object-cover" />
+      {!remote.cameraOn && (
+        <div className="absolute inset-0 grid place-items-center bg-zinc-900">
+          <div className="flex flex-col items-center gap-2">
+            <Initials name={name} />
+            <p className="text-sm text-zinc-400">Camera off</p>
+          </div>
+        </div>
+      )}
+      <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-black/55 px-3 py-1 text-sm backdrop-blur-sm">
+        <span className="max-w-[12rem] truncate">{name}</span>
+        {!remote.micOn && <MicOff className="size-4 text-rose-300" aria-label="Muted" />}
+      </div>
+      {needsTap && (
+        <button
+          type="button"
+          onClick={() => {
+            void ref.current?.play().then(() => setNeedsTap(false), () => {});
+          }}
+          className={cn(
+            press,
+            "absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-emerald-950 outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/60",
+          )}
+        >
+          <Volume2 className="size-4" aria-hidden /> Tap to hear {name}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ProblemPanel({
+  captureKind,
+  message,
+  onRetryMedia,
+  onRetryCall,
+  onDone,
+}: {
+  captureKind?: CaptureError["kind"];
+  message: string;
+  onRetryMedia?: () => void;
+  onRetryCall?: () => void;
+  onDone?: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      data-call-capture-error={captureKind}
+      className="grid min-h-0 flex-1 place-items-center rounded-2xl bg-zinc-900 px-6 ring-1 ring-white/5"
+    >
+      <div className="flex max-w-md flex-col items-center gap-4 text-center">
+        <p data-testid="call-error" className="text-base text-zinc-100">
+          {message}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {onRetryMedia && (
+            <button
+              type="button"
+              data-testid="retry-media"
+              data-call-retry=""
+              onClick={onRetryMedia}
+              className={cn(press, "flex h-11 items-center gap-2 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/60")}
+            >
+              <RotateCcw className="size-4" aria-hidden /> Try again
+            </button>
+          )}
+          {onRetryCall && (
+            <button
+              type="button"
+              data-testid="retry-call"
+              onClick={onRetryCall}
+              className={cn(press, "flex h-11 items-center gap-2 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/60")}
+            >
+              <RotateCcw className="size-4" aria-hidden /> Reconnect
+            </button>
+          )}
+          {onDone && (
+            <button
+              type="button"
+              onClick={onDone}
+              className={cn(press, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium outline-none hover:bg-white/15 focus-visible:ring-[3px] focus-visible:ring-emerald-400/50")}
+            >
+              Back to the queue
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeftScreen({
+  rating,
+  onRate,
+  onRejoin,
+  onDone,
+}: {
+  rating: number | null;
+  onRate: (value: number) => void;
+  onRejoin: () => void;
+  onDone?: () => void;
+}) {
+  return (
+    <section className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="flex flex-col gap-2">
+        <h2 ref={(el) => el?.focus()} tabIndex={-1} className="text-2xl font-semibold outline-none">
+          You left the call
+        </h2>
+        <p className="text-sm text-zinc-400">Your camera and microphone are off.</p>
+      </div>
+      <div className="flex flex-col items-center gap-3" data-call-rating="" aria-label="Rate your call">
+        <p className="text-sm text-zinc-300">How was your call?</p>
+        <div className="flex gap-1" role="radiogroup" aria-label="Call rating">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={rating === value}
+              aria-label={`${value} star${value > 1 ? "s" : ""}`}
+              onClick={() => onRate(value)}
+              className={cn(press, "rounded-md p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400")}
+            >
+              <Star
+                className={cn(
+                  "size-7",
+                  rating !== null && value <= rating ? "fill-amber-400 text-amber-400" : "text-zinc-600",
+                )}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        <button
+          type="button"
+          data-testid="join-call"
+          onClick={onRejoin}
+          className={cn(press, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium outline-none hover:bg-white/15 focus-visible:ring-[3px] focus-visible:ring-emerald-400/50")}
+        >
+          Rejoin
+        </button>
+        {onDone && (
+          <button
+            type="button"
+            data-testid="call-done"
+            onClick={onDone}
+            className={cn(press, "h-11 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 outline-none hover:bg-emerald-300 focus-visible:ring-[3px] focus-visible:ring-emerald-300/60")}
+          >
+            Done
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
