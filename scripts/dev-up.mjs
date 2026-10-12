@@ -11,7 +11,12 @@
  * 3. Creates the `linkedup` database if missing.
  * 4. Applies Drizzle migrations (drizzle-kit migrate, idempotent).
  * 5. Runs the repo seed script when one exists (scripts/seed.* / src/db/seed.*).
- * 6. Starts keyless `next dev` on :3000 and waits for HTTP 200 on /.
+ * 6. Starts keyless `next dev` and PROVES the actual keyless app — not just an
+ *    HTTP 200: the landing page is LinkedUp's, /sign-in renders Clerk without
+ *    any keys, /app redirects unauthenticated requests, and the running
+ *    server's own /proc environment plus the app's data layer (scripts/
+ *    verify-db-identity.mjs, the app's own db client) prove the app is
+ *    connected to the same project database the migrations ran on.
  *
  * Safety: this script only ever stops processes IT started, verified by its
  * pid file AND /proc identity (process group, command line, working
@@ -63,6 +68,8 @@ const ROOT_TAG = crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8
 const DEV_LOG_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.log`);
 const DEV_META_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.json`);
 const READINESS_TIMEOUT_MS = 240_000;
+/** Strings in served HTML that mean the stack left keyless mode (key set, secret missing). */
+const KEYLESS_FAILURE_MARKERS = ["Missing secretKey", "Application not found"];
 
 function readPort(value, fallback) {
   const port = Number(value ?? fallback);
@@ -429,6 +436,21 @@ async function fetchStatus(url, { timeoutMs = 5_000 } = {}) {
   }
 }
 
+/** HTTP status + body (capped) or { status: null } when nothing answered. */
+async function fetchBody(url, { timeoutMs = 90_000 } = {}) {
+  try {
+    const res = await fetch(url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: { "user-agent": "linkedup-dev-up/2.0" },
+    });
+    const text = (await res.text()).slice(0, 200_000);
+    return { status: res.status, body: text };
+  } catch {
+    return { status: null, body: "" };
+  }
+}
+
 /** Our recorded server meta, or null. */
 function readDevMeta() {
   try {
@@ -510,17 +532,55 @@ async function startDevServer() {
   die(`dev server not ready (HTTP 200 on /) within ${READINESS_TIMEOUT_MS / 1000}s`);
 }
 
+// ---------------------------------------------------------------------------
+// 5. Proof: the actual keyless app, and the same database as the migrations
+// ---------------------------------------------------------------------------
+
 /**
- * (c) Migrations and the app must hit the SAME database. Next loads env files
- * itself, so stripping the child's environment is not enough — verify both
- * sides: the RUNNING server's /proc environment (DATABASE_URL pinned to the
- * project cluster, zero Clerk/Stream keys) and the app's data layer
- * (scripts/verify-db-identity.mjs, using the app's own db client) reporting
- * the project cluster.
+ * (d) HTTP 200 alone proves nothing — any service can answer 200. Prove:
+ *   1. the landing page is LinkedUp's (title marker from the app layout),
+ *   2. keyless Clerk serves /sign-in with no keys configured (a keyed-but-
+ *      secretless stack 500s with "Missing secretKey"),
+ *   3. /app redirects unauthenticated requests (keyless middleware protection),
+ *   4. the RUNNING server's /proc environment is the isolated configuration
+ *      (DATABASE_URL pinned to the project cluster, zero Clerk/Stream keys),
+ *   5. the app's data layer reports it is connected to the project database
+ *      (scripts/verify-db-identity.mjs under the server's exact env).
  */
-function verifyDataLayerIdentity() {
+async function verifyAppAndKeylessMode() {
   const meta = readDevMeta();
   if (!meta) die("no dev server record — cannot verify the running app");
+
+  const home = await fetchBody(`${BASE_URL}/`);
+  if (home.status !== 200) {
+    die(`/ answered ${home.status ?? "no response"} — expected the LinkedUp landing page`);
+  }
+  const titleMatch = home.body.match(/<title>([^<]*)<\/title>/i);
+  if (!titleMatch || !/linkedup/i.test(titleMatch[1])) {
+    die(
+      `port ${APP_PORT} serves something that is not LinkedUp ` +
+        `(title: ${JSON.stringify(titleMatch?.[1] ?? "(none)")}) — refusing to mistake it for the app`,
+    );
+  }
+
+  const signIn = await fetchBody(`${BASE_URL}/sign-in`);
+  if (signIn.status !== 200) {
+    dumpLogTail();
+    die(`/sign-in returned ${signIn.status ?? "no response"} — keyless Clerk did not serve the sign-in page`);
+  }
+  for (const marker of KEYLESS_FAILURE_MARKERS) {
+    if (signIn.body.includes(marker)) {
+      die(`/sign-in renders "${marker}" — the stack is not keyless-clean (check .env.local for Clerk keys)`);
+    }
+  }
+
+  const appStatus = await fetchStatus(`${BASE_URL}/app`, { timeoutMs: 90_000 });
+  if (appStatus === null || appStatus < 300 || appStatus >= 400) {
+    die(
+      `/app answered ${appStatus ?? "no response"} — expected a redirect to sign-in ` +
+        "(keyless Clerk middleware must protect unauthenticated app routes)",
+    );
+  }
 
   const envEntries = procEnvEntries(meta.pid);
   if (!envEntries) die(`could not read /proc/${meta.pid}/environ to verify the server's environment`);
@@ -543,16 +603,10 @@ function verifyDataLayerIdentity() {
     env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
   });
 
-  log(`verified: server env isolated · data layer on ${LOCAL_DATABASE_URL} (${PG_DATA_DIR})`);
-}
-
-/** Dev must stay keyless: strip any Clerk/Stream credentials from the child env. */
-function keylessEnv() {
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) {
-    if (/CLERK|STREAM/i.test(key)) delete env[key];
-  }
-  return env;
+  log(
+    `verified: LinkedUp on :${APP_PORT} · keyless Clerk sign-in · /app protected · ` +
+      `server env isolated · data layer on ${LOCAL_DATABASE_URL} (${PG_DATA_DIR})`,
+  );
 }
 
 /**
@@ -615,20 +669,15 @@ function dumpLogTail() {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  log(`stack: project Postgres 17 on 127.0.0.1:${PG_PORT} (data ${PG_DATA_DIR}), dev server on :${APP_PORT}`);
   ensureEnvFile();
   ensurePostgres();
   runMigrations();
   runSeedIfPresent();
 
   await ensureDevServer();
-  verifyDataLayerIdentity();
+  await verifyAppAndKeylessMode();
 
-  log("keyless dev server is ready (HTTP 200 on /)");
-  const routes = ["/", "/sign-in", "/app"];
-  for (const route of routes) {
-    const status = await fetchStatus(`${BASE_URL}${route}`);
-    log(`  ${route} -> ${status ?? "no response"}`);
-  }
   log(`done. app: http://localhost:${APP_PORT} · db: ${LOCAL_DATABASE_URL}`);
 }
 
