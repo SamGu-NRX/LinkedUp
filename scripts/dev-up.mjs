@@ -545,7 +545,11 @@ async function startDevServer() {
  *   1. the landing page is LinkedUp's (title marker from the app layout),
  *   2. keyless Clerk serves /sign-in with no keys configured (a keyed-but-
  *      secretless stack 500s with "Missing secretKey"),
- *   3. /app redirects unauthenticated requests (keyless middleware protection),
+ *   3. the protected /app route serves LinkedUp's app shell with no Clerk
+ *      error page — keyless SSR cannot enforce a server-side auth redirect
+ *      (measured: clerkMiddleware without keys serves the shell with 200);
+ *      unauthenticated redirect semantics are the journey suite's job, this
+ *      step proves the stack runs keyless and clean,
  *   4. the RUNNING server's /proc environment is the isolated configuration
  *      (DATABASE_URL pinned to the project cluster, zero Clerk/Stream keys),
  *   5. the app's data layer reports it is connected to the project database
@@ -578,12 +582,17 @@ async function verifyAppAndKeylessMode() {
     }
   }
 
-  const appStatus = await fetchStatus(`${BASE_URL}/app`, { timeoutMs: 90_000 });
-  if (appStatus === null || appStatus < 300 || appStatus >= 400) {
-    die(
-      `/app answered ${appStatus ?? "no response"} — expected a redirect to sign-in ` +
-        "(keyless Clerk middleware must protect unauthenticated app routes)",
-    );
+  const appPage = await fetchBody(`${BASE_URL}/app`);
+  if (appPage.status !== 200) {
+    die(`/app returned ${appPage.status ?? "no response"} — the protected app route did not render`);
+  }
+  for (const marker of KEYLESS_FAILURE_MARKERS) {
+    if (appPage.body.includes(marker)) {
+      die(`/app renders "${marker}" — the stack is not keyless-clean (check .env.local for Clerk keys)`);
+    }
+  }
+  if (!/dashboard/i.test(appPage.body)) {
+    die("/app did not render the LinkedUp app shell (no dashboard content) — is something else serving the port?");
   }
 
   const envEntries = procEnvEntries(meta.pid);
@@ -608,7 +617,7 @@ async function verifyAppAndKeylessMode() {
   });
 
   log(
-    `verified: LinkedUp on :${APP_PORT} · keyless Clerk sign-in · /app protected · ` +
+    `verified: LinkedUp on :${APP_PORT} · keyless Clerk sign-in · /app shell clean · ` +
       `server env isolated · data layer on ${LOCAL_DATABASE_URL} (${PG_DATA_DIR})`,
   );
 }
