@@ -7,6 +7,11 @@ import CallScreenClient from "./CallScreenClient";
 export const dynamic = "force-dynamic";
 
 const refusalCopy: Record<string, { title: string; detail: string }> = {
+  signed_out: {
+    title: "Sign in to open this call",
+    detail:
+      "Calls belong to the two people who matched. Sign in with the account you queued from to join this room.",
+  },
   room_not_found: {
     title: "Call not found",
     detail: "This call room doesn't exist. It may have never been created.",
@@ -32,7 +37,7 @@ export default async function CallPage({
 
   const access = userId
     ? await getRoomForUser(userId, id)
-    : ({ allowed: false, reason: "not_a_participant" } as const);
+    : ({ allowed: false, reason: "signed_out" } as const);
 
   if (!access.allowed) {
     const copy = refusalCopy[access.reason] ?? refusalCopy.not_a_participant;
@@ -45,10 +50,10 @@ export default async function CallPage({
         <h1 className="text-2xl font-semibold">{copy.title}</h1>
         <p className="max-w-md text-sm text-zinc-400">{copy.detail}</p>
         <Link
-          href="/app"
+          href={access.reason === "signed_out" ? "/sign-in" : "/app"}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
-          Back to the app
+          {access.reason === "signed_out" ? "Sign in" : "Back to the app"}
         </Link>
       </main>
     );

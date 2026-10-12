@@ -67,6 +67,23 @@ export default function VoiceCallScreen({
   const [rating, setRating] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Toggle intents mirror into refs so startCapture reads the current
+  // intent without a new identity (which would re-run the mount capture).
+  const micEnabledRef = useRef(true);
+  const cameraOnRef = useRef(true);
+
+  const toggleMic = useCallback(() => {
+    const next = !micEnabledRef.current;
+    micEnabledRef.current = next;
+    setMicEnabled(next);
+    onToggleMute();
+  }, [onToggleMute]);
+
+  const toggleCamera = useCallback(() => {
+    const next = !cameraOnRef.current;
+    cameraOnRef.current = next;
+    setCameraOn(next);
+  }, []);
 
   const localParticipant = participants[0];
   const remoteParticipants = participants.slice(1);
@@ -76,14 +93,36 @@ export default function VoiceCallScreen({
     setStream(next);
   }, []);
 
-  const startCapture = useCallback(async () => {
+  const startCapture = useCallback(async (isCancelled?: () => boolean) => {
+    const cancelled = isCancelled ?? (() => false);
     setCaptureError(null);
     try {
-      const media = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      // Ask only for the kinds the user's toggles currently allow — a retry
+      // after muting the mic must not silently re-open the microphone.
+      const media = await navigator.mediaDevices.getUserMedia({
+        audio: micEnabledRef.current,
+        video: cameraOnRef.current,
+      });
+      if (cancelled()) {
+        // The screen left (unmount, route change) while the browser prompt
+        // was open: release everything the browser just granted. No track
+        // may outlive the room.
+        stopAllTracks(media);
+        return;
+      }
+      // A toggle flipped while the request was in flight: exclude the kinds
+      // the user disabled (stopping their tracks) so the stream matches the
+      // visible controls — the same filtering the mute toggles apply.
+      const wantedTracks = media.getTracks().filter((track) => {
+        const wanted = track.kind === "audio" ? micEnabledRef.current : cameraOnRef.current;
+        if (!wanted) track.stop();
+        return wanted;
+      });
       stopAllTracks(streamRef.current);
-      setStreamAndRef(media);
+      setStreamAndRef(new MediaStream(wantedTracks));
       setPhase("connected");
     } catch (error) {
+      if (cancelled()) return;
       // Browsers throw DOMException, but read the name off any error —
       // wrappers and polyfills exist in the wild.
       const name =
@@ -115,8 +154,12 @@ export default function VoiceCallScreen({
   // device-permission prompt shows here; nothing is presented as
   // "connected" before it.
   useEffect(() => {
-    void startCapture();
+    let cancelled = false;
+    void startCapture(() => cancelled);
     return () => {
+      // Leaving the room (Back, unmount, route change) releases the devices;
+      // the flag closes the race where the prompt resolves after leaving.
+      cancelled = true;
       stopAllTracks(streamRef.current);
       streamRef.current = null;
     };
@@ -381,10 +424,7 @@ export default function VoiceCallScreen({
             data-call-mic=""
             aria-pressed={micEnabled}
             aria-label={micEnabled ? "Mute microphone" : "Unmute microphone"}
-            onClick={() => {
-              setMicEnabled((prev) => !prev);
-              onToggleMute();
-            }}
+            onClick={toggleMic}
             variant="secondary"
             size="icon"
             className="h-14 w-14 rounded-full"
@@ -399,7 +439,7 @@ export default function VoiceCallScreen({
             data-call-camera=""
             aria-pressed={cameraOn}
             aria-label={cameraOn ? "Turn camera off" : "Turn camera on"}
-            onClick={() => setCameraOn((prev) => !prev)}
+            onClick={toggleCamera}
             variant="secondary"
             size="icon"
             className="h-14 w-14 rounded-full"
