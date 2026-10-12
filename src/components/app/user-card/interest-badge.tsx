@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { motion } from "framer-motion"
 import { GraduationCap, Briefcase, Award } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +9,8 @@ import { cn } from "@/lib/utils"
 export type InterestType = "academic" | "industry" | "skill"
 
 export interface Interest {
-  type: InterestType
+  /** Loose on purpose: callers pass passion/hobby and other free-form types. */
+  type: string
   name: string
 }
 
@@ -18,8 +20,24 @@ interface InterestBadgeProps {
   className?: string
 }
 
-// Badge variants for different interest types
-const badgeVariants = {
+// Badge variants for different interest types; unknown types fall back to neutral
+type BadgeVariant = {
+  bg: string
+  text: string
+  border: string
+  hover: string
+  icon: ReactNode
+}
+
+const neutralVariant: BadgeVariant = {
+  bg: "bg-gray-50 dark:bg-gray-800/40",
+  text: "text-gray-700 dark:text-gray-300",
+  border: "border-gray-200 dark:border-gray-700/60",
+  hover: "hover:bg-gray-100 dark:hover:bg-gray-700/50",
+  icon: null,
+}
+
+const badgeVariants: Record<InterestType, BadgeVariant> = {
   academic: {
     bg: "bg-blue-50 dark:bg-blue-950/30",
     text: "text-blue-700 dark:text-blue-300",
@@ -69,7 +87,8 @@ export function InterestBadge({ interest, animated = true, className }: Interest
     )
   }
 
-  const variant = badgeVariants[interest.type]
+  const variant =
+    badgeVariants[interest.type as InterestType] ?? neutralVariant
 
   return (
     <BadgeWrapper {...animationProps}>

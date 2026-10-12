@@ -1,44 +1,14 @@
-"use client"
+// src/app/app/professional/mentorship/page.tsx
+//
+// The real professional queue. This page used to render ProfessionalQueue,
+// which ran a 20-second timer and then offered a made-up match ("Jane Doe",
+// room "match123") that no server knew about. Matching does not yet tell
+// b2b, collaboration, investment and mentorship apart, so every professional
+// purpose joins the one professional queue.
+import SmartConnectionEngine from "@/components/queue/SmartConnectionEngine";
 
-import React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
+export const dynamic = "force-dynamic";
 
-export default function MentorshipPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const purpose = searchParams.get("purpose") || ""
-  const description = searchParams.get("description") || ""
-
-  const handleLeaveQueue = () => {
-    router.push("/app")
-  }
-
-  const handleAcceptMatch = (matchId: string) => {
-    console.log(`Accepted mentorship match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}?type=mentorship`)
-  }
-
-  const handleDeclineMatch = (matchId: string) => {
-    console.log(`Declined mentorship match with ID: ${matchId}`)
-  }
-
-  const handleScheduleCall = (userId: string) => {
-    console.log(`Scheduling mentorship call with user ID: ${userId}`)
-    router.push(`/app/schedule/${userId}?type=mentorship`)
-  }
-
-  return (
-    <ProfessionalQueue
-      userId="user123"
-      connectionType="mentorship"
-      purpose={purpose}
-      description={description}
-      onLeaveQueue={handleLeaveQueue}
-      onAcceptMatch={handleAcceptMatch}
-      onDeclineMatch={handleDeclineMatch}
-      onScheduleCall={handleScheduleCall}
-    />
-  )
+export default function ProfessionalQueuePage() {
+  return <SmartConnectionEngine queueType="professional" />;
 }
-

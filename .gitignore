@@ -30,6 +30,9 @@ yarn-error.log*
 .env*
 !.env*.example
 
+# dev:up project-owned state (initdb data dir, socket dir, postgres log)
+/.local/
+
 # vercel
 .vercel
 
@@ -38,3 +41,8 @@ yarn-error.log*
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/

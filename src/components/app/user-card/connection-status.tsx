@@ -3,8 +3,9 @@
 import { motion } from "framer-motion"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import type { ConnectionStatus } from "@/types/user"
 
-export type ConnectionStatus = "excellent" | "good" | "poor" | "offline"
+export type { ConnectionStatus }
 
 interface ConnectionStatusIndicatorProps {
   status: ConnectionStatus
@@ -31,9 +32,9 @@ const speakingPulse = {
 
 export function ConnectionStatusIndicator({ status, isSpeaking = false, className }: ConnectionStatusIndicatorProps) {
   const statusColor =
-    status === "excellent"
+    status === "excellent" || status === "online"
       ? "bg-green-500"
-      : status === "good"
+      : status === "good" || status === "away"
         ? "bg-blue-500"
         : status === "poor"
           ? "bg-amber-500"

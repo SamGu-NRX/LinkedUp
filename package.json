@@ -9,10 +9,14 @@
     "lint": "next lint",
     "db:pull": "npx drizzle-kit pull:pg",
     "db:generate": "npx drizzle-kit generate:pg",
-    "db:seed": "npx drizzle-kit seed:pg",
+    "db:seed": "tsx scripts/seed.ts",
     "db:reset": "npx drizzle-kit reset:pg",
     "db:studio": "npx drizzle-kit studio",
-    "db:push": "npx drizzle-kit push:pg"
+    "db:push": "npx drizzle-kit push:pg",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "dev:up": "node scripts/dev-up.mjs",
+    "dev:down": "node scripts/dev-up.mjs --down"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",
@@ -86,14 +90,22 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.45",
     "@eslint/eslintrc": "^3.3.0",
+    "@playwright/test": "1.64.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "22.13.5",
+    "@types/pg": "^8",
     "@types/react": "^19.0.10",
     "@types/react-dom": "19.0.4",
     "drizzle-kit": "^0.30.5",
     "eslint": "^9.22.0",
     "eslint-config-next": "15.1.7",
+    "jsdom": "^26.1.0",
     "next": "^15.2.2",
     "pg": "^8.14.0",
     "postcss": "8.5.3",
@@ -103,11 +115,20 @@
     "react-dom": "^19.0.0",
     "tailwindcss": "4.0.14",
     "tsx": "^4.19.3",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vitest": "^3.2.7"
   },
   "peerDependencies": {
     "next": "^15",
     "react": "^19",
     "react-dom": "^19"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "@tailwindcss/oxide",
+      "unrs-resolver"
+    ]
   }
 }

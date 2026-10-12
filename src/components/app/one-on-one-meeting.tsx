@@ -59,7 +59,7 @@ const OneonOneMeeting = () => {
   const [isSpeaking, setIsSpeaking] = useState({ user1: false, user2: true });
   const [isEndCallDialogOpen, setIsEndCallDialogOpen] = useState(false);
   const [isCallEnded, setIsCallEnded] = useState(false);
-  const [expandedStream, setExpandedStream] = useState(null);
+  const [expandedStream, setExpandedStream] = useState<string | null>(null);
 
   const prompts = generatePrompts(userInterests.user1, userInterests.user2);
 
@@ -71,7 +71,7 @@ const OneonOneMeeting = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -82,7 +82,7 @@ const OneonOneMeeting = () => {
     setIsEndCallDialogOpen(false);
   };
 
-  const handleStreamClick = (streamId) => {
+  const handleStreamClick = (streamId: string) => {
     setExpandedStream(expandedStream === streamId ? null : streamId);
   };
 

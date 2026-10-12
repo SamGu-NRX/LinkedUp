@@ -34,18 +34,18 @@ export function UserCard({
   className,
   forceVisible = false, // Default to false
 }: UserCardProps) {
-  // Early return if user data is somehow missing (though TS should help prevent this)
-  if (!user) {
-    console.warn("UserCard rendered without user data.");
-    return null;
-  }
-
   const cardRef = useRef<HTMLDivElement>(null);
   // Respect forceVisible prop for modals or specific use cases
   const isInView = useInView(cardRef, { once: true });
   const isVisible = forceVisible || isInView;
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Early return if user data is somehow missing (after all hooks run)
+  if (!user) {
+    console.warn("UserCard rendered without user data.");
+    return null;
+  }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (cardRef.current) {
@@ -146,9 +146,9 @@ export function UserCard({
           school={user.school} // required
           connectionType={user.connectionType} // required
           inChat={inChat}
-          onMessage={onMessage}
-          onSchedule={onSchedule}
-          forceOpen={forceVisible} // Pass forceVisible to potentially keep details open in modal
+          onMessage={() => onMessage("")}
+          onSchedule={() => onSchedule(new Date(), 30, "Catch up")}
+          forceOpen={forceVisible}
         />
       </motion.div>
     </TooltipProvider>
