@@ -71,12 +71,18 @@ function stopAllTracks(stream: MediaStream | null): void {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
-/** Pressable controls: a quick scale on press, never on hover (touch). */
-const press =
-  "transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100";
+/**
+ * Controls give feedback by colour, not motion: a press can come from the
+ * keyboard, and keyboard actions do not animate (review-animations).
+ * Focus is a real outline, so forced-colors mode keeps it.
+ */
+// Tailwind v4's outline-none would also zero the outline style this ring
+// relies on, so there is no outline-none here.
+const focusRing =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-emerald-400";
 const control = cn(
-  press,
-  "grid size-12 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-400/60 disabled:opacity-50",
+  focusRing,
+  "grid size-12 shrink-0 place-items-center rounded-full disabled:opacity-50",
 );
 
 export default function VoiceCallScreen({
@@ -447,7 +453,7 @@ export default function VoiceCallScreen({
                   data-testid="retry-media"
                   data-call-retry=""
                   onClick={() => setCaptureError(null)}
-                  className={cn(press, "rounded-full bg-white/10 px-3 py-1 text-xs font-medium outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-emerald-400/60")}
+                  className={cn(focusRing, "h-11 rounded-full bg-white/10 px-4 text-xs font-medium hover:bg-white/15")}
                 >
                   Dismiss
                 </button>
@@ -540,7 +546,11 @@ export default function VoiceCallScreen({
               </PopoverTrigger>
               <PopoverContent
                 side="top"
-                className="w-72 origin-(--radix-popover-content-transform-origin) border-white/10 bg-zinc-900 text-zinc-100 motion-reduce:animate-none"
+                aria-label="Camera settings"
+                // No open/close animation: the menu is opened from the
+                // keyboard as often as by pointer.
+                // Important: Radix sets the content's inline animation itself.
+                className="w-72 border-white/10 bg-zinc-900 text-zinc-100 animate-none!"
               >
                 <label htmlFor="device-camera" className="mb-1.5 block text-xs font-medium text-zinc-400">
                   Camera
@@ -550,7 +560,7 @@ export default function VoiceCallScreen({
                   value={cameraId}
                   disabled={cameras.length === 0}
                   onChange={(e) => void switchCamera(e.target.value)}
-                  className="h-10 w-full rounded-md border border-white/10 bg-zinc-950 px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-400/60"
+                  className={cn(focusRing, "h-11 w-full rounded-md border border-white/10 bg-zinc-950 px-2 text-base sm:text-sm")}
                 >
                   {cameras.length === 0 && <option value="">No camera found</option>}
                   {cameras.map((d, i) => (
@@ -578,8 +588,8 @@ export default function VoiceCallScreen({
               aria-label="Leave call"
               onClick={handleLeave}
               className={cn(
-                press,
-                "ml-1 flex h-12 shrink-0 items-center gap-2 rounded-full bg-rose-600 px-5 text-sm font-semibold text-white outline-none hover:bg-rose-500 focus-visible:ring-[3px] focus-visible:ring-rose-400/60",
+                focusRing,
+                "ml-1 flex h-12 shrink-0 items-center gap-2 rounded-full bg-rose-600 px-5 text-sm font-semibold text-white hover:bg-rose-500",
               )}
             >
               <PhoneOff className="size-5" aria-hidden />
@@ -607,7 +617,6 @@ function StatusPill({ phase, alone, partnerName }: { phase: CallPhase; alone: bo
       key={text}
       className={cn(
         "rounded-full bg-white/5 px-3 py-1.5 text-sm",
-        "animate-in fade-in-0 duration-200 motion-reduce:animate-none",
         phase === "reconnecting" ? "text-amber-300" : "text-zinc-300",
       )}
     >
@@ -699,8 +708,8 @@ function RemoteTile({ id, name, remote, dim }: { id: string; name: string; remot
             void ref.current?.play().then(() => setNeedsTap(false), () => {});
           }}
           className={cn(
-            press,
-            "absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-emerald-950 outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/60",
+            focusRing,
+            "absolute top-3 left-1/2 flex h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-emerald-400 px-4 text-sm font-semibold text-emerald-950",
           )}
         >
           <Volume2 className="size-4" aria-hidden /> Tap to hear {name}
@@ -740,7 +749,7 @@ function ProblemPanel({
               data-testid="retry-media"
               data-call-retry=""
               onClick={onRetryMedia}
-              className={cn(press, "flex h-11 items-center gap-2 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/60")}
+              className={cn(focusRing, "flex h-11 items-center gap-2 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950")}
             >
               <RotateCcw className="size-4" aria-hidden /> Try again
             </button>
@@ -750,7 +759,7 @@ function ProblemPanel({
               type="button"
               data-testid="retry-call"
               onClick={onRetryCall}
-              className={cn(press, "flex h-11 items-center gap-2 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/60")}
+              className={cn(focusRing, "flex h-11 items-center gap-2 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950")}
             >
               <RotateCcw className="size-4" aria-hidden /> Reconnect
             </button>
@@ -759,7 +768,7 @@ function ProblemPanel({
             <button
               type="button"
               onClick={onDone}
-              className={cn(press, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium outline-none hover:bg-white/15 focus-visible:ring-[3px] focus-visible:ring-emerald-400/50")}
+              className={cn(focusRing, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium hover:bg-white/15")}
             >
               Back to the queue
             </button>
@@ -781,43 +790,52 @@ function LeftScreen({
   onRejoin: () => void;
   onDone?: () => void;
 }) {
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  // Focus moves to the heading once, when the screen appears; rating a call
+  // must not pull it back.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
   return (
     <section className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="flex flex-col gap-2">
-        <h2 ref={(el) => el?.focus()} tabIndex={-1} className="text-2xl font-semibold outline-none">
+        <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold outline-none">
           You left the call
         </h2>
         <p className="text-sm text-zinc-400">Your camera and microphone are off.</p>
       </div>
-      <div className="flex flex-col items-center gap-3" data-call-rating="" aria-label="Rate your call">
-        <p className="text-sm text-zinc-300">How was your call?</p>
-        <div className="flex gap-1" role="radiogroup" aria-label="Call rating">
+      {/* Native radios: one Tab stop, arrow keys move between stars. */}
+      <fieldset className="flex flex-col items-center gap-3" data-call-rating="">
+        <legend className="mb-3 text-sm text-zinc-300">How was your call?</legend>
+        <div className="flex">
           {[1, 2, 3, 4, 5].map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={rating === value}
-              aria-label={`${value} star${value > 1 ? "s" : ""}`}
-              onClick={() => onRate(value)}
-              className={cn(press, "rounded-md p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-zinc-400")}
-            >
+            <label key={value} className="relative grid size-12 cursor-pointer place-items-center">
+              <input
+                type="radio"
+                name="call-rating"
+                value={value}
+                checked={rating === value}
+                onChange={() => onRate(value)}
+                aria-label={`${value} star${value > 1 ? "s" : ""}`}
+                className="peer sr-only"
+              />
               <Star
+                aria-hidden
                 className={cn(
-                  "size-7",
+                  "size-7 rounded-sm peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-solid peer-focus-visible:outline-emerald-400",
                   rating !== null && value <= rating ? "fill-amber-400 text-amber-400" : "text-zinc-600",
                 )}
               />
-            </button>
+            </label>
           ))}
         </div>
-      </div>
+      </fieldset>
       <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
           data-testid="join-call"
           onClick={onRejoin}
-          className={cn(press, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium outline-none hover:bg-white/15 focus-visible:ring-[3px] focus-visible:ring-emerald-400/50")}
+          className={cn(focusRing, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium hover:bg-white/15")}
         >
           Rejoin
         </button>
@@ -826,7 +844,7 @@ function LeftScreen({
             type="button"
             data-testid="call-done"
             onClick={onDone}
-            className={cn(press, "h-11 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 outline-none hover:bg-emerald-300 focus-visible:ring-[3px] focus-visible:ring-emerald-300/60")}
+            className={cn(focusRing, "h-11 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 hover:bg-emerald-300")}
           >
             Done
           </button>

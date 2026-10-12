@@ -5,6 +5,10 @@ import { JOURNEY_PROOF_QUEUE, JOURNEY_PROOF_SIGNAL, requireJourneyProof } from "
 
 export const dynamic = "force-dynamic";
 
+// The call fills the screen edge to edge on phones; its controls pad
+// themselves by the safe-area insets, which only apply with viewport-fit=cover.
+export const viewport = { viewportFit: "cover" };
+
 export default async function JourneyProofCallPage({
   params,
 }: {
