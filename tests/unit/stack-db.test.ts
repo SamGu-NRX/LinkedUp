@@ -2,7 +2,7 @@
 // The guard every DB-writing test goes through (tests/stack-db.ts).
 import { describe, expect, it } from "vitest";
 import { dataDirectoryProblem, stackDatabaseUrl } from "../stack-db";
-import { LOCAL_DATABASE_URL, PG_DATA_DIR } from "../../scripts/dev-up.mjs";
+import { LOCAL_DATABASE_URL, PG_DATA_DIR } from "../../scripts/stack-paths.cjs";
 
 describe("stackDatabaseUrl", () => {
   it("uses the stack's URL when nothing is inherited", () => {

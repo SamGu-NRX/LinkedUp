@@ -139,6 +139,12 @@ describe("metaMatchesExpectation — reuse only a correctly-configured server", 
     expect(metaMatchesExpectation({ ...ourMeta, port: 3001 }, expected)).toBe(false);
     expect(metaMatchesExpectation(null, expected)).toBe(false);
   });
+
+  it("rejects a server whose journey-proof flag differs from this run's", () => {
+    expect(metaMatchesExpectation(ourMeta, { ...expected, journeyProof: true })).toBe(false);
+    expect(metaMatchesExpectation({ ...ourMeta, journeyProof: true }, expected)).toBe(false);
+    expect(metaMatchesExpectation({ ...ourMeta, journeyProof: true }, { ...expected, journeyProof: true })).toBe(true);
+  });
 });
 
 describe("serverEnvFrom — isolated, verified local configuration", () => {

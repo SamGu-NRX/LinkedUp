@@ -53,7 +53,19 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+// Paths and ports live in stack-paths.cjs so the tests' database guard
+// can load them too (tests/stack-db.ts).
+import {
+  ADMIN_DATABASE_URL,
+  APP_PORT,
+  LOCAL_DATABASE_URL,
+  PG_DATA_DIR,
+  PG_LOG_PATH,
+  PG_PORT,
+  PG_SOCKET_DIR,
+  ROOT,
+} from "./stack-paths.cjs";
+export { ADMIN_DATABASE_URL, LOCAL_DATABASE_URL, PG_DATA_DIR, PG_LOG_PATH, PG_PORT, PG_SOCKET_DIR };
 
 const log = (msg) => console.log(`[dev:up] ${msg}`);
 const die = (msg) => {
@@ -61,22 +73,7 @@ const die = (msg) => {
   process.exit(1);
 };
 
-/** Dev-server port. Override with LINKEDUP_DEV_PORT when :3000 is taken by a foreign process. */
-const APP_PORT = readPort(process.env.LINKEDUP_DEV_PORT, 3000);
 const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
-/** Project-owned Postgres port: distinctive, localhost-only, NOT the system 5432. */
-export const PG_PORT = readPort(process.env.LINKEDUP_PG_PORT, 54329);
-export const PG_DATA_DIR = path.join(ROOT, ".local", "pg");
-// The socket directory goes inside pg_ctl's -o option string, which is
-// split on spaces, and a Unix socket path is capped near 104 bytes on macOS:
-// keep it short and space-free, per checkout.
-export const PG_SOCKET_DIR = path.join(
-  "/tmp",
-  `linkedup-pg-${crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8)}`,
-);
-export const PG_LOG_PATH = path.join(ROOT, ".local", "pg.log");
-export const LOCAL_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/linkedup`;
-export const ADMIN_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/postgres`;
 const PG_BIN = findPgBin();
 // Per-checkout tag: /tmp is shared across sandboxes and checkouts, and the
 // record must never be confused between two trees (its root is identity).
@@ -90,14 +87,6 @@ const DEV_META_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.json
 const READINESS_TIMEOUT_MS = 600_000;
 /** Strings in served HTML that mean the stack left keyless mode (key set, secret missing). */
 const KEYLESS_FAILURE_MARKERS = ["Missing secretKey", "Application not found"];
-
-function readPort(value, fallback) {
-  const port = Number(value ?? fallback);
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-    die(`invalid port ${JSON.stringify(value)} (need an integer in 1..65535)`);
-  }
-  return port;
-}
 
 /** Directories that may hold PostgreSQL server binaries, newest major first. */
 export function pgBinCandidates(pathEnv = process.env.PATH ?? "") {
@@ -232,15 +221,24 @@ export function classifyServerIdentity({ meta, cmdline, cwd, root, port }) {
 }
 
 /** True when meta records exactly the configuration dev:up would start now. */
-export function metaMatchesExpectation(meta, { port, root, databaseUrl }) {
+export function metaMatchesExpectation(meta, { port, root, databaseUrl, journeyProof = false }) {
   return Boolean(
     meta &&
       meta.kind === "linkedup-dev-server" &&
       meta.port === port &&
       meta.root === root &&
-      meta.databaseUrl === databaseUrl,
+      meta.databaseUrl === databaseUrl &&
+      // next.config.mjs reads the flag once at startup, so a server started
+      // without it cannot serve the journey-proof path, and vice versa.
+      Boolean(meta.journeyProof) === Boolean(journeyProof),
   );
 }
+
+/**
+ * LINKEDUP_JOURNEY_PROOF=1 turns on the labelled journey-proof path
+ * (next.config.mjs, src/app/journey-proof/). Only the e2e journeys set it.
+ */
+const JOURNEY_PROOF = process.env.LINKEDUP_JOURNEY_PROOF === "1";
 
 /**
  * The dev server's environment: an isolated, verified local configuration.
@@ -632,6 +630,7 @@ async function startDevServer() {
     port: APP_PORT,
     root: ROOT,
     databaseUrl: LOCAL_DATABASE_URL,
+    journeyProof: JOURNEY_PROOF,
     startedAt: new Date().toISOString(),
   };
   writeFileSync(DEV_META_PATH, JSON.stringify(meta, null, 2));
@@ -757,6 +756,7 @@ async function ensureDevServer() {
       port: APP_PORT,
       root: ROOT,
       databaseUrl: LOCAL_DATABASE_URL,
+      journeyProof: JOURNEY_PROOF,
     })) {
       log(`healthy dev server already on :${APP_PORT} — reusing it`);
       return;
@@ -833,8 +833,6 @@ async function main() {
   log(`done. app: http://localhost:${APP_PORT} · db: ${LOCAL_DATABASE_URL}`);
 }
 
-// No top-level await: tests load this module's constants through
-// require(esm) (tests/stack-db.ts), which refuses modules that use it.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => die(err.stack || err.message));
 }

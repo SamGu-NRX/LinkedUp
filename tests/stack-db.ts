@@ -11,7 +11,7 @@
 //      other server) bound to the same port is refused too.
 import fs from "node:fs";
 import postgres from "postgres";
-import { LOCAL_DATABASE_URL, PG_DATA_DIR } from "../scripts/dev-up.mjs";
+import { LOCAL_DATABASE_URL, PG_DATA_DIR } from "../scripts/stack-paths.cjs";
 
 /** Where a URL points, without its credentials. */
 function describeUrl(url: string): string {
