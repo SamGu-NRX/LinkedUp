@@ -2,19 +2,27 @@
 //
 // The journeys assert on REAL state: the users row an onboarding run wrote,
 // the queue entries the matcher flipped, the room the pair landed in. The
-// test process talks to the same local Postgres the dev stack uses.
+// test process talks only to the stack's own Postgres (tests/stack-db.ts):
+// an inherited DATABASE_URL pointing elsewhere is refused at import, and
+// the first query confirms the server is this checkout's cluster.
 import { Pool, type QueryResultRow } from "pg";
+import { assertStackCluster, stackDatabaseUrl } from "../../stack-db";
 
-const connectionString =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@localhost:5432/linkedup";
+const connectionString = stackDatabaseUrl();
 
 export const dbPool = new Pool({ connectionString });
+
+let verified: Promise<void> | null = null;
+function stackVerified(): Promise<void> {
+  verified ??= assertStackCluster(connectionString);
+  return verified;
+}
 
 export async function one<T extends QueryResultRow>(
   sql: string,
   params: unknown[],
 ): Promise<T | null> {
+  await stackVerified();
   const res = await dbPool.query<T>(sql, params);
   return res.rows[0] ?? null;
 }
@@ -23,6 +31,7 @@ export async function many<T extends QueryResultRow>(
   sql: string,
   params: unknown[],
 ): Promise<T[]> {
+  await stackVerified();
   const res = await dbPool.query<T>(sql, params);
   return res.rows;
 }

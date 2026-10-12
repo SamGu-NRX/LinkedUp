@@ -51,6 +51,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -832,6 +833,8 @@ async function main() {
   log(`done. app: http://localhost:${APP_PORT} · db: ${LOCAL_DATABASE_URL}`);
 }
 
-if (process.argv[1] && import.meta.url === (await import("node:url")).pathToFileURL(process.argv[1]).href) {
+// No top-level await: tests load this module's constants through
+// require(esm) (tests/stack-db.ts), which refuses modules that use it.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => die(err.stack || err.message));
 }

@@ -19,14 +19,10 @@
  */
 import { eq, inArray } from "drizzle-orm";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
-import { LOCAL_DATABASE_URL } from "../../scripts/dev-up.mjs";
+// Pins DATABASE_URL to the dev-up stack's database and refuses any other.
+import "./support/use-stack-db";
 
-// The db module throws without DATABASE_URL; under vitest nothing loads
-// .env.local, so default to the canonical dev-up URL (which honours
-// LINKEDUP_PG_PORT — the running stack's port override).
-process.env.DATABASE_URL ??= LOCAL_DATABASE_URL;
-
-// Dynamic imports: @/db must evaluate only after DATABASE_URL is set above.
+// Dynamic imports: @/db must evaluate only after DATABASE_URL is pinned.
 const { getRoomForUser, endRoom, queueStateForUser } = await import("@/lib/matching");
 const { db } = await import("@/db");
 const { users, rooms, queueEntries } = await import("@/db/schema");
