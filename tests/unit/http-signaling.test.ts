@@ -101,7 +101,11 @@ async function tick(ms = POLL_MS) {
   await vi.advanceTimersByTimeAsync(ms);
 }
 
-beforeEach(() => vi.useFakeTimers());
+// performance is faked too: the adapter times stalls on the monotonic clock,
+// and vi.setSystemTime moves only the wall clock.
+beforeEach(() =>
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date", "performance"] }),
+);
 afterEach(() => vi.useRealTimers());
 
 describe("joining", () => {
@@ -317,6 +321,64 @@ describe("a send the server did not store", () => {
     candidates(conn, 0, 1);
     await tick(2000);
     expect(sentCandidates(ep)).toEqual(["c0"]);
+  });
+});
+
+describe("every non-2xx answer the route can give to a poll", () => {
+  // From src/app/api/call/signal/route.ts and MeshError's statuses in mesh.ts.
+  const refusals: Array<[number, string]> = [
+    [400, "VALIDATION"],
+    [401, "UNAUTHORIZED"],
+    [403, "FORBIDDEN"],
+    [409, "CALL_FULL"],
+    [410, "ROOM_ENDED"],
+    [413, "VALIDATION"],
+    [415, "VALIDATION"],
+  ];
+  const transient: Array<[number, string | null]> = [
+    [429, "RATE_LIMITED"],
+    [429, "SIGNAL_QUEUE_FULL"],
+    [503, "RETRY"],
+    [500, null],
+    [502, null],
+  ];
+  const answering = (status: number, code: string | null) => {
+    const ep = fakeEndpoint();
+    let n = 0;
+    ep.setPoll(() => (++n === 1 ? alive([]) : { status, json: code ? { code, message: `${code} answer` } : undefined }));
+    return ep;
+  };
+
+  it.each(refusals)("%i %s is a refusal: rejected at once", async (status, code) => {
+    const rec = recorder();
+    open(answering(status, code), rec);
+    await tick(0);
+    await tick();
+    expect(rec.closed).toEqual([{ kind: "rejected", message: `${code} answer` }]);
+  });
+
+  it.each(transient)("%i %s is retried, and only a full stall of them is lost", async (status, code) => {
+    const ep = answering(status, code);
+    const rec = recorder();
+    open(ep, rec);
+    await tick(0);
+    await tick(POLL_STALL_MS - 500);
+    expect(rec.closed, "nothing before the stall").toEqual([]);
+    expect(ep.ops("poll").length, "polling went on").toBeGreaterThan(10);
+    await tick(1000);
+    expect(rec.closed).toEqual([{ kind: "lost", message: "the call service stopped answering" }]);
+  });
+
+  it("a wall-clock jump during failing polls is not a stall", async () => {
+    const ep = answering(503, "RETRY");
+    const rec = recorder();
+    open(ep, rec);
+    await tick(0);
+    await tick(POLL_MS);
+    // The machine's clock steps forward a minute; no time passes for the page.
+    vi.setSystemTime(Date.now() + 60_000);
+    await tick(POLL_MS * 2);
+    expect(rec.closed).toEqual([]);
   });
 });
 

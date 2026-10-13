@@ -53,6 +53,14 @@ export const UNKNOWN_SENDER_HOLD_MS = 5000;
 export const SEND_ATTEMPTS = 4;
 export const SEND_RETRY_MS = 150;
 
+/**
+ * Elapsed time for stalls and holds comes from the monotonic clock. The wall
+ * clock can step: a step forward made one failed poll look like six seconds
+ * of silence (H-01 on a loaded machine, both browsers at the same moment,
+ * about 2 s into the call).
+ */
+const monotonic = () => performance.now();
+
 /** Codes that mean "asking again gets the same answer". */
 const REFUSALS = new Set(["UNAUTHORIZED", "FORBIDDEN", "VALIDATION", "ROOM_ENDED", "CALL_FULL"]);
 
@@ -138,7 +146,7 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
       const held = new Map<number, { row: InboundSignal; since: number }>();
       let pendingAck: number[] = [];
       let pollTimer: ReturnType<typeof setTimeout> | null = null;
-      let lastPollOk = Date.now();
+      let lastPollOk = monotonic();
       const outbox: Array<{ to: string; signal: P2PSignal }> = [];
       let flushing = false;
 
@@ -199,7 +207,7 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
           // A peer's first offer can arrive before presence shows the peer:
           // hold it until presence does.
           if (!known) {
-            if (!held.has(row.id)) held.set(row.id, { row, since: Date.now() });
+            if (!held.has(row.id)) held.set(row.id, { row, since: monotonic() });
             continue;
           }
           held.delete(row.id);
@@ -212,7 +220,7 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
       };
 
       const dropUnclaimed = () => {
-        const now = Date.now();
+        const now = monotonic();
         for (const [id, h] of held) {
           if (now - h.since <= UNKNOWN_SENDER_HOLD_MS) continue;
           held.delete(id);
@@ -229,7 +237,7 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
         try {
           const result = await call<PollResult>({ op: "poll", roomId, sessionId, ack });
           if (closed) return;
-          lastPollOk = Date.now();
+          lastPollOk = monotonic();
           pendingAck = pendingAck.slice(ack.length);
           if (!result.alive) {
             if (result.reason === "replaced") report({ kind: "replaced", message: "This call is open in another window or tab." });
@@ -247,7 +255,7 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
             return;
           }
           // A failed poll is retried; only a long run of them is a lost connection.
-          if (Date.now() - lastPollOk > POLL_STALL_MS) {
+          if (monotonic() - lastPollOk > POLL_STALL_MS) {
             report({ kind: "lost", message: "the call service stopped answering" });
             return;
           }
@@ -298,7 +306,7 @@ export function httpSignaling(options: HttpSignalingOptions): SignalingAdapter {
           return;
         }
         joined = true;
-        lastPollOk = Date.now();
+        lastPollOk = monotonic();
         await poll();
       })();
 
