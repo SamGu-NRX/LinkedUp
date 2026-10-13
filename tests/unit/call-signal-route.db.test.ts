@@ -96,3 +96,43 @@ describe("mesh answers", () => {
     expect((refused.body as { message?: string }).message).toMatch(/not in this call/);
   });
 });
+
+describe("the order of the front door", () => {
+  it("answers a signed-out caller 401 before looking at an oversized body", async () => {
+    clerk.userId = null;
+    const res = await POST(request(null, { raw: JSON.stringify({ pad: "x".repeat(200 * 1024) }) }));
+    expect(res.status).toBe(401);
+  });
+
+  it("stops reading a streamed body at the cap", async () => {
+    clerk.userId = memberClerkId;
+    const CHUNK = 16 * 1024;
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 640) controller.close();
+        else controller.enqueue(new Uint8Array(CHUNK).fill(32));
+      },
+    });
+    const req = new NextRequest(`${ORIGIN}/api/call/signal`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: ORIGIN },
+      body,
+      duplex: "half",
+    } as ConstructorParameters<typeof NextRequest>[1] & { duplex: "half" });
+    const res = await POST(req);
+    expect(res.status).toBe(413);
+    // 96 KB is six chunks; the stream may run a few ahead, never to its 10 MB end.
+    expect(pulled).toBeLessThan(20);
+  });
+
+  it("refuses a room member who has not finished onboarding", async () => {
+    const clerkId = `${PREFIX}unonboarded_${Date.now()}`;
+    const [row] = await db.insert(users).values({ clerkId, email: `${clerkId}@witness.local`, onboardingComplete: false }).returning({ id: users.id });
+    const [room2] = await db.insert(rooms).values({ queueType: "casual", status: "active", user1Id: row.id, user2Id: row.id }).returning({ id: rooms.id });
+    clerk.userId = clerkId;
+    const res = await answer(request({ op: "join", roomId: room2.id, sessionId: "unonboarded-1" }));
+    expect(res).toMatchObject({ status: 403, body: { code: "FORBIDDEN" } });
+  });
+});

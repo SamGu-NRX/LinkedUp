@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   POLL_MS,
   POLL_STALL_MS,
+  SEND_ATTEMPTS,
   UNKNOWN_SENDER_HOLD_MS,
   httpSignaling,
 } from "@/lib/call/transports/p2p/http-signaling";
@@ -23,6 +24,8 @@ function fakeEndpoint() {
   let pollReply: () => Reply = () => ({ status: 200, json: { alive: true, presence: [], signals: [] } });
   let joinReply: Reply = { status: 200, json: { sessionId: SELF, participantId: "1" } };
   let sendGate: Promise<void> | null = null;
+  /** Answers for the next sends, in order; afterwards sends succeed. */
+  const sendReplies: Reply[] = [];
   const fetchFn = (async (_url: string, init: RequestInit) => {
     const body = JSON.parse(String(init.body)) as Body;
     requests.push({ body, keepalive: Boolean(init.keepalive) });
@@ -31,7 +34,7 @@ function fakeEndpoint() {
     if (body.op === "poll") reply = pollReply();
     if (body.op === "send") {
       if (sendGate) await sendGate;
-      reply = { status: 200, json: { delivered: (body.signals as unknown[]).map(() => true) } };
+      reply = sendReplies.shift() ?? { status: 200, json: { delivered: (body.signals as unknown[]).map(() => true) } };
     }
     if (reply instanceof Error) throw reply;
     return new Response(JSON.stringify(reply.json ?? {}), { status: reply.status });
@@ -42,6 +45,7 @@ function fakeEndpoint() {
     ops: (op: string) => requests.filter((r) => r.body.op === op),
     setPoll: (fn: () => Reply) => (pollReply = fn),
     setJoin: (r: Reply) => (joinReply = r),
+    failSends: (...replies: Reply[]) => sendReplies.push(...replies),
     gateSends: () => {
       let open!: () => void;
       sendGate = new Promise((r) => (open = r));
@@ -97,7 +101,11 @@ async function tick(ms = POLL_MS) {
   await vi.advanceTimersByTimeAsync(ms);
 }
 
-beforeEach(() => vi.useFakeTimers());
+// performance is faked too: the adapter times stalls on the monotonic clock,
+// and vi.setSystemTime moves only the wall clock.
+beforeEach(() =>
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date", "performance"] }),
+);
 afterEach(() => vi.useRealTimers());
 
 describe("joining", () => {
@@ -265,6 +273,112 @@ describe("signals", () => {
       }),
     );
     expect(order).toEqual(Array.from({ length: total }, (_, i) => `c${i}`));
+  });
+});
+
+describe("a send the server did not store", () => {
+  const candidates = (conn: { send: (to: string, s: never) => void }, from: number, n: number) => {
+    for (let i = from; i < from + n; i++) conn.send("2", { candidate: { candidate: `c${i}`, sdpMid: "0", sdpMLineIndex: 0 } } as never);
+  };
+  const sentCandidates = (ep: ReturnType<typeof fakeEndpoint>) =>
+    ep.ops("send").flatMap((r) => (r.body.signals as Array<{ signal: { candidate: string } }>).map((x) => x.signal.candidate));
+
+  it("retries a send the server aborted (503) and keeps the order of later sends", async () => {
+    const ep = fakeEndpoint();
+    ep.setPoll(() => alive([peer("2", "peer-session-0002")]));
+    const rec = recorder();
+    const conn = open(ep, rec);
+    await tick(0);
+    ep.failSends({ status: 503, json: { code: "RETRY", message: "busy" } });
+    candidates(conn, 0, 1);
+    candidates(conn, 1, 2);
+    await tick(2000);
+    // c0 was tried twice (aborted, then stored); c1 and c2 went after it.
+    expect(sentCandidates(ep)).toEqual(["c0", "c0", "c1", "c2"]);
+  });
+
+  it("retries a send the network lost, up to SEND_ATTEMPTS, then moves on", async () => {
+    const ep = fakeEndpoint();
+    ep.setPoll(() => alive([peer("2", "peer-session-0002")]));
+    const rec = recorder();
+    const conn = open(ep, rec);
+    await tick(0);
+    ep.failSends(...Array.from({ length: SEND_ATTEMPTS }, () => new TypeError("Failed to fetch") as Reply));
+    candidates(conn, 0, 1);
+    await tick(5000);
+    candidates(conn, 1, 1);
+    await tick(1000);
+    expect(sentCandidates(ep)).toEqual([...Array.from({ length: SEND_ATTEMPTS }, () => "c0"), "c1"]);
+  });
+
+  it("does not retry a refusal", async () => {
+    const ep = fakeEndpoint();
+    ep.setPoll(() => alive([peer("2", "peer-session-0002")]));
+    const rec = recorder();
+    const conn = open(ep, rec);
+    await tick(0);
+    ep.failSends({ status: 429, json: { code: "SIGNAL_QUEUE_FULL", message: "full" } });
+    candidates(conn, 0, 1);
+    await tick(2000);
+    expect(sentCandidates(ep)).toEqual(["c0"]);
+  });
+});
+
+describe("every non-2xx answer the route can give to a poll", () => {
+  // From src/app/api/call/signal/route.ts and MeshError's statuses in mesh.ts.
+  const refusals: Array<[number, string]> = [
+    [400, "VALIDATION"],
+    [401, "UNAUTHORIZED"],
+    [403, "FORBIDDEN"],
+    [409, "CALL_FULL"],
+    [410, "ROOM_ENDED"],
+    [413, "VALIDATION"],
+    [415, "VALIDATION"],
+  ];
+  const transient: Array<[number, string | null]> = [
+    [429, "RATE_LIMITED"],
+    [429, "SIGNAL_QUEUE_FULL"],
+    [503, "RETRY"],
+    [500, null],
+    [502, null],
+  ];
+  const answering = (status: number, code: string | null) => {
+    const ep = fakeEndpoint();
+    let n = 0;
+    ep.setPoll(() => (++n === 1 ? alive([]) : { status, json: code ? { code, message: `${code} answer` } : undefined }));
+    return ep;
+  };
+
+  it.each(refusals)("%i %s is a refusal: rejected at once", async (status, code) => {
+    const rec = recorder();
+    open(answering(status, code), rec);
+    await tick(0);
+    await tick();
+    expect(rec.closed).toEqual([{ kind: "rejected", message: `${code} answer` }]);
+  });
+
+  it.each(transient)("%i %s is retried, and only a full stall of them is lost", async (status, code) => {
+    const ep = answering(status, code);
+    const rec = recorder();
+    open(ep, rec);
+    await tick(0);
+    await tick(POLL_STALL_MS - 500);
+    expect(rec.closed, "nothing before the stall").toEqual([]);
+    expect(ep.ops("poll").length, "polling went on").toBeGreaterThan(10);
+    await tick(1000);
+    expect(rec.closed).toEqual([{ kind: "lost", message: "the call service stopped answering" }]);
+  });
+
+  it("a wall-clock jump during failing polls is not a stall", async () => {
+    const ep = answering(503, "RETRY");
+    const rec = recorder();
+    open(ep, rec);
+    await tick(0);
+    await tick(POLL_MS);
+    // The machine's clock steps forward a minute; no time passes for the page.
+    vi.setSystemTime(Date.now() + 60_000);
+    await tick(POLL_MS * 2);
+    expect(rec.closed).toEqual([]);
   });
 });
 

@@ -104,17 +104,27 @@ export async function queueJoin(options: {
   await releaseEndedRoomEntries(now);
 
   // Already waiting or matched? Report the live state instead of double-joining.
-  const existing = await db.query.queueEntries.findFirst({
-    where: and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ["waiting", "matched"])),
-  });
-  if (existing?.status === "waiting" && existing.queueType === queueType) {
-    return { status: "waiting" };
-  }
-  if (existing?.status === "matched" && existing.roomId) {
-    return { status: "matched", roomId: existing.roomId };
-  }
+  const liveState = async () => {
+    const existing = await db.query.queueEntries.findFirst({
+      where: and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ["waiting", "matched"])),
+    });
+    if (existing?.status === "waiting") return { status: "waiting" as const };
+    if (existing?.status === "matched" && existing.roomId) return { status: "matched" as const, roomId: existing.roomId };
+    return null;
+  };
+  const before = await liveState();
+  if (before) return before;
 
-  await db.insert(queueEntries).values({ userId, queueType, status: "waiting", joinedAt: now, lastSeenAt: now });
+  // One live entry per person, waiting or matched, is a unique index
+  // (queue_entries_user_live_unique). Two joins that both found nothing
+  // above race here; the loser inserts nothing and reports the winner's
+  // entry, instead of becoming a second entry that pairs into a second room.
+  const inserted = await db
+    .insert(queueEntries)
+    .values({ userId, queueType, status: "waiting", joinedAt: now, lastSeenAt: now })
+    .onConflictDoNothing()
+    .returning({ id: queueEntries.id });
+  if (inserted.length === 0) return (await liveState()) ?? { status: "waiting" };
 
   // Try to pair immediately (our own entry can be the second member).
   const paired = await pairIfPartnerWaiting(queueType, now);
@@ -258,13 +268,13 @@ export async function getRoomForUser(clerkUserId: string, roomId: string): Promi
   const me = await db.query.users.findFirst({ where: eq(users.clerkId, clerkUserId) });
   if (!me) return { allowed: false, reason: "not_a_participant" };
 
+  // Membership first: someone outside a room learns nothing about it, not
+  // even whether it exists or has ended.
   const room = await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) });
-  if (!room) return { allowed: false, reason: "room_not_found" };
-  if (room.status !== "active") return { allowed: false, reason: "room_ended" };
-
-  if (room.user1Id !== me.id && room.user2Id !== me.id) {
+  if (!room || (room.user1Id !== me.id && room.user2Id !== me.id)) {
     return { allowed: false, reason: "not_a_participant" };
   }
+  if (room.status !== "active") return { allowed: false, reason: "room_ended" };
 
   const partnerId = room.user1Id === me.id ? room.user2Id : room.user1Id;
   const partner = await db.query.users.findFirst({ where: eq(users.id, partnerId) });

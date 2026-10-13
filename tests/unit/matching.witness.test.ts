@@ -526,3 +526,29 @@ describe("professional queue pairing contract", () => {
     expect(accessB.allowed).toBe(true);
   }, 60_000);
 });
+
+describe("one person, two joins at once", () => {
+  it("never makes two live entries or two active rooms for the same person", async () => {
+    const problems: string[] = [];
+    for (let round = 0; round < 20; round += 1) {
+      const x = await makeUser(`twice${round}_x`);
+      const y = await makeUser(`twice${round}_y`);
+      await queueJoin({ userId: y.id, queueType: "casual" });
+      // X presses join twice at the same moment, on two connections.
+      const results = await Promise.allSettled([
+        queueJoin({ userId: x.id, queueType: "casual" }),
+        queueJoin({ userId: x.id, queueType: "casual" }),
+      ]);
+      for (const r of results) if (r.status === "rejected") problems.push(`round ${round}: ${String(r.reason?.message).slice(0, 60)}`);
+      // Someone else joins after: X must not pair a second time.
+      const w = await makeUser(`twice${round}_w`);
+      await queueJoin({ userId: w.id, queueType: "casual" });
+      const live = await liveEntriesFor(x.id);
+      if (live.length > 1) problems.push(`round ${round}: ${live.length} live entries`);
+      const active = (await roomsFor([x.id])).filter((r) => r.status === "active");
+      if (active.length > 1) problems.push(`round ${round}: ${active.length} active rooms`);
+      await deleteWitnessRows();
+    }
+    expect(problems).toEqual([]);
+  }, 120_000);
+});

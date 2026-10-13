@@ -3,9 +3,10 @@
 // One POST per operation (join, poll, send, state, leave), all behind Clerk:
 // the signed-in user is mapped to their users row and src/lib/call/mesh.ts
 // checks them against the room on every call. Requests must be same-origin
-// JSON under MAX_BODY_BYTES, which also stops a cross-site form post from
-// riding the session cookie (a form cannot send application/json, and a
-// cross-origin fetch carries a foreign Origin).
+// JSON, which stops a cross-site form post from riding the session cookie
+// (a form cannot send application/json, and a cross-origin fetch carries a
+// foreign Origin). The caller is authenticated and onboarded before the
+// body is read, and the body is read only up to MAX_BODY_BYTES.
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
@@ -52,6 +53,31 @@ const requestSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("leave"), roomId: roomIdSchema, sessionId: sessionIdSchema }),
 ]);
 
+/**
+ * The body as text, or null once it passes `max` bytes. Counts bytes as
+ * they arrive and stops reading there, so an oversized body (declared or
+ * streamed without a length) is never buffered whole.
+ */
+async function readCapped(request: NextRequest, max: number): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > max) return null;
+  const reader = request.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 function refuse(code: string, message: string, status: number) {
   return NextResponse.json({ code, message }, { status });
 }
@@ -64,15 +90,22 @@ export async function POST(request: NextRequest) {
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return refuse("VALIDATION", "Send JSON.", 415);
   }
-  const raw = await request.text();
-  if (Buffer.byteLength(raw) > MAX_BODY_BYTES) {
-    return refuse("VALIDATION", `Requests are limited to ${MAX_BODY_BYTES} bytes.`, 413);
-  }
 
+  // Who is asking comes before reading anything they sent.
   const { userId: clerkId } = await auth();
   if (!clerkId) return refuse("UNAUTHORIZED", "Sign in to join this call.", 401);
-  const [me] = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId)).limit(1);
+  const [me] = await db
+    .select({ id: users.id, onboardingComplete: users.onboardingComplete })
+    .from(users)
+    .where(eq(users.clerkId, clerkId))
+    .limit(1);
   if (!me) return refuse("FORBIDDEN", "You're not in this call. Only the two people matched into a room can join it.", 403);
+  // The database onboarding gate, as the call pages apply it: the
+  // journey-proof alias reaches this route without the middleware's check.
+  if (!me.onboardingComplete) return refuse("FORBIDDEN", "Finish onboarding before joining a call.", 403);
+
+  const raw = await readCapped(request, MAX_BODY_BYTES);
+  if (raw === null) return refuse("VALIDATION", `Requests are limited to ${MAX_BODY_BYTES} bytes.`, 413);
 
   let body: z.infer<typeof requestSchema>;
   try {
@@ -99,6 +132,10 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     if (error instanceof MeshError) return refuse(error.code, error.message, error.status);
+    // A transaction Postgres aborted to break a deadlock or a serialization
+    // conflict did nothing: the client may send it again.
+    const pgCode = (error as { code?: string } | null)?.code;
+    if (pgCode === "40P01" || pgCode === "40001") return refuse("RETRY", "The call service was busy. Try again.", 503);
     if (error instanceof z.ZodError) return refuse("VALIDATION", error.issues[0]?.message ?? "Bad request", 400);
     throw error;
   }

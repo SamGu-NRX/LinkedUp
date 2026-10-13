@@ -55,6 +55,43 @@ export const SIGNAL_QUEUE_LIMIT = 100;
  */
 export const SIGNAL_RATE_LIMIT = { windowMs: 10_000, maxRequests: 200 };
 
+/**
+ * One person's budget across all their sessions and rooms, in units per
+ * window: a poll or a media-state write costs 1, a join joinCost, a send one
+ * per signal; leaving is free. One tab polls 40 times in 10 s and sends
+ * about 25 signals while connecting, so 300 leaves room for a reconnect or
+ * two. The per-session send limit still applies inside it. These numbers
+ * are judgments; no run has measured real traffic.
+ */
+export const USER_BUDGET = { windowMs: 10_000, maxUnits: 300, joinCost: 5 };
+
+/**
+ * Charge the caller's budget; RATE_LIMITED once the window's units are
+ * spent. One upsert, run before anything else an operation does.
+ */
+async function spendBudget(userId: number, cost: number, now: Date): Promise<void> {
+  const windowStart = new Date(now.getTime() - USER_BUDGET.windowMs).toISOString();
+  const nowIso = now.toISOString();
+  const [row] = await db.execute<{ used: number }>(sql`
+    INSERT INTO call_user_budgets (user_id, window_start, used)
+    VALUES (${userId}, ${nowIso}::timestamptz, ${cost})
+    ON CONFLICT (user_id) DO UPDATE SET
+      used = CASE WHEN call_user_budgets.window_start <= ${windowStart}::timestamptz
+                    OR call_user_budgets.window_start > ${nowIso}::timestamptz
+                  THEN ${cost} ELSE call_user_budgets.used + ${cost} END,
+      window_start = CASE WHEN call_user_budgets.window_start <= ${windowStart}::timestamptz
+                            OR call_user_budgets.window_start > ${nowIso}::timestamptz
+                          THEN ${nowIso}::timestamptz ELSE call_user_budgets.window_start END
+    RETURNING used
+  `);
+  if (row.used > USER_BUDGET.maxUnits) {
+    throw new MeshError(
+      "RATE_LIMITED",
+      `Too many call requests: more than ${USER_BUDGET.maxUnits} in ${USER_BUDGET.windowMs / 1000} s. Wait a moment.`,
+    );
+  }
+}
+
 /** Joins one user may make in one room per minute: a reload loop, not a call, exceeds it. */
 export const JOIN_RATE_LIMIT = { windowMs: 60_000, maxRequests: 20 };
 
@@ -73,6 +110,17 @@ export const SIGNAL_SIZE_LIMITS = {
 /** Rows one sweep or cleanup batch touches before reporting `more`. */
 export const SWEEP_BATCH = 200;
 export const CLEANUP_BATCH = 500;
+/**
+ * Maintenance (the global stale-session sweep and cleanup) runs at most once
+ * per interval across all rooms and servers, claimed by whichever poll comes
+ * first, and each run goes on in bounded batches until caught up or until
+ * MAINTENANCE_MAX_BATCHES, after which the next poll continues at once. The
+ * interval is a judgment: rows retained 30 s longer cost nothing, and one
+ * claim per 30 s is negligible against four polls a second per person.
+ */
+export const MAINTENANCE_INTERVAL_MS = 30_000;
+export const MAINTENANCE_MAX_BATCHES = 20;
+
 /** Read signals and closed sessions are kept this long, then deleted. */
 export const SIGNAL_RETENTION_MS = 10 * 60_000;
 export const SESSION_RETENTION_MS = 60 * 60_000;
@@ -193,12 +241,30 @@ function unreadSignals(exec: Exec, roomId: string, sessionId: string) {
  * Close a session. Its unread signals can never be read, so they are marked
  * read; the queue is capped, so that is the whole of it. Only an open
  * session changes: closing twice keeps the first reason.
+ *
+ * `staleBefore` makes the close conditional on the heartbeat, in the UPDATE
+ * itself: a sweep reads sessions as stale, and a poll's heartbeat can land
+ * before the sweep's UPDATE runs. Postgres rechecks the condition on the
+ * row it waited for, so that session stays open, and its signals are left
+ * alone because the UPDATE changed nothing.
  */
-async function close(exec: Exec, session: SessionRow, reason: CloseReason, now: Date): Promise<void> {
+async function close(
+  exec: Exec,
+  session: SessionRow,
+  reason: CloseReason,
+  now: Date,
+  staleBefore?: Date,
+): Promise<void> {
   const closed = await exec
     .update(callSessions)
     .set({ state: "closed", closedReason: reason, updatedAt: now })
-    .where(and(eq(callSessions.id, session.id), eq(callSessions.state, "open")))
+    .where(
+      and(
+        eq(callSessions.id, session.id),
+        eq(callSessions.state, "open"),
+        staleBefore ? lt(callSessions.lastHeartbeatAt, staleBefore) : undefined,
+      ),
+    )
     .returning({ id: callSessions.id });
   if (closed.length === 0) return;
   const unread = await unreadSignals(exec, session.roomId, session.sessionId);
@@ -212,9 +278,9 @@ async function close(exec: Exec, session: SessionRow, reason: CloseReason, now: 
 
 /** Close open sessions in one room whose polls stopped. */
 async function sweepRoom(exec: Exec, roomId: string, now: Date): Promise<void> {
-  const cutoff = now.getTime() - HEARTBEAT_EXPIRY_MS;
+  const cutoff = new Date(now.getTime() - HEARTBEAT_EXPIRY_MS);
   for (const session of await openSessions(exec, roomId)) {
-    if (session.lastHeartbeatAt.getTime() < cutoff) await close(exec, session, "expired", now);
+    if (session.lastHeartbeatAt < cutoff) await close(exec, session, "expired", now, cutoff);
   }
 }
 
@@ -237,6 +303,7 @@ export async function joinCall(
   now: Date = new Date(),
 ): Promise<{ sessionId: string; participantId: string }> {
   const sid = sessionIdSchema.parse(sessionId);
+  await spendBudget(userId, USER_BUDGET.joinCost, now);
   const joined = await db.transaction(async (tx) => {
     const room = await memberRoom(tx, roomId, userId, true);
     if (room.status !== "active") throw new MeshError("ROOM_ENDED", "This call has ended.");
@@ -284,10 +351,7 @@ export async function joinCall(
     });
     return { sessionId: sid, participantId: participantIdOf(userId) };
   });
-  // Housekeeping rides on joins: one bounded batch each, the next join
-  // continues if a batch came back full.
-  await sweepStaleSessions(now);
-  await cleanupCallData(now);
+  await runMaintenanceIfDue(now);
   return joined;
 }
 
@@ -305,6 +369,7 @@ export async function pollCall(
   now: Date = new Date(),
 ): Promise<PollResult> {
   const sid = sessionIdSchema.parse(sessionId);
+  await spendBudget(userId, 1, now);
   const room = await memberRoom(db, roomId, userId);
   const session = await ownSession(db, roomId, sid, userId);
   if (session.state !== "open") return { alive: false, reason: (session.closedReason as CloseReason) ?? "expired" };
@@ -352,6 +417,7 @@ export async function pollCall(
     fromParticipantId: participantIdOf(row.fromUserId),
     signal: row.payload as WireSignal,
   }));
+  await runMaintenanceIfDue(now);
   return { alive: true, presence, signals };
 }
 
@@ -374,10 +440,13 @@ export async function sendSignals(
     sessionIdSchema.parse(item.toSessionId);
     checkSignalSize(item.signal);
   }
-  const room = await memberRoom(db, roomId, userId);
-  if (room.status !== "active") throw new MeshError("ROOM_ENDED", "This call has ended.");
-
+  await spendBudget(userId, batch.length, now);
   return db.transaction(async (tx) => {
+    // Lock order, as in joinCall: the room row first, then sessions. Without
+    // it an A->B send (A's row, then B's) and a B->A send (B's, then A's)
+    // each held one lock the other needed, and Postgres aborted one.
+    const room = await memberRoom(tx, roomId, userId, true);
+    if (room.status !== "active") throw new MeshError("ROOM_ENDED", "This call has ended.");
     const sender = await ownSession(tx, roomId, from, userId, true);
     if (sender.state !== "open") return { delivered: batch.map(() => false) };
 
@@ -441,6 +510,7 @@ export async function setMediaState(
   now: Date = new Date(),
 ): Promise<void> {
   const sid = sessionIdSchema.parse(sessionId);
+  await spendBudget(userId, 1, now);
   await memberRoom(db, roomId, userId);
   const session = await ownSession(db, roomId, sid, userId);
   if (session.state !== "open") return;
@@ -464,18 +534,14 @@ export async function leaveCall(userId: number, roomId: string, sessionId: strin
  * batch came back and another run should follow.
  */
 export async function sweepStaleSessions(now: Date = new Date()): Promise<{ closed: number; more: boolean }> {
+  const cutoff = new Date(now.getTime() - HEARTBEAT_EXPIRY_MS);
   const stale = await db
     .select()
     .from(callSessions)
-    .where(
-      and(
-        eq(callSessions.state, "open"),
-        lt(callSessions.lastHeartbeatAt, new Date(now.getTime() - HEARTBEAT_EXPIRY_MS)),
-      ),
-    )
+    .where(and(eq(callSessions.state, "open"), lt(callSessions.lastHeartbeatAt, cutoff)))
     .orderBy(asc(callSessions.lastHeartbeatAt))
     .limit(SWEEP_BATCH);
-  for (const session of stale) await close(db, session, "expired", now);
+  for (const session of stale) await close(db, session, "expired", now, cutoff);
   return { closed: stale.length, more: stale.length === SWEEP_BATCH };
 }
 
@@ -505,4 +571,37 @@ export async function cleanupCallData(now: Date = new Date()): Promise<{ signals
     sessions: sessions.length,
     more: signals.length === CLEANUP_BATCH || sessions.length === CLEANUP_BATCH,
   };
+}
+
+/**
+ * Run maintenance if no run has been claimed for MAINTENANCE_INTERVAL_MS.
+ * The claim is one conditional upsert, so concurrent polls run it once. A
+ * claim far in the future (a skewed clock) is treated as stale too. If the
+ * run stops at MAINTENANCE_MAX_BATCHES with work left, the claim is rolled
+ * back to "due", so the next poll continues.
+ */
+export async function runMaintenanceIfDue(
+  now: Date = new Date(),
+): Promise<{ ran: boolean; batches: number; caughtUp: boolean }> {
+  const due = new Date(now.getTime() - MAINTENANCE_INTERVAL_MS).toISOString();
+  const claimed = await db.execute<{ id: number }>(sql`
+    INSERT INTO call_maintenance (id, last_run_at) VALUES (1, ${now.toISOString()}::timestamptz)
+    ON CONFLICT (id) DO UPDATE SET last_run_at = EXCLUDED.last_run_at
+    WHERE call_maintenance.last_run_at < ${due}::timestamptz
+       OR call_maintenance.last_run_at > ${now.toISOString()}::timestamptz
+    RETURNING id
+  `);
+  if (claimed.length === 0) return { ran: false, batches: 0, caughtUp: true };
+  let batches = 0;
+  let more = true;
+  while (more && batches < MAINTENANCE_MAX_BATCHES) {
+    const swept = await sweepStaleSessions(now);
+    const cleaned = await cleanupCallData(now);
+    batches += 1;
+    more = swept.more || cleaned.more;
+  }
+  if (more) {
+    await db.execute(sql`UPDATE call_maintenance SET last_run_at = ${due}::timestamptz WHERE id = 1`);
+  }
+  return { ran: true, batches, caughtUp: !more };
 }

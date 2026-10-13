@@ -11,6 +11,7 @@
 // and /app/call/[id], behind the same DB onboarding gate. Without the flag
 // they 404. Delete this directory once Sam settles the middleware.
 import { notFound } from "next/navigation";
+import { journeyProofEnabled } from "@/lib/journey-proof-guard.mjs";
 
 export const JOURNEY_PROOF_QUEUE = "/onboarding?journey-proof=queue";
 export const JOURNEY_PROOF_CALL_PREFIX = "/onboarding?journey-proof=call&room=";
@@ -18,5 +19,11 @@ export const JOURNEY_PROOF_CALL_PREFIX = "/onboarding?journey-proof=call&room=";
 export const JOURNEY_PROOF_SIGNAL = "/onboarding?journey-proof=signal";
 
 export function requireJourneyProof(): void {
-  if (process.env.LINKEDUP_JOURNEY_PROOF !== "1") notFound();
+  let enabled = false;
+  try {
+    enabled = journeyProofEnabled(process.env);
+  } catch {
+    // Refused (production, Vercel): the pages do not exist.
+  }
+  if (!enabled) notFound();
 }

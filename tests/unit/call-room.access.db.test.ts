@@ -8,7 +8,8 @@
  *   - participants (both directions) are admitted with me/partner taken from
  *     the room record;
  *   - a signed-in non-participant and an unknown user are refused;
- *   - a missing room id is refused as room_not_found;
+ *   - a missing room id is refused as not_a_participant: an outsider learns
+ *     nothing about a room, not even whether it exists;
  *   - reloading while matched duplicates nothing (one room row, one matched
  *     queue entry, same access every read) — reload recovers honestly;
  *   - endRoom is idempotent, and after it both participants' reload refuses
@@ -113,7 +114,7 @@ describe("getRoomForUser — server-side membership check against the real DB", 
 
   it("refuses a missing room id", async () => {
     const access = await getRoomForUser(CLERK_IDS.a, "00000000-0000-0000-0000-000000000000");
-    expect(access).toEqual({ allowed: false, reason: "room_not_found" });
+    expect(access).toEqual({ allowed: false, reason: "not_a_participant" });
   });
 });
 
@@ -154,5 +155,10 @@ describe("endRoom — closed peer leaves an honest ended state (real DB)", () =>
 
     const state = await queueStateForUser(userA.id);
     expect(state.status).toBe("idle");
+  });
+
+  it("tells an outsider nothing about the ended room: not a participant, not ended", async () => {
+    const access = await getRoomForUser(CLERK_IDS.c, room.id);
+    expect(access).toEqual({ allowed: false, reason: "not_a_participant" });
   });
 });

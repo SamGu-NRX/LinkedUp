@@ -114,9 +114,11 @@ export const queueEntries = pgTable(
   },
   (table) => [
     // One live queue slot per user: no double-joining, ever.
-    uniqueIndex("queue_entries_user_waiting_unique")
+    // Waiting and matched both count: a matched person queueing again
+    // must not get a second entry that pairs into a second room.
+    uniqueIndex("queue_entries_user_live_unique")
       .on(table.userId)
-      .where(sql`status = 'waiting'`),
+      .where(sql`status IN ('waiting', 'matched')`),
     // Pairing index: the matcher scans waiting entries by type.
     index("queue_entries_pairing_idx").on(table.queueType, table.status),
   ],
@@ -179,3 +181,24 @@ export const callSignals = pgTable(
     index("call_signals_cleanup_idx").on(table.processed, table.createdAt),
   ],
 );
+
+/**
+ * When call maintenance (the stale-session sweep and cleanup) last ran. One
+ * row; polls race to claim a run (src/lib/call/mesh.ts runMaintenanceIfDue).
+ */
+export const callMaintenance = pgTable("call_maintenance", {
+  id: integer("id").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
+});
+
+/**
+ * One person's signaling spend in the current window, across every session
+ * and room (src/lib/call/mesh.ts spendBudget).
+ */
+export const callUserBudgets = pgTable("call_user_budgets", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  used: integer("used").notNull(),
+});
