@@ -4,10 +4,13 @@
 // concurrency cases use real parallel transactions on separate connections.
 import "./support/use-stack-db";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { like } from "drizzle-orm";
+import { eq, like, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { rooms, users } from "@/db/schema";
+import { callSignals, rooms, users } from "@/db/schema";
 import {
+  CLEANUP_BATCH,
+  MAINTENANCE_INTERVAL_MS,
+  SIGNAL_RETENTION_MS,
   joinCall,
   pollCall,
   sendSignals,
@@ -64,4 +67,48 @@ describe("1. simultaneous sends in both directions", () => {
     }
     expect(failures).toEqual([]);
   }, 60_000);
+});
+
+describe("2. maintenance keeps up without joins", () => {
+  const countRoomSignals = async () =>
+    (await db.select({ n: sql<number>`count(*)::int` }).from(callSignals).where(eq(callSignals.roomId, room)))[0].n;
+
+  it("a poll catches up on a backlog larger than one batch", async () => {
+    const as = sid("a");
+    const t0 = new Date();
+    await joinCall(a, room, as, t0);
+    const old = new Date(t0.getTime() - SIGNAL_RETENTION_MS - 60_000);
+    const row = { roomId: room, fromSessionId: "from-xxxxxxxx", fromUserId: a, toSessionId: "to-xxxxxxxxxx", payload: cand(0), processed: true, createdAt: old };
+    await db.insert(callSignals).values(Array.from({ length: CLEANUP_BATCH * 2 + 250 }, () => row));
+    // Due: the last run was long enough ago.
+    await pollCall(a, room, as, [], new Date(t0.getTime() + MAINTENANCE_INTERVAL_MS + 1000));
+    expect(await countRoomSignals()).toBe(0);
+  }, 60_000);
+
+  it("a long call's signal table stays bounded with no joins after the start", async () => {
+    const as = sid("a");
+    const bs = sid("b");
+    const t0 = new Date();
+    await joinCall(a, room, as, t0);
+    await joinCall(b, room, bs, t0);
+    // Both poll every 6 s (inside the 10 s heartbeat expiry), A sends two
+    // candidates each step (20 a minute), B acknowledges them.
+    const STEP_MS = 6_000;
+    const PER_MINUTE = 20;
+    const MINUTES = 25;
+    let delivered = 0;
+    for (let step = 1; step <= (MINUTES * 60_000) / STEP_MS; step++) {
+      const now = new Date(t0.getTime() + step * STEP_MS);
+      await pollCall(a, room, as, [], now);
+      const polled = await pollCall(b, room, bs, [], now);
+      const sent = await sendSignals(a, room, as, [0, 1].map((i) => ({ toSessionId: bs, signal: cand(i) })), now);
+      delivered += sent.delivered.filter(Boolean).length;
+      if (polled.alive) await pollCall(b, room, bs, polled.signals.map((s) => s.id), now);
+    }
+    expect(delivered, "every signal was stored").toBe(MINUTES * PER_MINUTE);
+    // Read signals live SIGNAL_RETENTION_MS, so about ten minutes' worth
+    // remain (plus one maintenance interval); 25 minutes' would be 500.
+    const retainedMinutes = (SIGNAL_RETENTION_MS + MAINTENANCE_INTERVAL_MS) / 60_000 + 1;
+    expect(await countRoomSignals()).toBeLessThanOrEqual(Math.ceil(retainedMinutes) * PER_MINUTE);
+  }, 600_000);
 });

@@ -179,3 +179,12 @@ export const callSignals = pgTable(
     index("call_signals_cleanup_idx").on(table.processed, table.createdAt),
   ],
 );
+
+/**
+ * When call maintenance (the stale-session sweep and cleanup) last ran. One
+ * row; polls race to claim a run (src/lib/call/mesh.ts runMaintenanceIfDue).
+ */
+export const callMaintenance = pgTable("call_maintenance", {
+  id: integer("id").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
+});

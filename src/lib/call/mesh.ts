@@ -73,6 +73,17 @@ export const SIGNAL_SIZE_LIMITS = {
 /** Rows one sweep or cleanup batch touches before reporting `more`. */
 export const SWEEP_BATCH = 200;
 export const CLEANUP_BATCH = 500;
+/**
+ * Maintenance (the global stale-session sweep and cleanup) runs at most once
+ * per interval across all rooms and servers, claimed by whichever poll comes
+ * first, and each run goes on in bounded batches until caught up or until
+ * MAINTENANCE_MAX_BATCHES, after which the next poll continues at once. The
+ * interval is a judgment: rows retained 30 s longer cost nothing, and one
+ * claim per 30 s is negligible against four polls a second per person.
+ */
+export const MAINTENANCE_INTERVAL_MS = 30_000;
+export const MAINTENANCE_MAX_BATCHES = 20;
+
 /** Read signals and closed sessions are kept this long, then deleted. */
 export const SIGNAL_RETENTION_MS = 10 * 60_000;
 export const SESSION_RETENTION_MS = 60 * 60_000;
@@ -284,10 +295,7 @@ export async function joinCall(
     });
     return { sessionId: sid, participantId: participantIdOf(userId) };
   });
-  // Housekeeping rides on joins: one bounded batch each, the next join
-  // continues if a batch came back full.
-  await sweepStaleSessions(now);
-  await cleanupCallData(now);
+  await runMaintenanceIfDue(now);
   return joined;
 }
 
@@ -352,6 +360,7 @@ export async function pollCall(
     fromParticipantId: participantIdOf(row.fromUserId),
     signal: row.payload as WireSignal,
   }));
+  await runMaintenanceIfDue(now);
   return { alive: true, presence, signals };
 }
 
@@ -507,4 +516,37 @@ export async function cleanupCallData(now: Date = new Date()): Promise<{ signals
     sessions: sessions.length,
     more: signals.length === CLEANUP_BATCH || sessions.length === CLEANUP_BATCH,
   };
+}
+
+/**
+ * Run maintenance if no run has been claimed for MAINTENANCE_INTERVAL_MS.
+ * The claim is one conditional upsert, so concurrent polls run it once. A
+ * claim far in the future (a skewed clock) is treated as stale too. If the
+ * run stops at MAINTENANCE_MAX_BATCHES with work left, the claim is rolled
+ * back to "due", so the next poll continues.
+ */
+export async function runMaintenanceIfDue(
+  now: Date = new Date(),
+): Promise<{ ran: boolean; batches: number; caughtUp: boolean }> {
+  const due = new Date(now.getTime() - MAINTENANCE_INTERVAL_MS).toISOString();
+  const claimed = await db.execute<{ id: number }>(sql`
+    INSERT INTO call_maintenance (id, last_run_at) VALUES (1, ${now.toISOString()}::timestamptz)
+    ON CONFLICT (id) DO UPDATE SET last_run_at = EXCLUDED.last_run_at
+    WHERE call_maintenance.last_run_at < ${due}::timestamptz
+       OR call_maintenance.last_run_at > ${now.toISOString()}::timestamptz
+    RETURNING id
+  `);
+  if (claimed.length === 0) return { ran: false, batches: 0, caughtUp: true };
+  let batches = 0;
+  let more = true;
+  while (more && batches < MAINTENANCE_MAX_BATCHES) {
+    const swept = await sweepStaleSessions(now);
+    const cleaned = await cleanupCallData(now);
+    batches += 1;
+    more = swept.more || cleaned.more;
+  }
+  if (more) {
+    await db.execute(sql`UPDATE call_maintenance SET last_run_at = ${due}::timestamptz WHERE id = 1`);
+  }
+  return { ran: true, batches, caughtUp: !more };
 }
