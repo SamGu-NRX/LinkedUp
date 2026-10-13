@@ -458,6 +458,26 @@ describe("J-case: three users", () => {
 });
 
 describe("ended rooms: re-joining after the call", () => {
+  it("ending and declining the same room concurrently releases the caller without deadlocking", async () => {
+    const a = await makeUser("enddecline_a");
+    const b = await makeUser("enddecline_b");
+    await queueJoin({ userId: a.id, queueType: "casual" });
+    await queueJoin({ userId: b.id, queueType: "casual" });
+    const matched = await queueStateForUser(a.id);
+    expect(matched.status).toBe("matched");
+    if (matched.status !== "matched") throw new Error("pair did not form");
+
+    await Promise.all([endRoom(matched.roomId), queueCancel(a.id)]);
+
+    const room = await db.query.rooms.findFirst({ where: eq(rooms.id, matched.roomId) });
+    expect(room?.status).toBe("ended");
+    expect(await queueStateForUser(a.id)).toEqual({ status: "idle" });
+    const partner = await queueStateForUser(b.id);
+    // Decline returns the partner to waiting if it wins; end releases both
+    // if it wins. Neither ordering may leave a match to the ended room.
+    expect(["idle", "waiting"]).toContain(partner.status);
+  }, 60_000);
+
   it("a matched user whose room ended can re-join the queue (no matched-to-dead-room loop)", async () => {
     const a = await makeUser("endloop_a");
     const b = await makeUser("endloop_b");
@@ -472,6 +492,17 @@ describe("ended rooms: re-joining after the call", () => {
 
     // The call ends (as the call route's leave action does).
     await endRoom(sa.roomId);
+
+    // Inspect persisted state before any queue touch can lazily repair it.
+    const endedEntries = await db
+      .select({ userId: queueEntries.userId, status: queueEntries.status })
+      .from(queueEntries)
+      .where(eq(queueEntries.roomId, sa.roomId))
+      .orderBy(queueEntries.userId);
+    expect(endedEntries).toEqual([
+      { userId: a.id, status: "exited" },
+      { userId: b.id, status: "exited" },
+    ]);
 
     // A tries to queue again immediately.
     const rejoinA = await queueJoin({ userId: a.id, queueType: "casual" });
