@@ -204,12 +204,30 @@ function unreadSignals(exec: Exec, roomId: string, sessionId: string) {
  * Close a session. Its unread signals can never be read, so they are marked
  * read; the queue is capped, so that is the whole of it. Only an open
  * session changes: closing twice keeps the first reason.
+ *
+ * `staleBefore` makes the close conditional on the heartbeat, in the UPDATE
+ * itself: a sweep reads sessions as stale, and a poll's heartbeat can land
+ * before the sweep's UPDATE runs. Postgres rechecks the condition on the
+ * row it waited for, so that session stays open, and its signals are left
+ * alone because the UPDATE changed nothing.
  */
-async function close(exec: Exec, session: SessionRow, reason: CloseReason, now: Date): Promise<void> {
+async function close(
+  exec: Exec,
+  session: SessionRow,
+  reason: CloseReason,
+  now: Date,
+  staleBefore?: Date,
+): Promise<void> {
   const closed = await exec
     .update(callSessions)
     .set({ state: "closed", closedReason: reason, updatedAt: now })
-    .where(and(eq(callSessions.id, session.id), eq(callSessions.state, "open")))
+    .where(
+      and(
+        eq(callSessions.id, session.id),
+        eq(callSessions.state, "open"),
+        staleBefore ? lt(callSessions.lastHeartbeatAt, staleBefore) : undefined,
+      ),
+    )
     .returning({ id: callSessions.id });
   if (closed.length === 0) return;
   const unread = await unreadSignals(exec, session.roomId, session.sessionId);
@@ -223,9 +241,9 @@ async function close(exec: Exec, session: SessionRow, reason: CloseReason, now: 
 
 /** Close open sessions in one room whose polls stopped. */
 async function sweepRoom(exec: Exec, roomId: string, now: Date): Promise<void> {
-  const cutoff = now.getTime() - HEARTBEAT_EXPIRY_MS;
+  const cutoff = new Date(now.getTime() - HEARTBEAT_EXPIRY_MS);
   for (const session of await openSessions(exec, roomId)) {
-    if (session.lastHeartbeatAt.getTime() < cutoff) await close(exec, session, "expired", now);
+    if (session.lastHeartbeatAt < cutoff) await close(exec, session, "expired", now, cutoff);
   }
 }
 
@@ -475,18 +493,14 @@ export async function leaveCall(userId: number, roomId: string, sessionId: strin
  * batch came back and another run should follow.
  */
 export async function sweepStaleSessions(now: Date = new Date()): Promise<{ closed: number; more: boolean }> {
+  const cutoff = new Date(now.getTime() - HEARTBEAT_EXPIRY_MS);
   const stale = await db
     .select()
     .from(callSessions)
-    .where(
-      and(
-        eq(callSessions.state, "open"),
-        lt(callSessions.lastHeartbeatAt, new Date(now.getTime() - HEARTBEAT_EXPIRY_MS)),
-      ),
-    )
+    .where(and(eq(callSessions.state, "open"), lt(callSessions.lastHeartbeatAt, cutoff)))
     .orderBy(asc(callSessions.lastHeartbeatAt))
     .limit(SWEEP_BATCH);
-  for (const session of stale) await close(db, session, "expired", now);
+  for (const session of stale) await close(db, session, "expired", now, cutoff);
   return { closed: stale.length, more: stale.length === SWEEP_BATCH };
 }
 

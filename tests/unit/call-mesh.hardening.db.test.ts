@@ -4,16 +4,18 @@
 // concurrency cases use real parallel transactions on separate connections.
 import "./support/use-stack-db";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq, like, sql } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { callSignals, rooms, users } from "@/db/schema";
+import { callSessions, callSignals, rooms, users } from "@/db/schema";
 import {
   CLEANUP_BATCH,
+  HEARTBEAT_EXPIRY_MS,
   MAINTENANCE_INTERVAL_MS,
   SIGNAL_RETENTION_MS,
   joinCall,
   pollCall,
   sendSignals,
+  sweepStaleSessions,
 } from "@/lib/call/mesh";
 import type { WireSignal } from "@/lib/call/signal-protocol";
 
@@ -68,6 +70,42 @@ describe("1. simultaneous sends in both directions", () => {
     expect(failures).toEqual([]);
   }, 60_000);
 });
+
+describe("3. the sweep and a heartbeat racing", () => {
+  it("a heartbeat that lands while the sweep is closing keeps the session open", async () => {
+    const as = sid("a");
+    const old = new Date(Date.now() - HEARTBEAT_EXPIRY_MS * 3);
+    await joinCall(a, room, as, old);
+    // Another connection holds the session's row, as a poll's heartbeat
+    // update would, while the sweep reads it as stale and tries to close it.
+    const { default: postgres } = await import("postgres");
+    const other = postgres(process.env.DATABASE_URL!, { max: 1, onnotice: () => {} });
+    try {
+      let releaseHeld!: () => void;
+      const held = new Promise<void>((r) => (releaseHeld = r));
+      let locked!: () => void;
+      const isLocked = new Promise<void>((r) => (locked = r));
+      const heartbeat = other.begin(async (tx) => {
+        await tx`SELECT id FROM call_sessions WHERE room_id = ${room} AND session_id = ${as} FOR UPDATE`;
+        locked();
+        await held;
+        await tx`UPDATE call_sessions SET last_heartbeat_at = now() WHERE room_id = ${room} AND session_id = ${as}`;
+      });
+      await isLocked;
+      const sweeping = sweepStaleSessions();
+      // Give the sweep time to read the stale row and block on its lock.
+      await new Promise((r) => setTimeout(r, 300));
+      releaseHeld();
+      await heartbeat;
+      await sweeping;
+    } finally {
+      await other.end({ timeout: 2 });
+    }
+    const [row] = await db.select().from(callSessions).where(and(eq(callSessions.roomId, room), eq(callSessions.sessionId, as)));
+    expect(row.state, "the fresh heartbeat wins").toBe("open");
+  }, 30_000);
+});
+
 
 describe("2. maintenance keeps up without joins", () => {
   const countRoomSignals = async () =>
