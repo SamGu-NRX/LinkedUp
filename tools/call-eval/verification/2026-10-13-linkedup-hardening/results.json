@@ -1,0 +1,283 @@
+[
+  {
+    "scenario": "H-01",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "each decodes the other's barcode color within 5 s; remote frames advance at >= 15 fps over 5 s",
+    "measurements": {
+      "joinMs": 3952,
+      "timeToFirstRemoteFrameMs": 1132,
+      "timeToFirstRemoteFrameMsReverse": 1134,
+      "fpsAtoB": 38.3,
+      "fpsBtoA": 28.9,
+      "colourMsAseesB": 1135,
+      "colourMsBseesA": 1137
+    },
+    "failure": null,
+    "ms": 13989
+  },
+  {
+    "scenario": "H-02",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "each receiver's analyser peak is the sender's tone +-10 Hz within 3 s",
+    "measurements": {
+      "aHearsB": 656.8,
+      "bHearsA": 438.2
+    },
+    "failure": null,
+    "ms": 4476
+  },
+  {
+    "scenario": "H-03",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "remote `data-audio-muted` flips within 1 s; received tone energy falls below threshold; unmute restores both",
+    "measurements": {
+      "muteFlipMs": 177,
+      "silentAfterMs": 373,
+      "unmuteFlipMs": 317,
+      "restoredToneHz": 437
+    },
+    "failure": null,
+    "ms": 4799
+  },
+  {
+    "scenario": "H-04",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "remote `data-video-off` within 1 s; the sender's capture track is `ended` (camera released); on resumes frames",
+    "measurements": {
+      "offFlipMs": 334,
+      "resumedFps": 33.1
+    },
+    "failure": null,
+    "ms": 7924
+  },
+  {
+    "scenario": "H-05",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "switching to the second fake camera keeps frames flowing without a failed phase",
+    "measurements": {
+      "fpsBefore": 31,
+      "fpsDuring": 37.9,
+      "fpsAfter": 28.7,
+      "phase": true,
+      "colorDistance": 1
+    },
+    "failure": null,
+    "ms": 9719
+  },
+  {
+    "scenario": "H-06",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "context without media permission shows an actionable error; granting and `retry-media` joins",
+    "measurements": {
+      "errorText": "Camera and microphone access was blocked. Allow access in your browser settings, then try again.",
+      "phaseDenied": "failed",
+      "joinedAfterRetry": true,
+      "fpsBseesA": 31.1
+    },
+    "failure": null,
+    "ms": 7558
+  },
+  {
+    "scenario": "H-07",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "one peer offline 3 s, 10 s, 30 s: honest `reconnecting`, media resumes within 10 s of restore, no duplicate tiles",
+    "measurements": {
+      "seed": 1,
+      "relayPathB": [
+        {
+          "local": "relay",
+          "remote": "relay"
+        }
+      ],
+      "shaperB": {
+        "forwarded": 1574,
+        "dropped": 3301,
+        "droppedUp": 1665,
+        "droppedDown": 1636,
+        "uplinks": 10
+      },
+      "drops": [
+        {
+          "durationS": 3,
+          "recoveryMs": 1995,
+          "tilesA": 1,
+          "tilesB": 1
+        },
+        {
+          "durationS": 10,
+          "recoveryMs": 3980,
+          "tilesA": 1,
+          "tilesB": 1
+        },
+        {
+          "durationS": 30,
+          "recoveryMs": 4309,
+          "tilesA": 1,
+          "tilesB": 1
+        }
+      ],
+      "recovery10sMs": 3980,
+      "sessionEvents": [
+        {
+          "participant": "B",
+          "reason": "replaced",
+          "at": 1791854226945
+        },
+        {
+          "participant": "B",
+          "reason": "expired",
+          "at": 1791854238349
+        },
+        {
+          "participant": "B",
+          "reason": "expired",
+          "at": 1791854258604
+        }
+      ]
+    },
+    "failure": null,
+    "ms": 75539
+  },
+  {
+    "scenario": "H-08",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "recovers within 10 s",
+    "measurements": {
+      "recoveryMs": 1174,
+      "restartedPcs": 2,
+      "ufragsBefore": {
+        "A": [
+          "/DIS"
+        ],
+        "B": [
+          "c75P"
+        ]
+      }
+    },
+    "failure": null,
+    "ms": 5805
+  },
+  {
+    "scenario": "H-09",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "reloaded peer rejoins; no ghost participant after 10 s",
+    "measurements": {
+      "ghostTiles": 1
+    },
+    "failure": null,
+    "ms": 15288
+  },
+  {
+    "scenario": "H-10",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "survivor shows the peer gone within 15 s",
+    "measurements": {
+      "closed": true,
+      "tileGone": true,
+      "sessionEvents": [
+        {
+          "participant": "A",
+          "reason": "left",
+          "at": 1791854313868
+        }
+      ]
+    },
+    "failure": null,
+    "ms": 3891
+  },
+  {
+    "scenario": "H-11",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "all local tracks `ended`, all wrapped connections `closed`, no `getStats` traffic afterwards, server session closed",
+    "measurements": {
+      "trackStates": [
+        "ended",
+        "ended"
+      ],
+      "getStatsCallsStable": true,
+      "getStatsCalls": 0,
+      "sessionEvents": [
+        {
+          "participant": "A",
+          "reason": "left",
+          "at": 1791854317748
+        }
+      ]
+    },
+    "failure": null,
+    "ms": 5570
+  },
+  {
+    "scenario": "H-12",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "simultaneous join in both orders, 20 seeds: always connects",
+    "measurements": {
+      "order": "A-first",
+      "bothConnected": true,
+      "fps": {
+        "AseesB": 35.3,
+        "BseesA": 33.8
+      }
+    },
+    "failure": null,
+    "ms": 7573
+  },
+  {
+    "scenario": "H-13",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "five leave/rejoin cycles: live connection and track counts return to baseline",
+    "measurements": {
+      "baseline": {
+        "live": 1,
+        "tracks": 2
+      },
+      "final": {
+        "live": 1,
+        "tracks": 2
+      }
+    },
+    "failure": null,
+    "ms": 6339
+  },
+  {
+    "scenario": "H-14",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "a signed-in non-participant gets a named rejection and no media",
+    "measurements": {
+      "rejection": "Only the two people matched into this room can join it. If this was your match, rejoin the queue from the app.",
+      "phase": "failed",
+      "tiles": 0,
+      "signalingRefusal": "You're not in this call. Only the two people matched into a room can join it."
+    },
+    "failure": null,
+    "ms": 6636
+  }
+]
