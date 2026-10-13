@@ -268,13 +268,13 @@ export async function getRoomForUser(clerkUserId: string, roomId: string): Promi
   const me = await db.query.users.findFirst({ where: eq(users.clerkId, clerkUserId) });
   if (!me) return { allowed: false, reason: "not_a_participant" };
 
+  // Membership first: someone outside a room learns nothing about it, not
+  // even whether it exists or has ended.
   const room = await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) });
-  if (!room) return { allowed: false, reason: "room_not_found" };
-  if (room.status !== "active") return { allowed: false, reason: "room_ended" };
-
-  if (room.user1Id !== me.id && room.user2Id !== me.id) {
+  if (!room || (room.user1Id !== me.id && room.user2Id !== me.id)) {
     return { allowed: false, reason: "not_a_participant" };
   }
+  if (room.status !== "active") return { allowed: false, reason: "room_ended" };
 
   const partnerId = room.user1Id === me.id ? room.user2Id : room.user1Id;
   const partner = await db.query.users.findFirst({ where: eq(users.id, partnerId) });
