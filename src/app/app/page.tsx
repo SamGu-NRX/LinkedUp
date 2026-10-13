@@ -46,9 +46,9 @@ export default function HomePage() {
 
   const handleStartQueue = (type: string) => {
     if (type === "casual") {
-      router.push(`app/smart-connection?type=${type}`);
+      router.push(`/app/smart-connection?type=${type}`);
     } else {
-      router.push(`app/professional/${type}`);
+      router.push(`/app/professional/${type}`);
     }
   };
 

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Clock,
@@ -29,16 +29,19 @@ import { VideoArea } from "@/components/video-meeting/video-area";
 import { ChatDialog } from "@/components/video-meeting/chat-dialog";
 import { EndCallDialog } from "@/components/video-meeting/end-call-dialog";
 import UserCard from "@/components/app/user-card";
+import type { UserInfo } from "@/types/user";
 import {
   MOCK_USERS,
   MOCK_SPEAKING_STATES,
   simulateSpeaking,
   MOCK_CONNECTION_STATES,
 } from "@/types/meeting";
-import { TimeManager } from "@/components/video-meeting/time-manager";
+import {
+  TimeManager,
+  MAX_MEETING_SECONDS,
+} from "@/components/video-meeting/time-manager";
 import { SettingsDialog } from "@/components/video-meeting/settings-dialog";
 import { ToastContainer } from "@/components/video-meeting/toast";
-
 
 // FIGURE OUT HOW TO BUILD REAL-TIME
 
@@ -47,14 +50,14 @@ const userInterests = {
   user2: ["sustainable design", "meditation", "indie games", "yoga", "writing"],
 };
 
-const generatePrompts = (interests1, interests2) => [
+const generatePrompts = (interests1: string[], interests2: string[]) => [
   `How has your journey with ${interests1[0]} influenced your perspective on ${interests2[0]}?`,
   `What parallels do you see between ${interests1[1]} and ${interests2[1]}?`,
   `How do you think ${interests1[2]} could benefit from principles of ${interests2[2]}?`,
   "What's the most surprising connection you've discovered between our fields?",
 ];
 
-const MOCK_MESSAGES = [
+const INITIAL_MESSAGES = [
   { id: "1", sender: "John Doe", message: "Hey there!", timestamp: "10:30 AM" },
   {
     id: "2",
@@ -64,12 +67,20 @@ const MOCK_MESSAGES = [
   },
 ];
 
+const STARTING_ALLOWANCE_SECONDS = 5 * 60; // start with 5 minutes available
+
 export default function VideoMeeting() {
-  const [timeManager] = useState(() => new TimeManager());
-  const [timeRemaining, setTimeRemaining] = useState(
-    timeManager.getRemainingTime(),
+  // Elapsed time is the single source of truth; remaining is derived from
+  // the current allowance. Ticks are clamped by TimeManager, so the clock
+  // can never run past the allowance or go negative.
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [allowanceSeconds, setAllowanceSeconds] = useState(
+    STARTING_ALLOWANCE_SECONDS,
   );
-  const [timeElapsed, setTimeElapsed] = useState(0);
+  const allowanceRef = useRef(allowanceSeconds);
+  const elapsedRef = useRef(elapsedSeconds);
+  const timeRequestRef = useRef(TimeManager.initialState());
+
   const [showTimeLeft, setShowTimeLeft] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -77,40 +88,42 @@ export default function VideoMeeting() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
   const [showTimeAddedToast, setShowTimeAddedToast] = useState(false);
+  const [timeAddedMessage, setTimeAddedMessage] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isAlmostOutOfTime, setIsAlmostOutOfTime] = useState(false);
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAddTimeRequestOpen, setIsAddTimeRequestOpen] = useState(false);
-  const [addTimeRequester, setAddTimeRequester] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [isAutosaving, setIsAutosaving] = useState(false);
   const [speakingStates, setSpeakingStates] = useState(MOCK_SPEAKING_STATES);
   const [isEndCallOpen, setIsEndCallOpen] = useState(false);
-  const [currentTimeRequest, setCurrentTimeRequest] = useState(null);
   const [isLeaveRequestPending, setIsLeaveRequestPending] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   const prompts = generatePrompts(userInterests.user1, userInterests.user2);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      timeManager.decrementTime();
-      setTimeRemaining(timeManager.getRemainingTime());
-      setTimeElapsed((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeManager]);
+  const timeRemaining = TimeManager.calculateRemaining(
+    elapsedSeconds,
+    allowanceSeconds,
+  );
+  const isAlmostOutOfTime = timeRemaining <= 60 && timeRemaining > 0;
 
   useEffect(() => {
-    // Check if time remaining is less than 1 minute
-    if (timeRemaining <= 60 && timeRemaining > 0) {
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const next = TimeManager.tick(prev, allowanceRef.current);
+        elapsedRef.current = next;
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    // Auto-reveal the "time left" readout when the meeting is almost up
+    if (isAlmostOutOfTime) {
       setShowTimeLeft(true);
-      setIsAlmostOutOfTime(true);
-    } else {
-      setIsAlmostOutOfTime(false);
     }
-  }, [timeRemaining]);
+  }, [isAlmostOutOfTime]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -119,29 +132,23 @@ export default function VideoMeeting() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const handleVideoClick = (userId: string) => {
     setActiveVideo((prev) => (prev === userId ? null : userId));
-  };
-  const addTime = () => {
-    setTimeRemaining((prev) => prev + 300); // 300 seconds
-    setShowTimeAddedToast(true);
-    setTimeout(() => setShowTimeAddedToast(false), 3000);
   };
 
   const handleSidebarToggle = useCallback(() => {
     setIsSidebarOpen((prev) => !prev);
   }, []);
 
-  const handleSendMessage = (message) => {
+  const handleSendMessage = (message: string) => {
     setMessages((prev) => [
       ...prev,
-      { sender: "You", message, timestamp: "Now" },
+      {
+        id: `${Date.now()}-${prev.length}`,
+        sender: "You",
+        message,
+        timestamp: "Now",
+      },
     ]);
   };
 
@@ -167,20 +174,29 @@ export default function VideoMeeting() {
     }, 2000);
   }, []);
 
-  const handleAcceptTimeRequest = () => {
-    addTime();
-    setCurrentTimeRequest(null);
-  };
-
+  /**
+   * Request more meeting time. Single-flight through TimeManager: while a
+   * request is pending or the cooldown has not elapsed, the request is
+   * refused with a toast. When the (simulated) partner accepts, only the
+   * seconds actually granted are added and reported.
+   */
   const handleTimeRequest = useCallback(() => {
-    if (!timeManager.canRequestTime()) {
+    const begin = TimeManager.beginTimeRequest(
+      timeRequestRef.current,
+      elapsedRef.current,
+    );
+    if (!begin.requestId) {
       window.addToast({
-        message: "You can only request time every 5 minutes",
+        message:
+          begin.reason === "pending"
+            ? "A time request is already waiting for a response"
+            : "You can only request time every 5 minutes",
         type: "error",
         duration: 3000,
       });
       return;
     }
+    timeRequestRef.current = begin.state;
 
     window.addToast({
       message: "Time extension request sent",
@@ -189,18 +205,59 @@ export default function VideoMeeting() {
     });
 
     // Simulate partner accepting after 2 seconds
+    const requestId = begin.requestId;
     setTimeout(() => {
-      const success = timeManager.addTime();
-      if (success) {
+      const completion = TimeManager.completeTimeRequest(
+        timeRequestRef.current,
+        requestId,
+        allowanceRef.current,
+      );
+      if (!completion.accepted) return;
+      timeRequestRef.current = completion.state;
+
+      if (completion.secondsAdded <= 0) {
         window.addToast({
-          message: timeManager.getTimeAddedMessage(),
-          type: "success",
-          icon: Clock,
+          message: "Meeting reached the 20-minute limit — no time left to add",
+          type: "error",
+          duration: 4000,
         });
-        setTimeRemaining(timeManager.getRemainingTime());
+        return;
       }
+
+      allowanceRef.current += completion.secondsAdded;
+      setAllowanceSeconds(allowanceRef.current);
+      const granted = TimeManager.formatTime(completion.secondsAdded);
+      setTimeAddedMessage(
+        allowanceRef.current >= MAX_MEETING_SECONDS
+          ? `Added ${granted} — that reaches the 20-minute meeting limit`
+          : `Added ${granted}`,
+      );
+      setShowTimeAddedToast(true);
+      window.addToast({
+        message: `John Doe added ${granted} to the meeting`,
+        type: "success",
+        icon: Clock,
+      });
+      setTimeout(() => setShowTimeAddedToast(false), 3000);
     }, 2000);
-  }, [timeManager]);
+  }, []);
+
+  const partnerUser: UserInfo = {
+    id: MOCK_USERS.partner.id,
+    name: MOCK_USERS.partner.name,
+    avatar: MOCK_USERS.partner.avatar,
+    bio: "", // Not available in meeting context
+    profession: MOCK_USERS.partner.role,
+    company: MOCK_USERS.partner.company,
+    school: "", // Not available in meeting context
+    experience: 0, // Not available in meeting context
+    sharedInterests: [], // Not available in meeting context
+    connectionType: "collaboration",
+    interests: MOCK_USERS.partner.interests,
+    connectionStatus: MOCK_CONNECTION_STATES[MOCK_USERS.partner.id]?.status,
+    isSpeaking: speakingStates[MOCK_USERS.partner.id] || false,
+    meetingStats: MOCK_USERS.partner.meetingStats,
+  };
 
   return (
     <div
@@ -208,7 +265,7 @@ export default function VideoMeeting() {
     >
       <TopBar
         partner={MOCK_USERS.partner}
-        timeElapsed={timeElapsed}
+        timeElapsed={elapsedSeconds}
         timeRemaining={timeRemaining}
         showTimeLeft={showTimeLeft}
         isAlmostOutOfTime={isAlmostOutOfTime}
@@ -231,24 +288,8 @@ export default function VideoMeeting() {
             >
               {/* User Card */}
               <UserCard
-                name={MOCK_USERS.partner.name}
-                avatar={MOCK_USERS.partner.avatar}
-                bio="" // You may not have this in meeting context
-                profession={MOCK_USERS.partner.role}
-                company={MOCK_USERS.partner.company}
-                school="" // You may not have this in meeting context
-                experience={0} // You may not have this in meeting context
-                sharedInterests={[]} // You may not have this in meeting context
-                connectionType="collaboration"
+                user={partnerUser}
                 inMeeting={true}
-                meetingStats={MOCK_USERS.partner.meetingStats}
-                interests={MOCK_USERS.partner.interests}
-                connectionStatus={
-                  MOCK_CONNECTION_STATES[MOCK_USERS.partner.id] || "good"
-                }
-                isSpeaking={
-                  MOCK_SPEAKING_STATES[MOCK_USERS.partner.id] || false
-                }
               />
               {/* Compact Prompts Card */}
               <Card className="border-none bg-zinc-800/30 shadow-lg">
@@ -431,11 +472,7 @@ export default function VideoMeeting() {
                   <Button
                     variant="secondary"
                     size="icon"
-                    onClick={() => {
-                      setAddTimeRequester("You");
-                      setIsAddTimeRequestOpen(true);
-                      handleTimeRequest("You");
-                    }}
+                    onClick={handleTimeRequest}
                     className="h-11 w-11 rounded-full bg-zinc-700/90 text-zinc-100 hover:bg-zinc-600"
                   >
                     <Plus className="h-5 w-5" />
@@ -474,7 +511,7 @@ export default function VideoMeeting() {
                 className="absolute bottom-24 left-1/2 flex -translate-x-1/2 items-center space-x-2 rounded-full bg-emerald-500 px-4 py-2 text-white shadow-lg"
               >
                 <Clock className="h-4 w-4" />
-                <span className="text-sm">Added 5 minutes</span>
+                <span className="text-sm">{timeAddedMessage}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -485,17 +522,7 @@ export default function VideoMeeting() {
           open={isChatOpen}
           onOpenChange={setIsChatOpen}
           messages={messages}
-          onSendMessage={(message) => {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: String(Date.now()),
-                sender: "You",
-                message,
-                timestamp: "Now",
-              },
-            ]);
-          }}
+          onSendMessage={handleSendMessage}
         />
         <EndCallDialog
           open={isEndCallOpen}

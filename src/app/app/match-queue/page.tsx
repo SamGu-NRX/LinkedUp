@@ -14,7 +14,7 @@ export default function MatchQueuePage() {
   const handleAcceptMatch = (matchId: string) => {
     // In a real application, you would initiate the call here
     console.log(`Accepted match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}`)
+    router.push(`/videocall/${matchId}`)
   }
 
   const handleDeclineMatch = (matchId: string) => {

@@ -1,6 +1,6 @@
 // @/lib/avatar-utils.ts (assuming path)
 
-import type { ConnectionStatus, UserInfo } from "@/types/user"; // Import types
+import type { PresenceStatus, UserInfo } from "@/types/user"; // Import types
 
 export interface AvatarColor {
   from: string;
@@ -171,17 +171,26 @@ export const formatTime = (timestamp: number): string => {
 };
 
 /**
- * Get status indicator color based on user connection status
- * @param status - User connection status
+ * Get status indicator color for a status dot.
+ * Accepts both status families used across the app:
+ * - presence ("online" | "away" | "offline") from profile/chat data
+ * - connection quality ("excellent" | "good" | "poor" | "offline") from meeting data
+ * @param status - User presence or connection-quality status
  * @returns Tailwind CSS background color class
  */
 export const getStatusColor = (
-  status: ConnectionStatus | undefined | null,
+  status: PresenceStatus | string | null | undefined,
 ): string => {
   switch (status) {
     case "online":
       return "bg-emerald-500"; // Use a slightly different green for better visibility
     case "away":
+      return "bg-amber-400";
+    case "excellent":
+      return "bg-green-500";
+    case "good":
+      return "bg-blue-500";
+    case "poor":
       return "bg-amber-400";
     case "offline":
       return "bg-gray-500"; // Use a slightly darker gray

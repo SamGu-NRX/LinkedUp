@@ -13,14 +13,16 @@ import { UserCardTags } from "@/components/app/user-card/user-card-tags";
 import { UserCardStats } from "@/components/app/user-card/user-card-stats";
 import { UserCardInterests } from "@/components/app/user-card/user-card-interests";
 import { UserCardDetails } from "@/components/app/user-card/user-card-details";
+import { MessageModal } from "@/components/app/user-card/message-modal";
+import { ScheduleModal } from "@/components/app/user-card/schedule-modal";
 
 // Define props using the central UserInfo type
 export interface UserCardProps {
   user: UserInfo; // Use the imported UserInfo type
   inMeeting?: boolean;
   inChat?: boolean;
-  onMessage?: (message: string) => void; // Consider more specific types if needed
-  onSchedule?: (date: Date, duration: number, topic: string) => void; // Consider more specific types
+  onMessage?: (message: string) => void;
+  onSchedule?: (date: Date, duration: number, topic: string) => void;
   className?: string;
   forceVisible?: boolean; // Prop to override inView animation for modals
 }
@@ -34,18 +36,36 @@ export function UserCard({
   className,
   forceVisible = false, // Default to false
 }: UserCardProps) {
-  // Early return if user data is somehow missing (though TS should help prevent this)
-  if (!user) {
-    console.warn("UserCard rendered without user data.");
-    return null;
-  }
-
+  // Hooks must run unconditionally — no early return above them.
   const cardRef = useRef<HTMLDivElement>(null);
   // Respect forceVisible prop for modals or specific use cases
   const isInView = useInView(cardRef, { once: true });
   const isVisible = forceVisible || isInView;
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Modal state lives here so both the header actions and the
+  // "View Details" contact buttons can open the same dialogs.
+  const [messageModalOpen, setMessageModalOpen] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+
+  // Safety net for runtime data that bypasses the type checker.
+  if (!user) {
+    console.warn("UserCard rendered without user data.");
+    return null;
+  }
+
+  const handleSendMessage = (message: string) => {
+    if (message.trim()) {
+      onMessage(message);
+      setMessageModalOpen(false);
+    }
+  };
+
+  const handleScheduleMeeting = (date: Date, duration: number, topic: string) => {
+    onSchedule(date, duration, topic);
+    setScheduleModalOpen(false);
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (cardRef.current) {
@@ -100,6 +120,24 @@ export function UserCard({
             : undefined, // No effect when forced visible
         }}
       >
+        {/* Message Modal */}
+        <MessageModal
+          isOpen={messageModalOpen}
+          onClose={() => setMessageModalOpen(false)}
+          name={user.name}
+          avatar={user.avatar}
+          onSend={handleSendMessage}
+        />
+
+        {/* Schedule Modal */}
+        <ScheduleModal
+          isOpen={scheduleModalOpen}
+          onClose={() => setScheduleModalOpen(false)}
+          name={user.name}
+          avatar={user.avatar}
+          onSchedule={handleScheduleMeeting}
+        />
+
         {/* Status indicator - only in meeting mode and if status exists */}
         {inMeeting && user.connectionStatus && (
           <ConnectionStatusIndicator
@@ -114,8 +152,8 @@ export function UserCard({
           user={user}
           inChat={inChat}
           isSpeaking={inMeeting && user.isSpeaking}
-          onMessage={onMessage}
-          onSchedule={onSchedule}
+          onOpenMessage={() => setMessageModalOpen(true)}
+          onOpenSchedule={() => setScheduleModalOpen(true)}
         />
 
         {/* Tags */}
@@ -146,8 +184,8 @@ export function UserCard({
           school={user.school} // required
           connectionType={user.connectionType} // required
           inChat={inChat}
-          onMessage={onMessage}
-          onSchedule={onSchedule}
+          onMessage={() => setMessageModalOpen(true)}
+          onSchedule={() => setScheduleModalOpen(true)}
           forceOpen={forceVisible} // Pass forceVisible to potentially keep details open in modal
         />
       </motion.div>

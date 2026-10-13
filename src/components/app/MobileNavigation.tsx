@@ -8,10 +8,10 @@ import { cn } from "@/lib/shadcn";
 import { TransitionLink } from "@/utils/TransitionLink";
 
 const navItems = [
-  { name: "Home", href: "/", icon: Home },
-  { name: "Dashboard", href: "/dashboard", icon: BarChart2 },
-  { name: "Profile", href: "/profile", icon: User },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Home", href: "/app", icon: Home },
+  { name: "Dashboard", href: "/app/dashboard", icon: BarChart2 },
+  { name: "Profile", href: "/app/profile", icon: User },
+  { name: "Settings", href: "/app/settings", icon: Settings },
 ];
 
 export function MobileNavigation() {

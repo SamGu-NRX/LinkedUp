@@ -1,10 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ProfessionalQueue from "@/components/queue/ProfessionalQueue"
 
-export default function InvestmentPage() {
+function InvestmentPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const purpose = searchParams.get("purpose") || ""
@@ -16,7 +16,7 @@ export default function InvestmentPage() {
 
   const handleAcceptMatch = (matchId: string) => {
     console.log(`Accepted investment match with ID: ${matchId}`)
-    router.push(`/app/call/${matchId}?type=investment`)
+    router.push(`/videocall/${matchId}?type=investment`)
   }
 
   const handleDeclineMatch = (matchId: string) => {
@@ -39,6 +39,14 @@ export default function InvestmentPage() {
       onDeclineMatch={handleDeclineMatch}
       onScheduleCall={handleScheduleCall}
     />
+  )
+}
+
+export default function InvestmentPage() {
+  return (
+    <Suspense fallback={null}>
+      <InvestmentPageContent />
+    </Suspense>
   )
 }
 
