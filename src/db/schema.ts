@@ -114,9 +114,11 @@ export const queueEntries = pgTable(
   },
   (table) => [
     // One live queue slot per user: no double-joining, ever.
-    uniqueIndex("queue_entries_user_waiting_unique")
+    // Waiting and matched both count: a matched person queueing again
+    // must not get a second entry that pairs into a second room.
+    uniqueIndex("queue_entries_user_live_unique")
       .on(table.userId)
-      .where(sql`status = 'waiting'`),
+      .where(sql`status IN ('waiting', 'matched')`),
     // Pairing index: the matcher scans waiting entries by type.
     index("queue_entries_pairing_idx").on(table.queueType, table.status),
   ],

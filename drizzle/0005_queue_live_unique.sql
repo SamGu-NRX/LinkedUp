@@ -1,0 +1,2 @@
+DROP INDEX "queue_entries_user_waiting_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "queue_entries_user_live_unique" ON "queue_entries" USING btree ("user_id") WHERE status IN ('waiting', 'matched');
