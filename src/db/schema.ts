@@ -188,3 +188,15 @@ export const callMaintenance = pgTable("call_maintenance", {
   id: integer("id").primaryKey(),
   lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
 });
+
+/**
+ * One person's signaling spend in the current window, across every session
+ * and room (src/lib/call/mesh.ts spendBudget).
+ */
+export const callUserBudgets = pgTable("call_user_budgets", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  used: integer("used").notNull(),
+});

@@ -55,6 +55,43 @@ export const SIGNAL_QUEUE_LIMIT = 100;
  */
 export const SIGNAL_RATE_LIMIT = { windowMs: 10_000, maxRequests: 200 };
 
+/**
+ * One person's budget across all their sessions and rooms, in units per
+ * window: a poll or a media-state write costs 1, a join joinCost, a send one
+ * per signal; leaving is free. One tab polls 40 times in 10 s and sends
+ * about 25 signals while connecting, so 300 leaves room for a reconnect or
+ * two. The per-session send limit still applies inside it. These numbers
+ * are judgments; no run has measured real traffic.
+ */
+export const USER_BUDGET = { windowMs: 10_000, maxUnits: 300, joinCost: 5 };
+
+/**
+ * Charge the caller's budget; RATE_LIMITED once the window's units are
+ * spent. One upsert, run before anything else an operation does.
+ */
+async function spendBudget(userId: number, cost: number, now: Date): Promise<void> {
+  const windowStart = new Date(now.getTime() - USER_BUDGET.windowMs).toISOString();
+  const nowIso = now.toISOString();
+  const [row] = await db.execute<{ used: number }>(sql`
+    INSERT INTO call_user_budgets (user_id, window_start, used)
+    VALUES (${userId}, ${nowIso}::timestamptz, ${cost})
+    ON CONFLICT (user_id) DO UPDATE SET
+      used = CASE WHEN call_user_budgets.window_start <= ${windowStart}::timestamptz
+                    OR call_user_budgets.window_start > ${nowIso}::timestamptz
+                  THEN ${cost} ELSE call_user_budgets.used + ${cost} END,
+      window_start = CASE WHEN call_user_budgets.window_start <= ${windowStart}::timestamptz
+                            OR call_user_budgets.window_start > ${nowIso}::timestamptz
+                          THEN ${nowIso}::timestamptz ELSE call_user_budgets.window_start END
+    RETURNING used
+  `);
+  if (row.used > USER_BUDGET.maxUnits) {
+    throw new MeshError(
+      "RATE_LIMITED",
+      `Too many call requests: more than ${USER_BUDGET.maxUnits} in ${USER_BUDGET.windowMs / 1000} s. Wait a moment.`,
+    );
+  }
+}
+
 /** Joins one user may make in one room per minute: a reload loop, not a call, exceeds it. */
 export const JOIN_RATE_LIMIT = { windowMs: 60_000, maxRequests: 20 };
 
@@ -266,6 +303,7 @@ export async function joinCall(
   now: Date = new Date(),
 ): Promise<{ sessionId: string; participantId: string }> {
   const sid = sessionIdSchema.parse(sessionId);
+  await spendBudget(userId, USER_BUDGET.joinCost, now);
   const joined = await db.transaction(async (tx) => {
     const room = await memberRoom(tx, roomId, userId, true);
     if (room.status !== "active") throw new MeshError("ROOM_ENDED", "This call has ended.");
@@ -331,6 +369,7 @@ export async function pollCall(
   now: Date = new Date(),
 ): Promise<PollResult> {
   const sid = sessionIdSchema.parse(sessionId);
+  await spendBudget(userId, 1, now);
   const room = await memberRoom(db, roomId, userId);
   const session = await ownSession(db, roomId, sid, userId);
   if (session.state !== "open") return { alive: false, reason: (session.closedReason as CloseReason) ?? "expired" };
@@ -401,6 +440,7 @@ export async function sendSignals(
     sessionIdSchema.parse(item.toSessionId);
     checkSignalSize(item.signal);
   }
+  await spendBudget(userId, batch.length, now);
   return db.transaction(async (tx) => {
     // Lock order, as in joinCall: the room row first, then sessions. Without
     // it an A->B send (A's row, then B's) and a B->A send (B's, then A's)
@@ -470,6 +510,7 @@ export async function setMediaState(
   now: Date = new Date(),
 ): Promise<void> {
   const sid = sessionIdSchema.parse(sessionId);
+  await spendBudget(userId, 1, now);
   await memberRoom(db, roomId, userId);
   const session = await ownSession(db, roomId, sid, userId);
   if (session.state !== "open") return;

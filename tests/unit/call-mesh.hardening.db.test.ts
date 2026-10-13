@@ -12,9 +12,12 @@ import {
   HEARTBEAT_EXPIRY_MS,
   MAINTENANCE_INTERVAL_MS,
   SIGNAL_RETENTION_MS,
+  USER_BUDGET,
   joinCall,
+  leaveCall,
   pollCall,
   sendSignals,
+  setMediaState,
   sweepStaleSessions,
 } from "@/lib/call/mesh";
 import type { WireSignal } from "@/lib/call/signal-protocol";
@@ -150,3 +153,45 @@ describe("2. maintenance keeps up without joins", () => {
     expect(await countRoomSignals()).toBeLessThanOrEqual(Math.ceil(retainedMinutes) * PER_MINUTE);
   }, 600_000);
 });
+
+describe("4. one person's budget across sessions and rooms", () => {
+  it("polls, media-state writes, joins and sends from all their sessions share one budget", async () => {
+    const c = await makeUser("c");
+    const room2 = await makeRoom(a, c);
+    const now = new Date();
+    const s1 = sid("a1");
+    const s2 = sid("a2");
+    await joinCall(a, room, s1, now);
+    await joinCall(a, room2, s2, now);
+    let spent = 2 * USER_BUDGET.joinCost;
+    // Alternate rooms and operations; every one draws on the same budget.
+    while (spent < USER_BUDGET.maxUnits) {
+      if (spent % 2) await pollCall(a, room, s1, [], now);
+      else await setMediaState(a, room2, s2, { micOn: true, cameraOn: true }, now);
+      spent += 1;
+    }
+    const refusals = [
+      await code(pollCall(a, room2, s2, [], now)),
+      await code(setMediaState(a, room, s1, { micOn: false, cameraOn: true }, now)),
+      await code(joinCall(a, room, sid("a3"), now)),
+      await code(sendSignals(a, room, s1, [{ toSessionId: s2, signal: cand(1) }], now)),
+    ];
+    expect(refusals).toEqual(["RATE_LIMITED", "RATE_LIMITED", "RATE_LIMITED", "RATE_LIMITED"]);
+    // The other person is not affected, and leaving always works.
+    const bs = sid("b");
+    await joinCall(b, room, bs, now);
+    await leaveCall(a, room, s1, now);
+    // The next window starts afresh.
+    const later = new Date(now.getTime() + USER_BUDGET.windowMs + 1);
+    expect(await code(pollCall(a, room2, s2, [], later))).toBe("ok");
+  }, 60_000);
+});
+
+async function code(p: Promise<unknown>): Promise<string> {
+  try {
+    await p;
+    return "ok";
+  } catch (error) {
+    return (error as { code?: string }).code ?? String(error);
+  }
+}

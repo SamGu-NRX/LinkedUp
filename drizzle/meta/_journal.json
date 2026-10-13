@@ -29,6 +29,13 @@
       "when": 1791843026919,
       "tag": "0003_call_maintenance",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791850219099,
+      "tag": "0004_call_user_budgets",
+      "breakpoints": true
     }
   ]
 }
