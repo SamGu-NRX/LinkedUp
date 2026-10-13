@@ -153,9 +153,11 @@ removed, `git status --porcelain` was empty (no uncommitted changes).
 `tests/unit/gate-proof.route.test.tsx` (4 tests) exercises the DB-backed
 gate through `src/app/gate-proof/page.tsx` — a clearly labelled test route
 (rendered banner: “test-only gate proof route”), not a `/demo` route and not
-any reserved file. It proves the finished-user journey: a user with
-`dbUser.onboardingComplete === true` passes the gate and renders the normal
-app shell (no bounce to onboarding).
+any reserved file. These component tests prove that the DB-backed gate
+renders the app shell for `dbUser.onboardingComplete === true`. They do not
+exercise middleware or establish a finished-user browser journey: without
+the Clerk completion claim, middleware can still redirect `/gate-proof`
+and `/app` to `/onboarding`, whose layout redirects back to `/app`.
 
 ```console
 $ pnpm exec vitest run tests/unit/gate-proof.route.test.tsx
@@ -168,8 +170,8 @@ $ pnpm exec vitest run tests/unit/gate-proof.route.test.tsx
 Browser-check screenshots (1440x900 / 390x844) were not produced: no dev
 server was started for this evidence pass; the route test runs in a DOM
 environment against the real gate component. The witness + route tests
-together give the coordinator a reproducible, runnable proof without a
-browser session.
+together cover the gate component and reproduce the conflicting middleware
+decision. The browser journey remains blocked on Sam's session-token decision.
 
 ## Facts (recorded, no fix attempted)
 
