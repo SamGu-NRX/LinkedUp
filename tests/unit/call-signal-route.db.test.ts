@@ -127,4 +127,12 @@ describe("the order of the front door", () => {
     expect(pulled).toBeLessThan(20);
   });
 
+  it("refuses a room member who has not finished onboarding", async () => {
+    const clerkId = `${PREFIX}unonboarded_${Date.now()}`;
+    const [row] = await db.insert(users).values({ clerkId, email: `${clerkId}@witness.local`, onboardingComplete: false }).returning({ id: users.id });
+    const [room2] = await db.insert(rooms).values({ queueType: "casual", status: "active", user1Id: row.id, user2Id: row.id }).returning({ id: rooms.id });
+    clerk.userId = clerkId;
+    const res = await answer(request({ op: "join", roomId: room2.id, sessionId: "unonboarded-1" }));
+    expect(res).toMatchObject({ status: 403, body: { code: "FORBIDDEN" } });
+  });
 });

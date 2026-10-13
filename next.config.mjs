@@ -3,6 +3,10 @@
 /** @type {import('next').NextConfig} */
 
 import withSvgr from "@svgr/webpack";
+import { journeyProofEnabled } from "./src/lib/journey-proof-guard.mjs";
+
+/** Set by the exported function below; Next passes the phase on load. */
+let currentPhase;
 
 const nextConfig = {
   eslint: {
@@ -42,8 +46,10 @@ const nextConfig = {
   // a signed-in user reach. Rewrites apply after the middleware has run, so
   // sign-in is still required, and the pages keep the DB onboarding gate.
   // Sam decides the middleware; delete this with src/app/journey-proof/.
+  // Refused outright (an error, not a quiet "off") in production builds and
+  // servers and on Vercel: src/lib/journey-proof-guard.mjs.
   async rewrites() {
-    if (process.env.LINKEDUP_JOURNEY_PROOF !== "1") return [];
+    if (!journeyProofEnabled(process.env, { phase: currentPhase })) return [];
     return {
       beforeFiles: [
         {
@@ -86,4 +92,10 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Next calls this with its phase. Checking the guard here too makes a
+// production build with the flag set fail at once, not at first request.
+export default function config(phase) {
+  currentPhase = phase;
+  journeyProofEnabled(process.env, { phase });
+  return nextConfig;
+}

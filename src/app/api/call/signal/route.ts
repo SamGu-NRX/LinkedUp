@@ -5,7 +5,7 @@
 // checks them against the room on every call. Requests must be same-origin
 // JSON, which stops a cross-site form post from riding the session cookie
 // (a form cannot send application/json, and a cross-origin fetch carries a
-// foreign Origin). The caller is authenticated before the
+// foreign Origin). The caller is authenticated and onboarded before the
 // body is read, and the body is read only up to MAX_BODY_BYTES.
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
@@ -94,8 +94,15 @@ export async function POST(request: NextRequest) {
   // Who is asking comes before reading anything they sent.
   const { userId: clerkId } = await auth();
   if (!clerkId) return refuse("UNAUTHORIZED", "Sign in to join this call.", 401);
-  const [me] = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId)).limit(1);
+  const [me] = await db
+    .select({ id: users.id, onboardingComplete: users.onboardingComplete })
+    .from(users)
+    .where(eq(users.clerkId, clerkId))
+    .limit(1);
   if (!me) return refuse("FORBIDDEN", "You're not in this call. Only the two people matched into a room can join it.", 403);
+  // The database onboarding gate, as the call pages apply it: the
+  // journey-proof alias reaches this route without the middleware's check.
+  if (!me.onboardingComplete) return refuse("FORBIDDEN", "Finish onboarding before joining a call.", 403);
 
   const raw = await readCapped(request, MAX_BODY_BYTES);
   if (raw === null) return refuse("VALIDATION", `Requests are limited to ${MAX_BODY_BYTES} bytes.`, 413);
