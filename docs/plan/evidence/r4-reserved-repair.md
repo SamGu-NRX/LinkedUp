@@ -154,7 +154,7 @@ removed, `git status --porcelain` was empty (no uncommitted changes).
 gate through `src/app/gate-proof/page.tsx` — a clearly labelled test route
 (rendered banner: “test-only gate proof route”), not a `/demo` route and not
 any reserved file. These component tests prove that the DB-backed gate
-renders the app shell for `dbUser.onboardingComplete === true`. They do not
+lets the labelled fixture panel render for `dbUser.onboardingComplete === true`. They do not
 exercise middleware or establish a finished-user browser journey: without
 the Clerk completion claim, middleware can still redirect `/gate-proof`
 and `/app` to `/onboarding`, whose layout redirects back to `/app`.

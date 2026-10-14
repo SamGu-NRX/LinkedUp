@@ -10,7 +10,7 @@
 // entries reference users with onDelete cascade / set null).
 
 import "./support/use-stack-db";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, desc, eq, inArray, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { queueEntries, rooms, users } from "@/db/schema";
@@ -458,25 +458,283 @@ describe("J-case: three users", () => {
 });
 
 describe("ended rooms: re-joining after the call", () => {
-  it("ending and declining the same room concurrently releases the caller without deadlocking", async () => {
-    const a = await makeUser("enddecline_a");
-    const b = await makeUser("enddecline_b");
-    await queueJoin({ userId: a.id, queueType: "casual" });
-    await queueJoin({ userId: b.id, queueType: "casual" });
-    const matched = await queueStateForUser(a.id);
-    expect(matched.status).toBe("matched");
-    if (matched.status !== "matched") throw new Error("pair did not form");
+  function barrier() {
+    let release!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return { reached, release };
+  }
 
-    await Promise.all([endRoom(matched.roomId), queueCancel(a.id)]);
+  async function waitAt(gate: ReturnType<typeof barrier>) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        gate.reached,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(new Error("release did not reach its controlled barrier")),
+            5_000,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
-    const room = await db.query.rooms.findFirst({ where: eq(rooms.id, matched.roomId) });
-    expect(room?.status).toBe("ended");
-    expect(await queueStateForUser(a.id)).toEqual({ status: "idle" });
-    const partner = await queueStateForUser(b.id);
-    // Decline returns the partner to waiting if it wins; end releases both
-    // if it wins. Neither ordering may leave a match to the ended room.
-    expect(["idle", "waiting"]).toContain(partner.status);
-  }, 60_000);
+  type LockGate = {
+    started: ReturnType<typeof barrier>;
+    locked: ReturnType<typeof barrier>;
+    proceed: ReturnType<typeof barrier>;
+    pid?: number;
+    beforeLock?: ReturnType<typeof barrier>;
+  };
+  function lockGate(): LockGate {
+    return { started: barrier(), locked: barrier(), proceed: barrier() };
+  }
+
+  // Only timing changes: the production callback, SQL and Postgres locks run
+  // unchanged. Pause after SELECT FOR UPDATE, while its transaction is open.
+  function controlReleaseLocks(gates: LockGate[]) {
+    const transact = db.transaction.bind(db);
+    const spy = vi
+      .spyOn(db, "transaction")
+      .mockImplementation((callback, config) => {
+        const gate = gates.shift();
+        return transact(async (tx) => {
+          if (!gate) return callback(tx);
+          const [backend] = await tx.execute<{ pid: number }>(
+            sql`SELECT pg_backend_pid() AS pid`,
+          );
+          gate.pid = backend.pid;
+          gate.started.release();
+          const select = tx.select.bind(tx);
+          const selectSpy = vi
+            .spyOn(tx, "select")
+            .mockImplementation((fields) => {
+              const builder = select(fields);
+              const from = builder.from.bind(builder);
+              vi.spyOn(builder, "from").mockImplementation((table) => {
+                const query = from(table);
+                const execute = query.execute.bind(query);
+                vi.spyOn(query, "execute").mockImplementation(
+                  async (...args) => {
+                    if (/for update/i.test(query.toSQL().sql) && gate.beforeLock) {
+                      await gate.beforeLock.reached;
+                    }
+                    const rows = await execute(...args);
+                    if (/for update/i.test(query.toSQL().sql)) {
+                      gate.locked.release();
+                      await gate.proceed.reached;
+                    }
+                    return rows;
+                  },
+                );
+                return query;
+              });
+              return builder;
+            });
+          try {
+            return await callback(tx);
+          } finally {
+            selectSpy.mockRestore();
+          }
+        }, config);
+      });
+    return () => spy.mockRestore();
+  }
+
+  async function waitForBlocked(waiter: LockGate, holder: LockGate) {
+    await waitAt(waiter.started);
+    if (waiter.pid === undefined || holder.pid === undefined) {
+      throw new Error("release transactions have no Postgres backend identity");
+    }
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      const [row] = await db.execute<{ blocked: boolean }>(sql`
+        SELECT ${holder.pid}::int = ANY(pg_blocking_pids(${waiter.pid}::int)) AS blocked
+      `);
+      if (row.blocked) return;
+      if (Date.now() >= deadline)
+        throw new Error(
+          "release transaction did not wait on the held queue lock",
+        );
+      await sleep(10);
+    }
+  }
+
+  async function releasePair(tag: string) {
+    const a = await makeUser(`${tag}_a`);
+    const b = await makeUser(`${tag}_b`);
+    await db.insert(queueEntries).values([
+      { userId: a.id, queueType: "casual", status: "waiting" },
+      { userId: b.id, queueType: "casual", status: "waiting" },
+    ]);
+    const pair = await pairWaitingUsersTransactional("casual");
+    if (!pair) throw new Error("release fixture did not form a pair");
+    return { a, b, roomId: pair.roomId };
+  }
+
+  async function persistedEntries(userIds: number[]) {
+    return db
+      .select({
+        userId: queueEntries.userId,
+        status: queueEntries.status,
+        roomId: queueEntries.roomId,
+      })
+      .from(queueEntries)
+      .where(inArray(queueEntries.userId, userIds))
+      .orderBy(queueEntries.userId);
+  }
+
+  it("end holds queue locks before a racing decline, and neither strands a match", async () => {
+    const { a, b, roomId } = await releasePair("enddecline");
+    const end = lockGate();
+    const decline = lockGate();
+    decline.proceed.release();
+    const restore = controlReleaseLocks([end, decline]);
+    const pending: Promise<unknown>[] = [];
+    try {
+      pending.push(endRoom(roomId));
+      await waitAt(end.locked);
+      pending.push(queueCancel(a.id));
+      // This must be a real row-lock conflict, not just Promise.all timing.
+      await waitForBlocked(decline, end);
+      end.proceed.release();
+      expect(await Promise.all(pending)).toEqual([true, { status: "idle" }]);
+      expect(
+        (await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) }))
+          ?.status,
+      ).toBe("ended");
+      // No queueStateForUser/settleState call may repair these persisted rows.
+      expect(await persistedEntries([a.id, b.id])).toEqual([
+        { userId: a.id, status: "exited", roomId },
+        { userId: b.id, status: "exited", roomId },
+      ]);
+    } finally {
+      end.proceed.release();
+      decline.proceed.release();
+      await Promise.allSettled(pending);
+      restore();
+    }
+  }, 15_000);
+
+  it("two ends blocked on the same queue locks commit one end and release both entries", async () => {
+    const { a, b, roomId } = await releasePair("twoends");
+    const first = lockGate();
+    const second = lockGate();
+    second.proceed.release();
+    const restore = controlReleaseLocks([first, second]);
+    const pending: Promise<boolean>[] = [];
+    try {
+      pending.push(endRoom(roomId));
+      await waitAt(first.locked);
+      pending.push(endRoom(roomId));
+      await waitForBlocked(second, first);
+      first.proceed.release();
+      expect(await Promise.all(pending)).toEqual([true, false]);
+      expect(
+        (await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) }))
+          ?.status,
+      ).toBe("ended");
+      expect(await persistedEntries([a.id, b.id])).toEqual([
+        { userId: a.id, status: "exited", roomId },
+        { userId: b.id, status: "exited", roomId },
+      ]);
+    } finally {
+      first.proceed.release();
+      second.proceed.release();
+      await Promise.allSettled(pending);
+      restore();
+    }
+  }, 15_000);
+
+  it("decline holds queue locks before end can lock the room", async () => {
+    const { a, b, roomId } = await releasePair("declinefirst");
+    const decline = lockGate();
+    const end = lockGate();
+    end.proceed.release();
+    const restore = controlReleaseLocks([decline, end]);
+    const pending: Promise<unknown>[] = [];
+    try {
+      pending.push(queueCancel(a.id));
+      await waitAt(decline.locked);
+      pending.push(endRoom(roomId));
+      await waitForBlocked(end, decline);
+      decline.proceed.release();
+      expect(await Promise.all(pending)).toEqual([{ status: "idle" }, false]);
+      expect((await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) }))?.status).toBe("ended");
+      expect(await persistedEntries([a.id, b.id])).toEqual([
+        { userId: a.id, status: "exited", roomId },
+        { userId: b.id, status: "waiting", roomId: null },
+      ]);
+    } finally {
+      decline.proceed.release(); end.proceed.release();
+      await Promise.allSettled(pending); restore();
+    }
+  }, 15_000);
+
+  it("decline rematches the partner while an old end is pending, and the new match survives", async () => {
+    const { a, b, roomId } = await releasePair("rematch");
+    const c = await makeUser("rematch_c");
+    const decline = lockGate();
+    const end = lockGate();
+    end.beforeLock = barrier();
+    end.proceed.release();
+    const restore = controlReleaseLocks([decline, end]);
+    const pending: Promise<unknown>[] = [];
+    try {
+      const cancelled = queueCancel(a.id);
+      pending.push(cancelled);
+      await waitAt(decline.locked);
+      const ended = endRoom(roomId);
+      pending.push(ended);
+      await waitAt(end.started);
+      decline.proceed.release();
+      expect(await cancelled).toEqual({ status: "idle" });
+      // Keep the old end's transaction open before its lock query, so B
+      // can rematch. Pausing after that query would itself lock B's row,
+      // causing the pairing SELECT SKIP LOCKED to skip B instead.
+      expect(await persistedEntries([a.id, b.id])).toEqual([
+        { userId: a.id, status: "exited", roomId },
+        { userId: b.id, status: "waiting", roomId: null },
+      ]);
+      await db
+        .insert(queueEntries)
+        .values({ userId: c.id, queueType: "casual", status: "waiting" });
+      const rematch = await pairWaitingUsersTransactional("casual");
+      if (!rematch)
+        throw new Error(
+          "released partner did not rematch while the old end was pending",
+        );
+      end.beforeLock.release();
+      expect(await ended).toBe(false);
+      expect(
+        (await db.query.rooms.findFirst({ where: eq(rooms.id, roomId) }))
+          ?.status,
+      ).toBe("ended");
+      expect(
+        (
+          await db.query.rooms.findFirst({
+            where: eq(rooms.id, rematch.roomId),
+          })
+        )?.status,
+      ).toBe("active");
+      expect(await persistedEntries([a.id, b.id, c.id])).toEqual([
+        { userId: a.id, status: "exited", roomId },
+        { userId: b.id, status: "matched", roomId: rematch.roomId },
+        { userId: c.id, status: "matched", roomId: rematch.roomId },
+      ]);
+    } finally {
+      decline.proceed.release();
+      end.beforeLock.release();
+      end.proceed.release();
+      await Promise.allSettled(pending);
+      restore();
+    }
+  }, 15_000);
 
   it("a matched user whose room ended can re-join the queue (no matched-to-dead-room loop)", async () => {
     const a = await makeUser("endloop_a");
