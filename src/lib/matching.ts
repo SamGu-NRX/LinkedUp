@@ -296,16 +296,34 @@ export async function getRoomForUser(clerkUserId: string, roomId: string): Promi
 
 /** Ends a room. Idempotent: ending an ended room is a no-op returning false. */
 export async function endRoom(roomId: string, now: Date = new Date()): Promise<boolean> {
-  const updated = await db
-    .update(rooms)
-    .set({ status: "ended", endedAt: now })
-    .where(and(eq(rooms.id, roomId), eq(rooms.status, "active")))
-    .returning({ id: rooms.id });
+  const ended = await db.transaction(async (tx) => {
+    // Lock queue entries before the room, in the same order as cancelOnce.
+    // Otherwise simultaneous decline and end can deadlock on those rows.
+    await tx
+      .select({ id: queueEntries.id })
+      .from(queueEntries)
+      .where(and(eq(queueEntries.roomId, roomId), eq(queueEntries.status, "matched")))
+      .orderBy(queueEntries.id)
+      .for("update");
+    const updated = await tx
+      .update(rooms)
+      .set({ status: "ended", endedAt: now })
+      .where(and(eq(rooms.id, roomId), eq(rooms.status, "active")))
+      .returning({ id: rooms.id });
+    // Release both matches in the room-ending commit, without waiting for
+    // a later queue poll. The predicate preserves a partner already requeued
+    // by a concurrent decline.
+    await tx
+      .update(queueEntries)
+      .set({ status: "exited", exitedAt: now })
+      .where(and(eq(queueEntries.roomId, roomId), eq(queueEntries.status, "matched")));
+    return updated.length > 0;
+  });
   // The call goes with the room: its open sessions close as "ended". (A
   // poll in an ended room also closes the poller's session, so this is
   // promptness, not correctness.)
   await closeRoomSessions(roomId, now);
-  return updated.length > 0;
+  return ended;
 }
 
 type Executor = Pick<typeof db, "execute" | "insert" | "update">;
