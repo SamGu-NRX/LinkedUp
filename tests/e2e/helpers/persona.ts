@@ -55,12 +55,12 @@ export function makePersona(
 export const CLERK_TEST_CODE = "424242";
 
 export async function collapseKeylessPrompt(page: Page): Promise<void> {
-  const prompt = page.getByRole("button", {
-    name: "Keyless prompt",
-    exact: true,
-    expanded: true,
-  });
-  if (await prompt.count()) await prompt.click();
+  // Clerk's keyless action changes its provider key and remounts children.
+  // The prompt renders after that change. Waiting for it prevents interacting
+  // with an earlier tree whose focus and local state will be discarded.
+  const prompt = page.getByRole("button", { name: "Keyless prompt", exact: true });
+  await prompt.waitFor({ state: "visible", timeout: 15_000 });
+  if (await prompt.getAttribute("aria-expanded") === "true") await prompt.click();
 }
 
 /**
@@ -134,11 +134,7 @@ export async function completeOnboarding(
     .getByRole("heading", { name: "Create Your Profile" })
     .waitFor({ timeout: 60_000 });
 
-  const keyless = page.getByRole("button", { name: /keyless prompt/i, expanded: true });
-  if (await keyless.count()) {
-    await keyless.click({ force: true }).catch(() => {});
-    await page.waitForTimeout(400);
-  }
+  await collapseKeylessPrompt(page);
 
   // Step 1 — Basic Info: age slider (keyboard) + gender select.
   // The Clerk keyless prompt can re-render the tree and steal focus, so the
@@ -249,6 +245,7 @@ export async function gotoQueue(
 ): Promise<void> {
   await page.goto(`${PROOF_QUEUE}&type=${queueType}`);
   await page.locator('[data-journey-proof="queue"]').waitFor({ timeout: 60_000 });
+  await collapseKeylessPrompt(page);
   await page
     .locator('[data-queue-phase="waiting"], [data-queue-phase="matched"]')
     .waitFor({ state: "visible", timeout: 60_000 });

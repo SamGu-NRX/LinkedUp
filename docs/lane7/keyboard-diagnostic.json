@@ -1,0 +1,289 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "controlledKeylessRequest": {
+    "before": {
+      "connected": true,
+      "active": true,
+      "clientHeight": 268,
+      "scrollHeight": 409
+    },
+    "after": {
+      "connected": false,
+      "sameNode": false,
+      "active": false,
+      "clientHeight": 0,
+      "scrollHeight": 0
+    }
+  },
+  "afterWaitingForKeylessPrompt": {
+    "events": [
+      {
+        "name": "focusout",
+        "target": {
+          "tag": "BUTTON",
+          "intro": null,
+          "role": null,
+          "label": "Keyless prompt"
+        },
+        "prevented": false,
+        "active": {
+          "tag": "BODY",
+          "intro": null,
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 0,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "focusin",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 0,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "keydown",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "key": "PageDown",
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 0,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "keydown-after",
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 0,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "keyup",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "key": "PageDown",
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 0,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "scroll",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 9,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "scroll",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 25,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "scroll",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 47,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "scroll",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 74,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "scroll",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 100,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      },
+      {
+        "name": "scroll",
+        "target": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "prevented": false,
+        "active": {
+          "tag": "SECTION",
+          "intro": "compact",
+          "role": null,
+          "label": null
+        },
+        "focused": true,
+        "connected": true,
+        "same": true,
+        "top": 121,
+        "height": 268,
+        "scrollHeight": 409,
+        "overflow": "auto"
+      }
+    ],
+    "final": {
+      "active": {
+        "tag": "SECTION",
+        "intro": "compact",
+        "role": null,
+        "label": null
+      },
+      "focused": true,
+      "connected": true,
+      "same": true,
+      "top": 121,
+      "height": 268,
+      "scrollHeight": 409,
+      "overflow": "auto"
+    }
+  }
+}

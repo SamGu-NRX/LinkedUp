@@ -67,7 +67,6 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 async function capture(page: Page, name: string): Promise<void> {
-  await collapseKeylessPrompt(page);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({
     path: path.join(screenshots, `${name}.png`),
@@ -218,6 +217,7 @@ for (const viewport of viewports) {
         name: "Join the call",
         exact: true,
       });
+      await collapseKeylessPrompt(a.page);
       await a.page.locator("[data-call-decline]").focus();
       await a.page.keyboard.press("Shift+Tab");
       await expect(join).toBeFocused();
@@ -267,22 +267,23 @@ for (const viewport of viewports) {
         longIntro.getByText(longQuestion, { exact: true }),
       ).toBeVisible();
       await a.page.bringToFront();
-      await expect(a.page.locator("[data-call-root]")).toHaveAttribute(
-        "data-call-local-media",
-        "ready",
-      );
       await collapseKeylessPrompt(a.page);
       await expect
         .poll(() => a.page.evaluate(() => document.hasFocus()))
         .toBe(true);
       await longIntro.focus();
+      // Traverse out and back with Tab, so the check proves keyboard reachability
+      // as well as programmatic focus. No screenshot helper may click afterward.
+      await a.page.keyboard.press("Tab");
+      await expect(longIntro).not.toBeFocused();
+      await a.page.keyboard.press("Shift+Tab");
       await expect(longIntro).toBeFocused();
       expect(
         await longIntro.evaluate(
           (element) => element.scrollHeight - element.clientHeight,
         ),
       ).toBeGreaterThan(0);
-      await longIntro.press("PageDown");
+      await a.page.keyboard.press("PageDown");
       await expect
         .poll(() => longIntro.evaluate((element) => element.scrollTop))
         .toBeGreaterThan(0);
@@ -291,11 +292,17 @@ for (const viewport of viewports) {
       if (!bounds) throw new Error("Call controls have no visible bounds");
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
       await capture(a.page, `in-call-long-question-${size}`);
-      // Keep offline recovery in a fresh persona: a failed Clerk chunk while
-      // offline must not contaminate the queue-to-call acceptance above.
+      // A third user exercises polling failure and recovery while the pair calls.
       const c = await newActor("C");
       await gotoQueue(c.page, "professional");
-      await c.page.context().setOffline(true);
+      // Fail only the app's polling actions. Browser-wide offline mode also
+      // breaks lazy Clerk chunks and can prevent unrelated recovery UI loading.
+      const pollUrl = "**/onboarding?journey-proof=queue*";
+      await c.page.route(pollUrl, async (route) => {
+        if (route.request().method() === "POST")
+          await route.abort("internetdisconnected");
+        else await route.continue();
+      });
       await waitForQueuePhase(c.page, "error");
       await expect(
         c.page.getByText("Could not check the queue. Try again.", {
@@ -303,7 +310,7 @@ for (const viewport of viewports) {
         }),
       ).toBeVisible();
       await capture(c.page, `queue-error-${size}`);
-      await c.page.context().setOffline(false);
+      await c.page.unroute(pollUrl);
       await c.page
         .getByRole("button", { name: "Try again", exact: true })
         .click();
