@@ -22,6 +22,11 @@ describe("room ICE authorization", () => {
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ message: "You do not have access to this call." });
     expect(deps.issue).not.toHaveBeenCalled();
+    deps.access.mockResolvedValue({ allowed: false, reason: "room_ended" });
+    res = await GET(request());
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ message: "You do not have access to this call." });
+    expect(deps.issue).not.toHaveBeenCalled();
     deps.access.mockResolvedValue({ allowed: true, me: { id: 7 } });
     deps.issue.mockResolvedValue({ iceServers: [{ urls: ["turn:relay.example"] }], expiresAt: 3_601_000 });
     res = await GET(request());
@@ -29,5 +34,21 @@ describe("room ICE authorization", () => {
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await res.json()).toEqual({ iceServers: [{ urls: ["turn:relay.example"] }], expiresAt: 3_601_000 });
     expect(deps.issue).toHaveBeenCalledWith("7");
+  });
+  it("rejects malformed room identifiers before accessing a room", async () => {
+    deps.auth.mockResolvedValue({ userId: "member" });
+    const res = await GET(new NextRequest("http://localhost:3202/api/call/ice?roomId=not-a-room"));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ message: "Invalid call room." });
+    expect(deps.access).not.toHaveBeenCalled();
+  });
+  it("returns a generic error when the credential provider fails", async () => {
+    deps.auth.mockResolvedValue({ userId: "member" });
+    deps.access.mockResolvedValue({ allowed: true, me: { id: 7 } });
+    deps.issue.mockRejectedValue(new Error("private provider details"));
+    const res = await GET(request());
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(await res.json()).toEqual({ message: "The call service could not prepare network access." });
   });
 });

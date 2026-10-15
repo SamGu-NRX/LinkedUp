@@ -20,6 +20,7 @@ import {
   pageDiagnostics,
 } from "./scenario-kit.mjs";
 import { killPeerTab } from "./peers.mjs";
+import fs from "node:fs";
 import { loadContracts } from "./contracts.mjs";
 import {
   classifyRemoteColor,
@@ -693,4 +694,46 @@ export async function scenario_H_16(ctx) {
   } finally {
     await Promise.all([peerA.close(), peerB.close(), peerC.close()]);
   }
+}
+
+/** Endpoint-issued TURN REST credentials carry real media under relay-only policy. */
+export async function scenario_H_17(ctx, { seed }) {
+  if (!ctx.turn) throw new ScenarioError("H-17 requires scripts/prove-turn.mjs to configure the endpoint and relay together.");
+  // The policy is the only override. Server URLs and credentials must come from /api/call/ice.
+  const peerA = await ctx.launchPeer("A", {}, { iceTransportPolicy: "relay" });
+  const peerB = await ctx.launchPeer("B", {}, { iceTransportPolicy: "relay" });
+  try {
+    await Promise.all([peerA, peerB].map((peer) => waitFor(peer, phaseIs("connected"), { timeoutMs: 30000 })));
+  } catch (error) {
+    fs.mkdirSync("docs/lane2/screenshots", { recursive: true });
+    for (const peer of [peerA, peerB]) {
+      for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+        await peer.page.setViewportSize(viewport);
+        await peer.page.screenshot({ path: `docs/lane2/screenshots/blocked-${peer.peerId}-${viewport.width}x${viewport.height}.png` });
+      }
+    }
+    const states = await Promise.all([peerA, peerB].map((peer) => pageDiagnostics(peer)));
+    throw new ScenarioError(`${error.message} | ${JSON.stringify(states)}`);
+  }
+  await installColorHook(peerA);
+  await installColorHook(peerB);
+  await waitForLiveMedia(peerA, "B", { deadlineAt: Date.now() + 15000, label: "B" });
+  await waitForLiveMedia(peerB, "A", { deadlineAt: Date.now() + 15000, label: "A" });
+  const frameA = await decodeRemoteFrame(peerA, "B");
+  const frameB = await decodeRemoteFrame(peerB, "A");
+  if (matchPeerColor(frameA.color)?.label !== "B" || matchPeerColor(frameB.color)?.label !== "A") throw new ScenarioError("H-17 remote video does not match the other participant.");
+  const toneA = await sampleRemoteTone(peerA, "B", 1000);
+  const toneB = await sampleRemoteTone(peerB, "A", 1000);
+  if (!toneMatches(toneA, 660) || !toneMatches(toneB, 440)) throw new ScenarioError("H-17 remote audio does not match the other participant.");
+  const paths = [await selectedCandidateTypes(peerA), await selectedCandidateTypes(peerB)];
+  if (!paths.every((path) => path.length && path.every((pair) => pair?.local === "relay"))) throw new ScenarioError("H-17 selected media path is not relayed", { paths });
+  if (![peerA, peerB].every((peer) => peer.iceResponses.some((response) => response.status === 200 && response.turn))) throw new ScenarioError("H-17 did not observe the authorized ICE endpoint.");
+  const relayStats = ctx.turn.stats();
+  if (relayStats.allocations < 2 || !relayStats.relayedToPeer || !relayStats.relayedToClient) throw new ScenarioError("H-17 TURN did not carry media.");
+  fs.mkdirSync("docs/lane2/screenshots", { recursive: true });
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await peerA.page.setViewportSize(viewport);
+    await peerA.page.screenshot({ path: `docs/lane2/screenshots/relay-connected-${viewport.width}x${viewport.height}.png` });
+  }
+  return { seed, endpointCredentialsUsed: true, relayStats, paths, audioHz: [toneA.peakHz, toneB.peakHz], colours: ["B", "A"] };
 }

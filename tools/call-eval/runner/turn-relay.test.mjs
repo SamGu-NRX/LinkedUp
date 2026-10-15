@@ -73,6 +73,21 @@ function integrityValid(/** @type {Buffer} */ raw) {
 const allocate = () => buildStun(ALLOCATE, 0, txid(), [[0x0019, Buffer.from([17, 0, 0, 0])], ...signed()], KEY);
 
 describe("turn relay", () => {
+  it("accepts TURN REST credentials and refuses expired or incorrectly signed credentials", async () => {
+    const relay = await startTurnRelay({ sharedSecret: "test-secret" });
+    cleanups.push(() => relay.stop());
+    const socket = await client();
+    const packet = (username, secret) => {
+      const password = createHmac("sha1", secret).update(username).digest("base64");
+      return buildStun(ALLOCATE, 0, txid(), [[0x0019, Buffer.from([17, 0, 0, 0])], [0x0006, Buffer.from(username)]], longTermKey(username, "connvo-eval", password));
+    };
+    const username = `${Math.floor(Date.now() / 1000) + 3600}:member`;
+    expect((await request(socket, relay.port, packet(username, "wrong-secret"))).cls).toBe(0b11);
+    expect((await request(socket, relay.port, packet("1:member", "test-secret"))).cls).toBe(0b11);
+    const accepted = await request(socket, relay.port, packet(username, "test-secret"));
+    expect(accepted.cls).toBe(0b10);
+    expect(decodeXorAddress(accepted.attrs.get(0x0016)).address).toBe("127.0.0.1");
+  });
   it("allocates, relays by indication and by channel between two clients", async () => {
     const relay = await startTurnRelay();
     cleanups.push(() => relay.stop());

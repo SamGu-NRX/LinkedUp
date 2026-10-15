@@ -1,0 +1,15 @@
+[
+  {
+    "scenario": "H-17",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": false,
+    "passCondition": null,
+    "measurements": null,
+    "failure": {
+      "message": "A: condition not reached within 30000 ms | [{\"url\":\"/onboarding?journey-proof=call&room=…\",\"phase\":\"failed\",\"error\":\"The call service could not prepare network access. Try again.\",\"tiles\":[],\"pcs\":[],\"candidates\":[],\"configs\":[],\"probeConfig\":\"{\\\"iceTransportPolicy\\\":\\\"relay\\\"}\",\"freshGather\":{\"found\":[\"end\"],\"state\":\"complete\"},\"visibility\":\"visible\",\"log\":[\"7765 connect as 1\"]},{\"url\":\"/onboarding?journey-proof=call&room=…\",\"phase\":\"failed\",\"error\":\"The call service could not prepare network access. Try again.\",\"tiles\":[],\"pcs\":[],\"candidates\":[],\"configs\":[],\"probeConfig\":\"{\\\"iceTransportPolicy\\\":\\\"relay\\\"}\",\"freshGather\":{\"found\":[\"end\"],\"state\":\"complete\"},\"visibility\":\"visible\",\"log\":[\"2460 connect as 2\"]}]",
+      "stack": "ScenarioError: A: condition not reached within 30000 ms | [{\"url\":\"/onboarding?journey-proof=call&room=…\",\"phase\":\"failed\",\"error\":\"The call service could not prepare network access. Try again.\",\"tiles\":[],\"pcs\":[],\"candidates\":[],\"configs\":[],\"probeConfig\":\"{\\\"iceTransportPolicy\\\":\\\"relay\\\"}\",\"freshGather\":{\"found\":[\"end\"],\"state\":\"complete\"},\"visibility\":\"visible\",\"log\":[\"7765 connect as 1\"]},{\"url\":\"/onboarding?journey-proof=call&room=…\",\"phase\":\"failed\",\"error\":\"The call service could not prepare network access. Try again.\",\"tiles\":[],\"pcs\":[],\"candidates\":[],\"configs\":[],\"probeConfig\":\"{\\\"iceTransportPolicy\\\":\\\"relay\\\"}\",\"freshGather\":{\"found\":[\"end\"],\"state\":\"complete\"},\"visibility\":\"visible\",\"log\":[\"2460 connect as 2\"]}]\n    at scenario_H_17 (file:///Users/samgu/Programming%20Projects/fleet-leads/wt/linkedup-turn/tools/call-eval/runner/scenarios-h.mjs:716:11)\n    at async runOneInner (file:///Users/samgu/Programming%20Projects/fleet-leads/wt/linkedup-turn/tools/call-eval/runner/run.mjs:71:26)\n    at async runOne (file:///Users/samgu/Programming%20Projects/fleet-leads/wt/linkedup-turn/tools/call-eval/runner/run.mjs:52:12)"
+    },
+    "ms": 40383
+  }
+]

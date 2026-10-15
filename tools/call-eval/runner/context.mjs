@@ -45,9 +45,9 @@ const CALL_URL = /journey-proof=call&room=([0-9a-f-]{36})/;
 
 export class RunContext {
   /**
-   * @param {{ baseUrl: string, seed?: number, log?: (m: string) => void, warmUp?: boolean }} opts
+   * @param {{ baseUrl: string, seed?: number, log?: (m: string) => void, warmUp?: boolean, turn?: Awaited<ReturnType<typeof createTurn>> | null }} opts
    */
-  constructor({ baseUrl, seed = 1, log = console.log, warmUp = true }) {
+  constructor({ baseUrl, seed = 1, log = console.log, warmUp = true, turn = null }) {
     if (!baseUrl) throw new Error("the LinkedUp harness needs --base-url (the running stack)");
     this.transport = "p2p-postgres";
     this.page = "real";
@@ -55,7 +55,7 @@ export class RunContext {
     this.seed = seed;
     this.log = log;
     this._warmUp = warmUp;
-    this.turn = null;
+    this.turn = turn;
     this.shapers = new Map();
     this.sql = null;
     this.personas = null;
@@ -184,6 +184,12 @@ export class RunContext {
     const { video, audio } = this.fixturePaths(participant);
     const { launchPeer: launch } = await import("./peers.mjs");
     const peer = await launch({ fixtureVideo: video, fixtureAudio: audio, baseUrl: this.url, rtcConfig: config, participant, fullChromium });
+    peer.iceResponses = [];
+    peer.page.on("response", async (response) => {
+      if (!response.url().includes("/api/call/ice?")) return;
+      const body = await response.json().catch(() => null);
+      peer.iceResponses.push({ status: response.status(), turn: body?.iceServers?.some((server) => [server.urls].flat().some((url) => /^turns?:/.test(url))) ?? false });
+    });
     const { SECOND_CAMERA_COLOR } = loadContracts();
     await peer.context.addInitScript(/** @type {any} */ (secondCameraInit), { deviceId: SECOND_CAMERA_ID, color: [...SECOND_CAMERA_COLOR] });
     await peer.context.addInitScript((ids) => {

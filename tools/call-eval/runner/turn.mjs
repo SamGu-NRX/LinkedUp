@@ -11,8 +11,9 @@ export function turnAvailable() {
   return Promise.resolve(true);
 }
 
-export async function createTurn({ port = 0, user = "eval-user", pass = "eval-pass" } = {}) {
-  const relay = await startTurnRelay({ port, realm: "linkedup-eval", password: pass });
+/** @param {{ port?: number, user?: string, pass?: string, sharedSecret?: string | null }} [options] */
+export async function createTurn({ port = 0, user = "eval-user", pass = "eval-pass", sharedSecret = null } = {}) {
+  const relay = await startTurnRelay({ port, realm: "linkedup-eval", password: pass, sharedSecret });
   return { port: relay.port, user, pass, stats: relay.stats, stop: () => relay.stop() };
 }
 
