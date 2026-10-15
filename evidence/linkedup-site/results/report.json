@@ -1,0 +1,753 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/home/user/work/LinkedUp/evidence/linkedup-site/node_modules/playwright/cli.js",
+      "test",
+      "--config=playwright.config.ts"
+    ],
+    "configFile": "/home/user/work/LinkedUp/evidence/linkedup-site/playwright.config.ts",
+    "rootDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 4
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/user/work/LinkedUp/evidence/linkedup-site/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "desktop-1440x900",
+        "name": "desktop-1440x900",
+        "testDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/home/user/work/LinkedUp/evidence/linkedup-site/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "mobile-390x844",
+        "name": "mobile-390x844",
+        "testDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/user/work/LinkedUp/evidence/linkedup-site/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "name": "desktop-1440x900",
+        "testDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+        "snapshotDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://localhost:3210",
+          "screenshot": "off",
+          "trace": "off",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "desktop-1440x900"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/user/work/LinkedUp/evidence/linkedup-site/results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "name": "mobile-390x844",
+        "testDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+        "snapshotDir": "/home/user/work/LinkedUp/evidence/linkedup-site/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://localhost:3210",
+          "screenshot": "off",
+          "trace": "off",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "mobile-390x844"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/home/user/work/LinkedUp/evidence/linkedup-site/results/report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "baseline.spec.ts",
+      "file": "baseline.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "capture full-page landing screenshot",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1440x900",
+              "projectName": "desktop-1440x900",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4618,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T01:43:50.786Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d2923076b323a8336a93-d1478eafb862545d6ff7",
+          "file": "baseline.spec.ts",
+          "line": 10,
+          "column": 5
+        },
+        {
+          "title": "capture full-page landing screenshot",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-390x844",
+              "projectName": "mobile-390x844",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 3,
+                  "status": "passed",
+                  "duration": 5710,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T01:43:50.807Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d2923076b323a8336a93-b633ecafc412349cb8bc",
+          "file": "baseline.spec.ts",
+          "line": 10,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "landing-checks.spec.ts",
+      "file": "landing-checks.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "keyboard operation",
+          "file": "landing-checks.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "nav and primary actions are keyboard reachable and operable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop-1440x900",
+                  "projectName": "desktop-1440x900",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 2418,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:43:50.834Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-c596177ed8ef3ed25e97",
+              "file": "landing-checks.spec.ts",
+              "line": 11,
+              "column": 7
+            },
+            {
+              "title": "nav and primary actions are keyboard reachable and operable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-390x844",
+                  "projectName": "mobile-390x844",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2329,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:43:56.496Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-024f1d22989212e7c81c",
+              "file": "landing-checks.spec.ts",
+              "line": 11,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "reduced motion",
+          "file": "landing-checks.spec.ts",
+          "line": 68,
+          "column": 6,
+          "specs": [
+            {
+              "title": "page is static under prefers-reduced-motion: reduce",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop-1440x900",
+                  "projectName": "desktop-1440x900",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 3231,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:43:53.358Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-ff5887e5445d465df61a",
+              "file": "landing-checks.spec.ts",
+              "line": 69,
+              "column": 7
+            },
+            {
+              "title": "page is static under prefers-reduced-motion: reduce",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-390x844",
+                  "projectName": "mobile-390x844",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3297,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:43:58.959Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-69ace885832daeef3f9e",
+              "file": "landing-checks.spec.ts",
+              "line": 69,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "axe",
+          "file": "landing-checks.spec.ts",
+          "line": 115,
+          "column": 6,
+          "specs": [
+            {
+              "title": "no serious or critical violations (load)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop-1440x900",
+                  "projectName": "desktop-1440x900",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1781,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:43:56.609Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-de8cc4786f4f10a7b92d",
+              "file": "landing-checks.spec.ts",
+              "line": 117,
+              "column": 9
+            },
+            {
+              "title": "no serious or critical violations (full-scroll)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop-1440x900",
+                  "projectName": "desktop-1440x900",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 3335,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:43:58.404Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-6aeaf826610ef022b32f",
+              "file": "landing-checks.spec.ts",
+              "line": 117,
+              "column": 9
+            },
+            {
+              "title": "no serious or critical violations (load)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-390x844",
+                  "projectName": "mobile-390x844",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1590,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:44:02.280Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-ad0abc792c3a464f0c71",
+              "file": "landing-checks.spec.ts",
+              "line": 117,
+              "column": 9
+            },
+            {
+              "title": "no serious or critical violations (full-scroll)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-390x844",
+                  "projectName": "mobile-390x844",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3639,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:44:03.905Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-0860ea722d74a03ee055",
+              "file": "landing-checks.spec.ts",
+              "line": 117,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "configured links",
+          "file": "landing-checks.spec.ts",
+          "line": 168,
+          "column": 6,
+          "specs": [
+            {
+              "title": "every internal href resolves and every anchor target exists",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop-1440x900",
+                  "projectName": "desktop-1440x900",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 727,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:44:01.754Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-c1a87f2e7eebdc4d7f46",
+              "file": "landing-checks.spec.ts",
+              "line": 169,
+              "column": 7
+            },
+            {
+              "title": "no claim from the fabricated inventory remains",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop-1440x900",
+                  "projectName": "desktop-1440x900",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 698,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:44:02.508Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-10c110a00f4e55016084",
+              "file": "landing-checks.spec.ts",
+              "line": 220,
+              "column": 7
+            },
+            {
+              "title": "every internal href resolves and every anchor target exists",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-390x844",
+                  "projectName": "mobile-390x844",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 633,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:44:07.562Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-e10d80c57cd150871056",
+              "file": "landing-checks.spec.ts",
+              "line": 169,
+              "column": 7
+            },
+            {
+              "title": "no claim from the fabricated inventory remains",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-390x844",
+                  "projectName": "mobile-390x844",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 607,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T01:44:08.207Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "eb44fa84d941cfb819de-0227dc147b809b699c28",
+              "file": "landing-checks.spec.ts",
+              "line": 220,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "layout-shift.spec.ts",
+      "file": "layout-shift.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "repeated loads observe zero layout shifts",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1440x900",
+              "projectName": "desktop-1440x900",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 2,
+                  "status": "passed",
+                  "duration": 16196,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T01:43:50.808Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "084a8dcd66dd50a9f4ff-4987bb8b98f62b9b87f3",
+          "file": "layout-shift.spec.ts",
+          "line": 13,
+          "column": 5
+        },
+        {
+          "title": "repeated loads observe zero layout shifts",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-390x844",
+              "projectName": "mobile-390x844",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 3,
+                  "status": "passed",
+                  "duration": 16168,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T01:43:56.662Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "084a8dcd66dd50a9f4ff-9ccbc40ac6fba7f411b6",
+          "file": "layout-shift.spec.ts",
+          "line": 13,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-11T01:43:50.169Z",
+    "duration": 22726.029,
+    "expected": 16,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
