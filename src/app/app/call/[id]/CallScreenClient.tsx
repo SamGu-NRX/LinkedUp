@@ -12,33 +12,55 @@ export default function CallScreenClient({
   signalingEndpoint,
   iceEndpoint,
   exitHref,
+  summaryHref,
 }: {
   access: Extract<RoomAccess, { allowed: true }>;
   /** Where the call signals: /api/call/signal, or the journey-proof path's own. */
   signalingEndpoint: string;
   iceEndpoint: string;
-  /** Where Done goes after ending the room. */
+  /** Where the queue lives (unused now Done leads to the summary; kept for the call contract). */
   exitHref: string;
+  /** Where Done lands: this room's summary. Defaults to the app route. */
+  summaryHref?: string;
 }) {
   const router = useRouter();
 
   const participants: [Participant, Participant] = [
-    { id: String(access.me.id), name: access.me.name, avatarUrl: access.me.avatarUrl },
-    { id: String(access.partner.id), name: access.partner.name, avatarUrl: access.partner.avatarUrl },
+    {
+      id: String(access.me.id),
+      name: access.me.name,
+      avatarUrl: access.me.avatarUrl,
+    },
+    {
+      id: String(access.partner.id),
+      name: access.partner.name,
+      avatarUrl: access.partner.avatarUrl,
+    },
   ];
+
+  const summary = summaryHref ?? `/app/call/${access.roomId}/summary`;
 
   return (
     <VoiceCallScreen
       callType={access.queueType as CallType}
       participants={participants}
       initialDuration={300}
-      call={{ roomId: access.roomId, selfId: String(access.me.id), signalingEndpoint, iceEndpoint }}
+      call={{
+        roomId: access.roomId,
+        selfId: String(access.me.id),
+        signalingEndpoint,
+        iceEndpoint,
+      }}
       // Leaving is leaving the call, not ending the room: the screen offers
       // Rejoin, and the other person stays connected.
       onEndCall={() => {}}
-      onDone={() => {
-        // Done ends the room for both, so each can queue again.
-        void endRoomAction(access.roomId).finally(() => router.push(exitHref));
+      onDone={(rating) => {
+        // Done ends the room for both, persists both participants' summary
+        // rows (the caller's rating included), and shows this person the
+        // real call's recap instead of dropping them back with nothing.
+        void endRoomAction(access.roomId, {
+          rating: rating ?? undefined,
+        }).finally(() => router.push(summary));
       }}
       onExtendCall={() => {
         // Extension needs session semantics a later step owns; the control
@@ -48,7 +70,7 @@ export default function CallScreenClient({
         /* local capture state lives in VoiceCallScreen */
       }}
       onRateCall={() => {
-        /* ratings persist in a later milestone */
+        /* the rating is sent with Done, persisted in call_summaries */
       }}
     />
   );

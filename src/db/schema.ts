@@ -92,7 +92,9 @@ export const rooms = pgTable("rooms", {
   user2Id: integer("user2_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
 
@@ -105,11 +107,17 @@ export const queueEntries = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     queueType: varchar("queue_type", { length: 20 }).notNull(),
     status: varchar("status", { length: 20 }).notNull().default("waiting"),
-    roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
-    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    roomId: uuid("room_id").references(() => rooms.id, {
+      onDelete: "set null",
+    }),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     // Liveness: the last time the person's queue screen polled. Stale
     // entries expire on this, not on joinedAt (src/lib/matching.ts).
-    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     exitedAt: timestamp("exited_at", { withTimezone: true }),
   },
   (table) => [
@@ -144,18 +152,36 @@ export const callSessions = pgTable(
     closedReason: varchar("closed_reason", { length: 10 }),
     micOn: boolean("mic_on").notNull().default(true),
     cameraOn: boolean("camera_on").notNull().default(true),
-    lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
+    lastHeartbeatAt: timestamp("last_heartbeat_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     /** Start of the current send-rate window and the sends counted in it. */
-    rateWindowStart: timestamp("rate_window_start", { withTimezone: true }).notNull().defaultNow(),
+    rateWindowStart: timestamp("rate_window_start", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     rateCount: integer("rate_count").notNull().default(0),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
-    uniqueIndex("call_sessions_room_session_unique").on(table.roomId, table.sessionId),
+    uniqueIndex("call_sessions_room_session_unique").on(
+      table.roomId,
+      table.sessionId,
+    ),
     index("call_sessions_room_state_idx").on(table.roomId, table.state),
-    index("call_sessions_room_user_state_idx").on(table.roomId, table.userId, table.state),
-    index("call_sessions_state_heartbeat_idx").on(table.state, table.lastHeartbeatAt),
+    index("call_sessions_room_user_state_idx").on(
+      table.roomId,
+      table.userId,
+      table.state,
+    ),
+    index("call_sessions_state_heartbeat_idx").on(
+      table.state,
+      table.lastHeartbeatAt,
+    ),
   ],
 );
 
@@ -174,10 +200,17 @@ export const callSignals = pgTable(
     /** The signal as the browser produced it (description or candidate). */
     payload: jsonb("payload").notNull(),
     processed: boolean("processed").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
-    index("call_signals_unread_idx").on(table.roomId, table.toSessionId, table.processed, table.id),
+    index("call_signals_unread_idx").on(
+      table.roomId,
+      table.toSessionId,
+      table.processed,
+      table.id,
+    ),
     index("call_signals_cleanup_idx").on(table.processed, table.createdAt),
   ],
 );
@@ -202,3 +235,47 @@ export const callUserBudgets = pgTable("call_user_budgets", {
   windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
   used: integer("used").notNull(),
 });
+
+// --- After the call (LS2) --------------------------------------------------
+// One summary row per participant, persisted from the real room when someone
+// presses Done. Only facts the call itself produced: who you were with, how
+// long the room was actually connected, which queue it came from, and the
+// star rating the caller gave in the call screen. No transcript, no topics,
+// no AI: nothing is stored that the schema's own records cannot back.
+export const callSummaries = pgTable(
+  "call_summaries",
+  {
+    id: serial("id").primaryKey(),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => rooms.id, { onDelete: "cascade" }),
+    /** Whose summary this row is. */
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** The other person in the room. */
+    peerId: integer("peer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    queueType: varchar("queue_type", { length: 20 }).notNull(),
+    /** Seconds the two people were actually connected (see persistCallSummaries). */
+    durationSeconds: integer("duration_seconds").notNull(),
+    /** When the connected call began (both first joins), when it ended. */
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
+    /** The star rating this user gave in the call screen, 1..5; null = unrated. */
+    rating: integer("rating"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // One summary per person per room: ending twice (both participants press
+    // Done) writes one row each, never duplicates.
+    uniqueIndex("call_summaries_room_user_unique").on(
+      table.roomId,
+      table.userId,
+    ),
+    index("call_summaries_user_recent_idx").on(table.userId, table.endedAt),
+  ],
+);
