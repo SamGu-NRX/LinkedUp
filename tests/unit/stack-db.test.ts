@@ -16,7 +16,7 @@ describe("stackDatabaseUrl", () => {
   it.each([
     ["the system Postgres", "postgresql://postgres:postgres@localhost:5432/linkedup"],
     ["a hosted database", "postgresql://app:s3cret-pw@db.example.supabase.co:5432/postgres"],
-    ["the stack port, another database", LOCAL_DATABASE_URL.replace(/\/linkedup$/, "/postgres")],
+    ["the stack port, another database", new URL("/postgres", LOCAL_DATABASE_URL).href],
     ["an empty value", ""],
   ])("refuses %s, without echoing credentials", (_name, url) => {
     let message = "";

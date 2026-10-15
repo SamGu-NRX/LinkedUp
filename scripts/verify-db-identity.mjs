@@ -18,6 +18,7 @@ import { sql } from "drizzle-orm";
 const dbModule = await import("../src/db/index.ts");
 const db = dbModule.db ?? dbModule.default?.db;
 import { dbIdentityMismatches, PG_DATA_DIR, PG_PORT } from "./dev-up.mjs";
+import { DATABASE_NAME } from "./stack-paths.cjs";
 
 const rowsResult = await db.execute(sql`
   select
@@ -41,7 +42,7 @@ const report = {
 };
 
 const failures = dbIdentityMismatches(report, {
-  databaseName: "linkedup",
+  databaseName: DATABASE_NAME,
   port: PG_PORT,
   dataDirectory: PG_DATA_DIR,
 });

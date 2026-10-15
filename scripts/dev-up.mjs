@@ -57,6 +57,7 @@ import { pathToFileURL } from "node:url";
 // can load them too (tests/stack-db.ts).
 import {
   ADMIN_DATABASE_URL,
+  DATABASE_NAME,
   APP_PORT,
   LOCAL_DATABASE_URL,
   PG_DATA_DIR,
@@ -485,6 +486,7 @@ function ensurePostgres() {
     log(`project PostgreSQL already running on :${PG_PORT} — kept`);
     return;
   }
+  if (process.env.LINKEDUP_PG_DATA_DIR) die("Shared PostgreSQL is unavailable; its owner must start it");
   const startedAt = Date.now();
   initdbIfNeeded();
   startProjectPostgres();
@@ -497,14 +499,14 @@ function ensurePostgres() {
 
   const hasDb = run(
     pg("psql"),
-    [ADMIN_DATABASE_URL, "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'linkedup'"],
+    [ADMIN_DATABASE_URL, "-tAc", `SELECT 1 FROM pg_database WHERE datname = '${DATABASE_NAME}'`],
     { capture: true },
   ).trim();
   if (hasDb === "1") {
-    log("database 'linkedup' already exists — kept");
+    log(`database ${DATABASE_NAME} already exists`);
   } else {
-    run(pg("psql"), [ADMIN_DATABASE_URL, "-c", "CREATE DATABASE linkedup"]);
-    log("database 'linkedup' created");
+    run(pg("psql"), [ADMIN_DATABASE_URL, "-c", `CREATE DATABASE "${DATABASE_NAME}"`]);
+    log(`database ${DATABASE_NAME} created`);
   }
 }
 
@@ -809,7 +811,7 @@ function down() {
     log(`the recorded pid ${meta.pid} is not our dev server any more — left alone`);
   }
   clearDevMeta();
-  if (existsSync(path.join(PG_DATA_DIR, "postmaster.pid"))) {
+  if (!process.env.LINKEDUP_PG_DATA_DIR && existsSync(path.join(PG_DATA_DIR, "postmaster.pid"))) {
     run(pg("pg_ctl"), ["-D", PG_DATA_DIR, "-m", "fast", "-w", "stop"]);
     log("stopped the project PostgreSQL cluster");
   }

@@ -20,7 +20,7 @@ function readPort(value, fallback) {
 const APP_PORT = readPort(process.env.LINKEDUP_DEV_PORT, 3000);
 /** Project-owned Postgres port: distinctive, localhost-only, NOT the system 5432. */
 const PG_PORT = readPort(process.env.LINKEDUP_PG_PORT, 54329);
-const PG_DATA_DIR = path.join(ROOT, ".local", "pg");
+const PG_DATA_DIR = process.env.LINKEDUP_PG_DATA_DIR ?? path.join(ROOT, ".local", "pg");
 // The socket directory goes inside pg_ctl's -o option string, which is
 // split on spaces, and a Unix socket path is capped near 104 bytes on macOS:
 // keep it short and space-free, per checkout.
@@ -29,11 +29,17 @@ const PG_SOCKET_DIR = path.join(
   `linkedup-pg-${crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8)}`,
 );
 const PG_LOG_PATH = path.join(ROOT, ".local", "pg.log");
-const LOCAL_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/linkedup`;
+// Parallel lanes share the server but must never migrate each other's database.
+const DATABASE_NAME = process.env.LINKEDUP_DATABASE_NAME ?? "linkedup";
+if (!/^[a-z][a-z0-9_]{0,62}$/.test(DATABASE_NAME)) {
+  throw new Error("LINKEDUP_DATABASE_NAME must be a lowercase PostgreSQL identifier");
+}
+const LOCAL_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/${DATABASE_NAME}`;
 const ADMIN_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/postgres`;
 
 module.exports = {
   ROOT,
+  DATABASE_NAME,
   APP_PORT,
   PG_PORT,
   PG_DATA_DIR,
