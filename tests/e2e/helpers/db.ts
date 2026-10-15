@@ -91,10 +91,12 @@ export async function appendScorecard(entry: {
   notes?: string[];
   durationMs: number;
   error?: string;
+  /** Override the destination file (the normal-route proof keeps its own scorecard). */
+  file?: string;
 }): Promise<void> {
   const { appendFile, mkdir } = await import("node:fs/promises");
   const path = await import("node:path");
-  const file = process.env.J_SCORECARD ?? "test-results/j-scorecard.jsonl";
+  const file = entry.file ?? process.env.J_SCORECARD ?? "test-results/j-scorecard.jsonl";
   await mkdir(path.dirname(file), { recursive: true });
   await appendFile(file, `${JSON.stringify(entry)}\n`);
 }
