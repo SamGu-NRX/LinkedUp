@@ -67,7 +67,7 @@ export const probeInit = String.raw`
 
   class WrappedPC extends NativePC {
     constructor(cfg) {
-      super(window.__probeRtcConfig || cfg);
+      super(window.__probeRtcConfig ? { ...cfg, ...window.__probeRtcConfig } : cfg);
       this.__probe = record(this);
       // Registry of the real pc instances (probe.pcs holds records only):
       // the runner reads receivers/getStats through these, which also keeps

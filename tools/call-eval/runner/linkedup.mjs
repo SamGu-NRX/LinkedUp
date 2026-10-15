@@ -35,6 +35,21 @@ const nameOf = (letter) => ({ first: "Peer", last: letter });
 
 /** The stack database, refusing any other (the same two checks as tests/stack-db.ts). */
 export async function openStackDb() {
+  // Fleet TURN proof shares the localhost server but owns this one database.
+  const fleetUrl = process.env.LINKEDUP_EVAL_DATABASE_URL;
+  if (fleetUrl) {
+    const parsed = new URL(fleetUrl);
+    if (parsed.hostname !== "127.0.0.1" || parsed.port !== "54329" || parsed.pathname !== "/linkedup_turn") {
+      throw new Error("Fleet eval writes only to 127.0.0.1:54329/linkedup_turn.");
+    }
+    const sql = postgres(fleetUrl, { max: 2, idle_timeout: 5, onnotice: () => {} });
+    const [identity] = await sql`SELECT current_database() AS name, inet_server_addr()::text AS host, inet_server_port() AS port`;
+    if (identity.name !== "linkedup_turn" || (identity.host !== "127.0.0.1/32" && identity.host !== "127.0.0.1") || identity.port !== 54329) {
+      await sql.end();
+      throw new Error("Fleet eval database identity did not match.");
+    }
+    return sql;
+  }
   const inherited = process.env.DATABASE_URL;
   if (inherited !== undefined && inherited !== LOCAL_DATABASE_URL) {
     throw new Error("Refusing DATABASE_URL: the harness writes only to this checkout's stack database. Unset it.");

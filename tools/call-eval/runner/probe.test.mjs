@@ -111,10 +111,16 @@ describe("probe connection records", () => {
     const forced = { iceServers: [], iceTransportPolicy: "relay" };
     const { windowObj, probe } = boot({ rtcConfig: forced });
     const pc = new windowObj.RTCPeerConnection({ iceServers: [] });
-    expect(pc.__cfg).toBe(forced); // super(window.__probeRtcConfig || cfg)
+    expect(pc.__cfg).toEqual(forced);
     await pc.getStats();
     expect(probe.getStatsCalls).toBe(1);
     expect(windowObj.__wrappedPcs).toContain(pc);
+  });
+
+  it("a relay-only policy override preserves servers issued by the app endpoint", () => {
+    const { windowObj } = boot({ rtcConfig: { iceTransportPolicy: "relay" } });
+    const pc = new windowObj.RTCPeerConnection({ iceServers: [{ urls: "turn:from-endpoint", username: "temporary", credential: "temporary" }] });
+    expect(pc.__cfg).toEqual({ iceTransportPolicy: "relay", iceServers: [{ urls: "turn:from-endpoint", username: "temporary", credential: "temporary" }] });
   });
 
   it("exposes __probeRestartIce over every wrapped pc (H-08's mechanism)", () => {

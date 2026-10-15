@@ -11,7 +11,8 @@
  * good (pagehide), so a reload or a closed tab ends the session at once
  * instead of waiting out the heartbeat.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchRoomIceConfig, sessionIceConfiguration } from "@/lib/call/ice-config";
 import type { CallPhase, CallTransport, TransportError, TransportEvents } from "@/lib/call/transport";
 import { createP2PTransport } from "@/lib/call/transports/p2p/p2p-transport";
 import { httpSignaling } from "@/lib/call/transports/p2p/http-signaling";
@@ -22,6 +23,7 @@ export interface CallConnection {
   selfId: string;
   /** The signaling endpoint (the journey-proof path passes its own). */
   signalingEndpoint: string;
+  iceEndpoint?: string;
 }
 
 export interface RemoteState {
@@ -67,14 +69,27 @@ export function useCallTransport({
   const roomId = connection?.roomId;
   const selfId = connection?.selfId;
   const endpoint = connection?.signalingEndpoint;
+  const iceEndpoint = connection?.iceEndpoint ?? "/api/call/ice";
+  const getRtcConfig = useMemo(() => sessionIceConfiguration(() => {
+    if (!roomId || !selfId) throw new Error("No call participant selected.");
+    return fetchRoomIceConfig(roomId, iceEndpoint);
+  }), [roomId, selfId, iceEndpoint]);
 
   useEffect(() => {
     if (!active || !roomId || !selfId || !endpoint) return;
     let current = true;
-    const transport = createP2PTransport({ signaling: httpSignaling({ endpoint }) });
+    const transport = createP2PTransport({
+      signaling: httpSignaling({ endpoint }),
+      getRtcConfig,
+      onConnectionPath: (path) => {
+        // Candidate types only. Never publish addresses, usernames or credentials.
+        if (current) document.querySelector("[data-call-root]")?.setAttribute("data-call-connection-path", path);
+      },
+    });
     transportRef.current = transport;
     setError(null);
     setRemotes(new Map());
+    document.querySelector("[data-call-root]")?.setAttribute("data-call-connection-path", "unknown");
     const events: TransportEvents = {
       onPhase: (p) => current && setPhase(p),
       onRemoteJoined: ({ participantId }) => current && updateRemote(participantId, (r) => r),
@@ -116,7 +131,7 @@ export function useCallTransport({
       setRemotes(new Map());
       setPhase("idle");
     };
-  }, [active, roomId, selfId, endpoint, attempt, updateRemote]);
+  }, [active, roomId, selfId, endpoint, attempt, updateRemote, getRtcConfig]);
 
   // Forward capture changes (camera on/off, device switch) and mute state.
   useEffect(() => {
