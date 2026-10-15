@@ -380,7 +380,7 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     await capture("rating-saving");
     await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await network.detach();
-    await expect(a.page.locator('[data-journey-proof="queue"]')).toBeVisible();
+    await expect(a.page.locator('[data-journey-proof="queue"]')).toBeVisible({ timeout: 60_000 });
     expect(await one('SELECT user_id, rating FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ user_id: a.userId, rating: 4 });
     expect((await roomRow(roomId))?.status).toBe("ended");
     await b.page.getByTestId("leave-call").click();

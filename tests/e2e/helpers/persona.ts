@@ -83,12 +83,8 @@ export async function signUpPersona(
   const code = page.locator('input[autocomplete="one-time-code"]').first();
   await code.waitFor({ state: "visible", timeout: 60_000 });
   await code.pressSequentially(CLERK_TEST_CODE, { delay: 50 });
-  // Signed up means Clerk has an active session. Clerk's own redirect after
-  // sign-up does not finish on this stack: its server action posts to
-  // /sign-up/verify-email-address, which the reserved middleware redirects
-  // to /onboarding (signed in, no onboarding claim), and the page stays put.
-  // Signed up = Clerk's client holds a session for this browser. The next
-  // page load turns it into the app's session cookie.
+  // The client session is ready before Clerk's development redirect settles.
+  // The wizard starts with an explicit navigation, carrying that session.
   await page.waitForFunction(
     () =>
       ((window as unknown as { Clerk?: { client?: { sessions?: unknown[] } } }).Clerk?.client?.sessions
@@ -208,6 +204,14 @@ export async function completeOnboarding(
       message: "users.onboarding_complete after Complete Profile",
     })
     .toBe(true);
+  // Do not abort the completion/metadata server action by opening the queue
+  // as soon as its database write lands. Wait for the user's next stable view.
+  if (await hasCompletionClaim(page)) {
+    await page.waitForURL(/\/app(?:[?#]|$)/);
+  } else {
+    await expect(page.getByRole("heading", { name: "Finishing setup" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  }
 }
 
 /**
