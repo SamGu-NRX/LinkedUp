@@ -7,9 +7,15 @@ export type ConnectionType =
   | "mentorship"
   | "investment";
 
-// Define ConnectionStatus based on usage in Profile and UserCard
-// Assuming it maps directly from the old 'status'
-export type ConnectionStatus = "online" | "away" | "offline";
+// Define ConnectionStatus based on usage across the app. User-card quality
+// indicators use excellent/good/poor, chat/dashboard presence uses online/away.
+export type ConnectionStatus =
+  | "online"
+  | "away"
+  | "offline"
+  | "excellent"
+  | "good"
+  | "poor";
 
 // Define Interest based on usage in Profile and UserCardInterests
 export interface Interest {

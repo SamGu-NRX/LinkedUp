@@ -537,7 +537,7 @@ const ModernChatApp: React.FC = () => {
           <DialogHeader>
             <DialogTitle>{activeProfile.name}&apos;s Profile</DialogTitle>
           </DialogHeader>
-          <UserCard {...activeProfile} />
+          <UserCard user={activeProfile} />
         </DialogContent>
       </Dialog>
     </div>

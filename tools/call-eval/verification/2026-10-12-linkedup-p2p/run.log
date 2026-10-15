@@ -1,0 +1,53 @@
+call-eval: 14 scenarios x 3 seeds on http://localhost:3000
+personas ready: A=user 344, B=user 345, O=user 346
+▶ H-01 seed 1 on p2p-postgres
+H-01 join 3466 ms, first frame 1251/1253 ms, fps 36.7/34.3
+▶ H-01 seed 2 on p2p-postgres
+(node:22809) TimeoutNegativeWarning: -14101.586757820653 is a negative number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+H-01 join 4835 ms, first frame 2538/2540 ms, fps 33/35.1
+▶ H-01 seed 3 on p2p-postgres
+H-01 join 5155 ms, first frame 2338/2340 ms, fps 36.5/32.1
+▶ H-02 seed 1 on p2p-postgres
+▶ H-02 seed 2 on p2p-postgres
+▶ H-02 seed 3 on p2p-postgres
+▶ H-03 seed 1 on p2p-postgres
+▶ H-03 seed 2 on p2p-postgres
+▶ H-03 seed 3 on p2p-postgres
+▶ H-04 seed 1 on p2p-postgres
+▶ H-04 seed 2 on p2p-postgres
+▶ H-04 seed 3 on p2p-postgres
+▶ H-05 seed 1 on p2p-postgres
+▶ H-05 seed 2 on p2p-postgres
+▶ H-05 seed 3 on p2p-postgres
+▶ H-06 seed 1 on p2p-postgres
+▶ H-06 seed 2 on p2p-postgres
+▶ H-06 seed 3 on p2p-postgres
+▶ H-07 seed 1 on p2p-postgres
+▶ H-07 seed 2 on p2p-postgres
+▶ H-07 seed 3 on p2p-postgres
+▶ H-08 seed 1 on p2p-postgres
+▶ H-08 seed 2 on p2p-postgres
+▶ H-08 seed 3 on p2p-postgres
+▶ H-09 seed 1 on p2p-postgres
+▶ H-09 seed 2 on p2p-postgres
+▶ H-09 seed 3 on p2p-postgres
+▶ H-10 seed 1 on p2p-postgres
+▶ H-10 seed 2 on p2p-postgres
+▶ H-10 seed 3 on p2p-postgres
+▶ H-11 seed 1 on p2p-postgres
+▶ H-11 seed 2 on p2p-postgres
+▶ H-11 seed 3 on p2p-postgres
+▶ H-12 seed 1 on p2p-postgres
+▶ H-12 seed 2 on p2p-postgres
+▶ H-12 seed 3 on p2p-postgres
+▶ H-13 seed 1 on p2p-postgres
+▶ H-13 seed 2 on p2p-postgres
+▶ H-13 seed 3 on p2p-postgres
+▶ H-14 seed 1 on p2p-postgres
+▶ H-14 seed 2 on p2p-postgres
+▶ H-14 seed 3 on p2p-postgres
+results: /Users/samgu/Programming Projects/fleet-leads/wt/linkedup-p2p/tools/call-eval/verification/2026-10-12-linkedup-p2p/results.json
+summary: /Users/samgu/Programming Projects/fleet-leads/wt/linkedup-p2p/tools/call-eval/verification/2026-10-12-linkedup-p2p/summary.md
+done in 547.1s: 42/42 passed

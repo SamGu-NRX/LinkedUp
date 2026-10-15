@@ -1,0 +1,71 @@
+{"case":"witness (expected to fail until Sam settles the middleware): a finished user reaches /app","status":"passed","durationMs":19604,"notes":["fail: src/middleware.ts gates on a session claim the keyless instance never issues"],"error":"Error: requests for /onboarding in the 10 s after finishing\n\nexpect(received).toBeLessThan(expected)\n\nExpected: < 3\nReceived:   692"}
+{"case":"J1 both queue at once","seed":0,"status":"passed","durationMs":11120,"notes":[]}
+{"case":"J1 both queue at once","seed":1,"status":"passed","durationMs":9873,"notes":[]}
+{"case":"J1 both queue at once","seed":2,"status":"passed","durationMs":9874,"notes":[]}
+{"case":"J1 both queue at once","seed":3,"status":"passed","durationMs":9818,"notes":[]}
+{"case":"J1 both queue at once","seed":4,"status":"passed","durationMs":9919,"notes":[]}
+{"case":"J1 both queue at once","seed":5,"status":"passed","durationMs":10476,"notes":[]}
+{"case":"J1 both queue at once","seed":6,"status":"passed","durationMs":10750,"notes":[]}
+{"case":"J1 both queue at once","seed":7,"status":"passed","durationMs":10566,"notes":[]}
+{"case":"J1 both queue at once","seed":8,"status":"passed","durationMs":11093,"notes":[]}
+{"case":"J1 both queue at once","seed":9,"status":"passed","durationMs":10951,"notes":[]}
+{"case":"J2 one queues first","seed":0,"status":"passed","durationMs":16622,"notes":[]}
+{"case":"J2 one queues first","seed":1,"status":"passed","durationMs":17365,"notes":[]}
+{"case":"J2 one queues first","seed":2,"status":"passed","durationMs":16484,"notes":[]}
+{"case":"J2 one queues first","seed":3,"status":"passed","durationMs":19189,"notes":[]}
+{"case":"J2 one queues first","seed":4,"status":"passed","durationMs":18329,"notes":[]}
+{"case":"J2 one queues first","seed":5,"status":"passed","durationMs":16734,"notes":[]}
+{"case":"J2 one queues first","seed":6,"status":"passed","durationMs":18637,"notes":[]}
+{"case":"J2 one queues first","seed":7,"status":"passed","durationMs":17943,"notes":[]}
+{"case":"J2 one queues first","seed":8,"status":"passed","durationMs":18577,"notes":[]}
+{"case":"J2 one queues first","seed":9,"status":"passed","durationMs":16059,"notes":[]}
+{"case":"J3 one cancels","seed":0,"status":"passed","durationMs":20374,"notes":[]}
+{"case":"J3 one cancels","seed":1,"status":"passed","durationMs":21072,"notes":[]}
+{"case":"J3 one cancels","seed":2,"status":"passed","durationMs":21173,"notes":[]}
+{"case":"J3 one cancels","seed":3,"status":"passed","durationMs":21562,"notes":[]}
+{"case":"J3 one cancels","seed":4,"status":"passed","durationMs":21744,"notes":[]}
+{"case":"J3 one cancels","seed":5,"status":"passed","durationMs":21185,"notes":[]}
+{"case":"J3 one cancels","seed":6,"status":"passed","durationMs":21615,"notes":[]}
+{"case":"J3 one cancels","seed":7,"status":"passed","durationMs":21167,"notes":[]}
+{"case":"J3 one cancels","seed":8,"status":"passed","durationMs":20420,"notes":[]}
+{"case":"J3 one cancels","seed":9,"status":"passed","durationMs":21415,"notes":[]}
+{"case":"J4 three users","seed":0,"status":"passed","durationMs":19733,"notes":[]}
+{"case":"J4 three users","seed":1,"status":"passed","durationMs":17909,"notes":[]}
+{"case":"J4 three users","seed":2,"status":"passed","durationMs":17828,"notes":[]}
+{"case":"J4 three users","seed":3,"status":"passed","durationMs":17762,"notes":[]}
+{"case":"J4 three users","seed":4,"status":"passed","durationMs":18040,"notes":[]}
+{"case":"J4 three users","seed":5,"status":"passed","durationMs":18108,"notes":[]}
+{"case":"J4 three users","seed":6,"status":"passed","durationMs":18881,"notes":[]}
+{"case":"J4 three users","seed":7,"status":"passed","durationMs":17812,"notes":[]}
+{"case":"J4 three users","seed":8,"status":"passed","durationMs":17857,"notes":[]}
+{"case":"J4 three users","seed":9,"status":"passed","durationMs":20427,"notes":[]}
+{"case":"J5 reload while queued","seed":0,"status":"passed","durationMs":15593,"notes":[]}
+{"case":"J5 reload while queued","seed":1,"status":"passed","durationMs":15744,"notes":[]}
+{"case":"J5 reload while queued","seed":2,"status":"passed","durationMs":16370,"notes":[]}
+{"case":"J5 reload while queued","seed":3,"status":"passed","durationMs":14881,"notes":[]}
+{"case":"J5 reload while queued","seed":4,"status":"passed","durationMs":15888,"notes":[]}
+{"case":"J5 reload while queued","seed":5,"status":"passed","durationMs":15974,"notes":[]}
+{"case":"J5 reload while queued","seed":6,"status":"passed","durationMs":14970,"notes":[]}
+{"case":"J5 reload while queued","seed":7,"status":"passed","durationMs":15576,"notes":[]}
+{"case":"J5 reload while queued","seed":8,"status":"passed","durationMs":15361,"notes":[]}
+{"case":"J5 reload while queued","seed":9,"status":"passed","durationMs":15847,"notes":[]}
+{"case":"J6 Back from the call","seed":0,"status":"passed","durationMs":10866,"notes":[]}
+{"case":"J6 Back from the call","seed":1,"status":"passed","durationMs":10357,"notes":[]}
+{"case":"J6 Back from the call","seed":2,"status":"passed","durationMs":10297,"notes":[]}
+{"case":"J6 Back from the call","seed":3,"status":"passed","durationMs":10668,"notes":[]}
+{"case":"J6 Back from the call","seed":4,"status":"passed","durationMs":10600,"notes":[]}
+{"case":"J6 Back from the call","seed":5,"status":"passed","durationMs":11162,"notes":[]}
+{"case":"J6 Back from the call","seed":6,"status":"passed","durationMs":10652,"notes":[]}
+{"case":"J6 Back from the call","seed":7,"status":"passed","durationMs":9984,"notes":[]}
+{"case":"J6 Back from the call","seed":8,"status":"passed","durationMs":11269,"notes":[]}
+{"case":"J6 Back from the call","seed":9,"status":"passed","durationMs":9844,"notes":[]}
+{"case":"J7 signed-out access to the call","seed":0,"status":"passed","durationMs":11990,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":1,"status":"passed","durationMs":12129,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":2,"status":"passed","durationMs":12494,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":3,"status":"passed","durationMs":12446,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":4,"status":"passed","durationMs":12522,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":5,"status":"passed","durationMs":11771,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":6,"status":"passed","durationMs":12359,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":7,"status":"passed","durationMs":11746,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":8,"status":"passed","durationMs":11733,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}
+{"case":"J7 signed-out access to the call","seed":9,"status":"passed","durationMs":11447,"notes":["signed-out refusals: signed_out refusal, redirect to sign-in"]}

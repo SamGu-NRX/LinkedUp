@@ -1,0 +1,244 @@
+[
+  {
+    "scenario": "H-17",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 1,
+      "endpointCredentialsUsed": true,
+      "relayStats": {
+        "allocations": 3,
+        "relayedToPeer": 605,
+        "relayedToClient": 605,
+        "droppedRequests": 0,
+        "live": 2
+      },
+      "paths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ],
+      "audioHz": [
+        657,
+        437.9
+      ],
+      "colours": [
+        "B",
+        "A"
+      ],
+      "captures": [
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "no-preference",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "reduce",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "no-preference",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "reduce",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        }
+      ],
+      "keyboard": [
+        {
+          "width": 1440,
+          "height": 900,
+          "mic": true,
+          "camera": true,
+          "cameraMenu": true,
+          "focusRestored": true,
+          "leaveAndRejoin": true
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "mic": true,
+          "camera": true,
+          "cameraMenu": true,
+          "focusRestored": true,
+          "leaveAndRejoin": true
+        }
+      ]
+    },
+    "failure": null,
+    "ms": 13019
+  },
+  {
+    "scenario": "H-17",
+    "transport": "p2p-postgres",
+    "seed": 2,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 2,
+      "endpointCredentialsUsed": true,
+      "relayStats": {
+        "allocations": 12,
+        "relayedToPeer": 1396,
+        "relayedToClient": 1394,
+        "droppedRequests": 0,
+        "live": 4
+      },
+      "paths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ],
+      "audioHz": [
+        656.5,
+        434.9
+      ],
+      "colours": [
+        "B",
+        "A"
+      ],
+      "captures": [],
+      "keyboard": []
+    },
+    "failure": null,
+    "ms": 10057
+  },
+  {
+    "scenario": "H-17",
+    "transport": "p2p-postgres",
+    "seed": 3,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 3,
+      "endpointCredentialsUsed": true,
+      "relayStats": {
+        "allocations": 15,
+        "relayedToPeer": 1991,
+        "relayedToClient": 1989,
+        "droppedRequests": 0,
+        "live": 6
+      },
+      "paths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ],
+      "audioHz": [
+        656.8,
+        437.9
+      ],
+      "colours": [
+        "B",
+        "A"
+      ],
+      "captures": [],
+      "keyboard": []
+    },
+    "failure": null,
+    "ms": 7868
+  },
+  {
+    "scenario": "H-01",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": "each decodes the other's barcode color within 5 s; remote frames advance at >= 15 fps over 5 s",
+    "measurements": {
+      "joinMs": 3673,
+      "timeToFirstRemoteFrameMs": 949,
+      "timeToFirstRemoteFrameMsReverse": 952,
+      "fpsAtoB": 32.7,
+      "fpsBtoA": 31.1,
+      "colourMsAseesB": 953,
+      "colourMsBseesA": 955
+    },
+    "failure": null,
+    "ms": 13817
+  },
+  {
+    "scenario": "H-01",
+    "transport": "p2p-postgres",
+    "seed": 2,
+    "pass": true,
+    "passCondition": "each decodes the other's barcode color within 5 s; remote frames advance at >= 15 fps over 5 s",
+    "measurements": {
+      "joinMs": 5918,
+      "timeToFirstRemoteFrameMs": 2005,
+      "timeToFirstRemoteFrameMsReverse": 2008,
+      "fpsAtoB": 35.3,
+      "fpsBtoA": 30.3,
+      "colourMsAseesB": 2009,
+      "colourMsBseesA": 2010
+    },
+    "failure": null,
+    "ms": 15963
+  },
+  {
+    "scenario": "H-01",
+    "transport": "p2p-postgres",
+    "seed": 3,
+    "pass": true,
+    "passCondition": "each decodes the other's barcode color within 5 s; remote frames advance at >= 15 fps over 5 s",
+    "measurements": {
+      "joinMs": 4215,
+      "timeToFirstRemoteFrameMs": 1266,
+      "timeToFirstRemoteFrameMsReverse": 1269,
+      "fpsAtoB": 33.7,
+      "fpsBtoA": 34.7,
+      "colourMsAseesB": 1270,
+      "colourMsBseesA": 1272
+    },
+    "failure": null,
+    "ms": 14258
+  }
+]

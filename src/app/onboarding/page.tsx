@@ -80,9 +80,9 @@ export default function OnboardingPage() {
 
       const isValid = await methods.trigger();
       if (!isValid) {
-        toast.error("An unexpected error occurred. Please try again.", {
-          description: "Please try again later.",
-        });
+        // Field-level guidance is already rendered by the wizard; the
+        // toast only covers the unexpected case. Stop here — never save.
+        return;
       }
 
       const formData = methods.getValues();

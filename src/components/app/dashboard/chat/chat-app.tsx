@@ -487,10 +487,7 @@ const ModernChatApp: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           {/* Ensure ScheduleCallForm receives necessary props and handles closing */}
-          <ScheduleCallForm
-            userName={activeProfile.name}
-            onSchedule={() => setShowScheduleCall(false)}
-          />
+          <ScheduleCallForm onSchedule={() => setShowScheduleCall(false)} />
         </DialogContent>
       </Dialog>
 

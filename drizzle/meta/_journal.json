@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791738290228,
+      "tag": "0000_journey_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791833967901,
+      "tag": "0001_queue_last_seen",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791838364238,
+      "tag": "0002_call_signaling",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791843026919,
+      "tag": "0003_call_maintenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791850219099,
+      "tag": "0004_call_user_budgets",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791850308699,
+      "tag": "0005_queue_live_unique",
+      "breakpoints": true
+    }
+  ]
+}

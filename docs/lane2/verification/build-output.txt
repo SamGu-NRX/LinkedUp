@@ -1,0 +1,69 @@
+Command: ~/.long-run/bin/heavy node tools/call-eval/scripts/build-keyless.mjs
+Provisioned checkout-local Clerk keys supplied only inside the process.
+Exit: 0
+
+> nextjs@0.2.0 build /Users/samgu/Programming Projects/fleet-leads/wt/linkedup-turn
+> next build
+
+   ▲ Next.js 15.2.2
+   - Experiments (use with caution):
+     ✓ webpackBuildWorker
+     ✓ parallelServerCompiles
+     ✓ parallelServerBuildTraces
+
+   Creating an optimized production build ...
+(node:79460) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:79752) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled successfully in 12.0s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+✅ Database connection established
+✅ Database connection established
+✅ Database connection established
+✅ Database connection established
+✅ Database connection established
+   Generating static pages (0/11) ...
+   Generating static pages (2/11)
+   Generating static pages (5/11)
+   Generating static pages (8/11)
+ ✓ Generating static pages (11/11)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                     111 kB         260 kB
+├ ○ /_not-found                            986 B         103 kB
+├ ƒ /api/call/ice                          154 B         102 kB
+├ ƒ /api/call/signal                       154 B         102 kB
+├ ƒ /app                                 9.28 kB         180 kB
+├ ƒ /app/call/[id]                         151 B         163 kB
+├ ƒ /app/dashboard                       96.3 kB         291 kB
+├ ƒ /app/match-queue                     5.33 kB         190 kB
+├ ƒ /app/professional                    2.94 kB         150 kB
+├ ƒ /app/professional/b2b                  140 B         113 kB
+├ ƒ /app/professional/collaboration        140 B         113 kB
+├ ƒ /app/professional/investment           140 B         113 kB
+├ ƒ /app/professional/mentorship           140 B         113 kB
+├ ƒ /app/profile                         4.08 kB         151 kB
+├ ƒ /app/settings                        4.44 kB         152 kB
+├ ƒ /app/smart-connection                  141 B         113 kB
+├ ƒ /gate-proof                            154 B         102 kB
+├ ƒ /journey-proof/call/[id]               150 B         163 kB
+├ ƒ /journey-proof/queue                   140 B         113 kB
+├ ƒ /onboarding                            32 kB         239 kB
+├ ƒ /sign-in/[[...sign-in]]              2.13 kB         133 kB
+├ ƒ /sign-up/[[...sign-up]]              2.13 kB         133 kB
+└ ƒ /videocall/[id]                      11.9 kB         211 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/137c818c-7ff88ce4dfb3986b.js  53.2 kB
+  ├ chunks/384-d24dfcb1a76e6cf3.js       46.2 kB
+  └ other shared chunks (total)          2.14 kB
+
+
+ƒ Middleware                             69.6 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

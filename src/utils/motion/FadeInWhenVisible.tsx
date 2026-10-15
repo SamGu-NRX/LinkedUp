@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, MotionProps } from "framer-motion";
-import { ReactNode } from "react";
+import type { JSX, ReactNode } from "react";
 
 // Define the props for the component
 interface FadeInWhenVisibleProps<T extends keyof JSX.IntrinsicElements = "div">

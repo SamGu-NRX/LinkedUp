@@ -47,7 +47,7 @@ const userInterests = {
   user2: ["sustainable design", "meditation", "indie games", "yoga", "writing"],
 };
 
-const generatePrompts = (interests1, interests2) => [
+const generatePrompts = (interests1: string[], interests2: string[]) => [
   `How has your journey with ${interests1[0]} influenced your perspective on ${interests2[0]}?`,
   `What parallels do you see between ${interests1[1]} and ${interests2[1]}?`,
   `How do you think ${interests1[2]} could benefit from principles of ${interests2[2]}?`,
@@ -119,7 +119,7 @@ export default function VideoMeeting() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -138,10 +138,10 @@ export default function VideoMeeting() {
     setIsSidebarOpen((prev) => !prev);
   }, []);
 
-  const handleSendMessage = (message) => {
+  const handleSendMessage = (message: string) => {
     setMessages((prev) => [
       ...prev,
-      { sender: "You", message, timestamp: "Now" },
+      { id: `msg-${Date.now()}`, sender: "You", message, timestamp: "Now" },
     ]);
   };
 
@@ -231,24 +231,25 @@ export default function VideoMeeting() {
             >
               {/* User Card */}
               <UserCard
-                name={MOCK_USERS.partner.name}
-                avatar={MOCK_USERS.partner.avatar}
-                bio="" // You may not have this in meeting context
-                profession={MOCK_USERS.partner.role}
-                company={MOCK_USERS.partner.company}
-                school="" // You may not have this in meeting context
-                experience={0} // You may not have this in meeting context
-                sharedInterests={[]} // You may not have this in meeting context
-                connectionType="collaboration"
-                inMeeting={true}
-                meetingStats={MOCK_USERS.partner.meetingStats}
-                interests={MOCK_USERS.partner.interests}
-                connectionStatus={
-                  MOCK_CONNECTION_STATES[MOCK_USERS.partner.id] || "good"
-                }
-                isSpeaking={
-                  MOCK_SPEAKING_STATES[MOCK_USERS.partner.id] || false
-                }
+                user={{
+                  id: MOCK_USERS.partner.id,
+                  name: MOCK_USERS.partner.name,
+                  avatar: MOCK_USERS.partner.avatar,
+                  bio: "", // You may not have this in meeting context
+                  profession: MOCK_USERS.partner.role,
+                  company: MOCK_USERS.partner.company,
+                  school: "", // You may not have this in meeting context
+                  experience: 0, // You may not have this in meeting context
+                  sharedInterests: [], // You may not have this in meeting context
+                  connectionType: "collaboration",
+                  meetingStats: MOCK_USERS.partner.meetingStats,
+                  interests: MOCK_USERS.partner.interests,
+                  connectionStatus:
+                    MOCK_CONNECTION_STATES[MOCK_USERS.partner.id]?.status ||
+                    "good",
+                  isSpeaking:
+                    MOCK_SPEAKING_STATES[MOCK_USERS.partner.id] || false,
+                }}
               />
               {/* Compact Prompts Card */}
               <Card className="border-none bg-zinc-800/30 shadow-lg">
@@ -434,7 +435,7 @@ export default function VideoMeeting() {
                     onClick={() => {
                       setAddTimeRequester("You");
                       setIsAddTimeRequestOpen(true);
-                      handleTimeRequest("You");
+                      handleTimeRequest();
                     }}
                     className="h-11 w-11 rounded-full bg-zinc-700/90 text-zinc-100 hover:bg-zinc-600"
                   >
