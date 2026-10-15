@@ -6,6 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const actions = vi.hoisted(() => ({
@@ -66,6 +67,13 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("finishing a call", () => {
+  it("keeps server-rendered rating controls disabled until their handlers mount", () => {
+    const server = document.createElement("div");
+    server.innerHTML = renderToString(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
+    expect(server.querySelector("button")).toBeDisabled();
+    const client = render(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
+    expect(client.getByRole("button", { name: "Done" })).toBeEnabled();
+  });
   it("rates an ended room without mounting media or offering Rejoin", async () => {
     const view = render(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
     expect(view.getByRole("heading", { name: "This call has ended" })).toHaveFocus();

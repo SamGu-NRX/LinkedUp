@@ -405,6 +405,7 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
         }
       }
     }
+    await expect(b.page.getByRole("radio", { name: "1 star", exact: true })).toBeEnabled();
     await b.page.keyboard.press("Tab");
     await b.page.keyboard.press("Space");
     for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
