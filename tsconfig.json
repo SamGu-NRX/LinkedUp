@@ -41,6 +41,7 @@
     "src/components/page.jsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "evidence"
   ]
 }
