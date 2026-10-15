@@ -1,21 +1,14 @@
-# LinkedUp call eval summary
+# Call media proof
 
-Whole-run wall time: 63.4 s
+These six results are the H-17 and H-01 records from the executed three-seed matrix. H-18 recovery is reported separately in [recovery/summary.md](recovery/summary.md), after correcting its verifier's expected color label.
 
-| Scenario | Pass | Total |
-|---|---|---|
-| H-17 | 0 | 1 |
+| Scenario | Passed | Seeds |
+| --- | --- | --- |
+| H-17, endpoint-issued relay media | 3/3 | 1, 2, 3 |
+| H-01, first frames, peer colors and frame rate | 3/3 | 1, 2, 3 |
 
-p95 time-to-first-remote-frame: n/a ms (n=0)
-p95 H-07 10 s-drop recovery: n/a ms (n=0)
+Every H-17 selected pair reports `local: relay` and `remote: relay` on both callers. Both received audio tones and peer colors were decoded. The relay recorded real media packets in both directions. H-01's first remote frames arrived in 949–2008 ms, with measured frame rates of 30.3–35.3 fps.
 
-## Environment
+H-17 seed 1 completed keyboard mute, camera toggling, camera-menu focus and Escape restoration, Leave and Rejoin at 1440x900 and 390x844. The connected state was captured at both sizes with normal and reduced motion. Every captured call had no horizontal overflow; reduced-motion captures had no running animations.
 
-- node: v26.5.0
-- chromium: chromium
-- turn: in-process Node relay (runner/turn-relay.mjs)
-- signaling: Postgres via POST /api/call/signal, polled every 250 ms (journey-proof path)
-- platform: darwin arm64
-
-Failures:
-- H-17 seed 1 (p2p-postgres): A: condition not reached within 30000 ms | [{"url":"/onboarding?journey-proof=call&room=…","phase":"failed","error":"The call service could not prepare network access. Try again.","tiles":[],"pcs":[],"candidates":[],"configs":[],"probeConfig":"{\"iceTransportPolicy\":\"relay\"}","freshGather":{"found":["end"],"state":"complete"},"visibility":"visible","log":["7765 connect as 1"]},{"url":"/onboarding?journey-proof=call&room=…","phase":"failed","error":"The call service could not prepare network access. Try again.","tiles":[],"pcs":[],"candidates":[],"configs":[],"probeConfig":"{\"iceTransportPolicy\":\"relay\"}","freshGather":{"found":["end"],"state":"complete"},"visibility":"visible","log":["2460 connect as 2"]}]
+The call room and authenticated ICE endpoint ran through the local journey-proof aliases, with keyless Clerk users, the lane-owned `linkedup_turn` database, and generated camera/microphone fixtures. Only `iceTransportPolicy: relay` was injected. Credentials came from the app endpoint. No app document or API response was intercepted.

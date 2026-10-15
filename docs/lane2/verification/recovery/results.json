@@ -1,0 +1,189 @@
+[
+  {
+    "scenario": "H-18",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 1,
+      "errors": [
+        null,
+        "Can't reach the other person. A network may be blocking calls. Try again or switch networks."
+      ],
+      "probe": [
+        {
+          "everConnected": false,
+          "closed": true
+        }
+      ],
+      "restarts": [
+        0,
+        4
+      ],
+      "relayStats": {
+        "allocations": 0,
+        "relayedToPeer": 0,
+        "relayedToClient": 0,
+        "droppedRequests": 103,
+        "live": 0
+      },
+      "droppedRequests": 103,
+      "captures": [
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "no-preference",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "reduce",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "no-preference",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "reduce",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        }
+      ],
+      "keyboardRetryRecovered": true,
+      "recoveredPaths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ]
+    },
+    "failure": null,
+    "ms": 38553
+  },
+  {
+    "scenario": "H-18",
+    "transport": "p2p-postgres",
+    "seed": 2,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 2,
+      "errors": [
+        "Can't reach the other person. A network may be blocking calls. Try again or switch networks.",
+        "Can't reach the other person. A network may be blocking calls. Try again or switch networks."
+      ],
+      "probe": [
+        {
+          "everConnected": false,
+          "closed": true
+        }
+      ],
+      "restarts": [
+        0,
+        4
+      ],
+      "relayStats": {
+        "allocations": 3,
+        "relayedToPeer": 492,
+        "relayedToClient": 492,
+        "droppedRequests": 207,
+        "live": 0
+      },
+      "droppedRequests": 104,
+      "captures": [
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "no-preference",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "reduce",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "no-preference",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "reduce",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        }
+      ],
+      "keyboardRetryRecovered": true,
+      "recoveredPaths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ]
+    },
+    "failure": null,
+    "ms": 38137
+  },
+  {
+    "scenario": "H-18",
+    "transport": "p2p-postgres",
+    "seed": 3,
+    "pass": false,
+    "passCondition": null,
+    "measurements": null,
+    "failure": {
+      "message": "A: condition not reached within 15000 ms",
+      "stack": "ScenarioError: A: condition not reached within 15000 ms\n    at waitFor (file:///Users/samgu/Programming%20Projects/fleet-leads/wt/linkedup-turn/tools/call-eval/runner/scenario-kit.mjs:39:13)\n    at runNextTicks (node:internal/process/task_queues:65:5)\n    at process.processImmediate (node:internal/timers:502:9)"
+    },
+    "ms": 49520
+  }
+]
