@@ -2,12 +2,15 @@
 // stack runs on, as seen from the test process.
 //
 // With no keys configured, `next dev` provisions an unclaimed development
-// instance on its first page load and writes its keys to
-// .clerk/.tmp/keyless.json (CALL-PLAN L-D1). @clerk/testing needs that
-// instance's secret key to mint a testing token, and journeys delete the
-// synthetic users they create through the same key (development instances
-// cap their user count). The keys stay in this process's environment: they
-// are never logged or written anywhere else.
+// instance and writes its keys to .clerk/.tmp/keyless.json (CALL-PLAN L-D1).
+// The provisioning is triggered by the client ClerkProvider's
+// KeylessCreatorOrReader, which calls a server action from a useEffect — so a
+// REAL BROWSER must load the app at least once before the file exists. A bare
+// server-side fetch of /sign-in provokes compilation but never provisioning.
+// @clerk/testing needs the instance's secret key to mint a testing token, and
+// journeys delete the synthetic users they create through the same key
+// (development instances cap their user count). The keys stay in this
+// process's environment: they are never logged or written anywhere else.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -15,6 +18,30 @@ export const KEYLESS_PATH = path.resolve(__dirname, "../../../.clerk/.tmp/keyles
 
 /** Every synthetic journey email carries this marker (and Clerk's +clerk_test). */
 export const JOURNEY_EMAIL_MARK = "+clerk_test_journey";
+
+/**
+ * Provisions the keyless instance the way the app itself does: a real headless
+ * Chromium loads the root page so the client ClerkProvider's keyless creator
+ * runs its server action. One navigation is enough; errors are swallowed and
+ * the caller keeps polling for the file.
+ */
+async function provokeKeylessWithBrowser(baseURL: string): Promise<void> {
+  const { chromium } = await import("@playwright/test");
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+  try {
+    browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--no-first-run"] });
+    const page = await browser.newPage();
+    await page
+      .goto(new URL("/", baseURL).toString(), { waitUntil: "domcontentloaded", timeout: 30_000 })
+      .catch(() => {});
+    // The creator fires on mount; give the server action a moment to land.
+    await page.waitForTimeout(3_000);
+  } catch {
+    // The polling loop owns failure reporting after the deadline.
+  } finally {
+    await browser?.close().catch(() => {});
+  }
+}
 
 export async function waitForKeylessKeys(
   baseURL: string,
@@ -33,8 +60,9 @@ export async function waitForKeylessKeys(
       }
     }
     if (!provoked) {
-      // A server render under keyless mode provisions the instance.
+      // A server render warms the route; a real browser load provisions.
       await fetch(new URL("/sign-in", baseURL)).catch(() => {});
+      await provokeKeylessWithBrowser(baseURL);
       provoked = true;
     }
     if (Date.now() > deadline) {

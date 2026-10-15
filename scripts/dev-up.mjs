@@ -65,7 +65,14 @@ import {
   PG_SOCKET_DIR,
   ROOT,
 } from "./stack-paths.cjs";
-export { ADMIN_DATABASE_URL, LOCAL_DATABASE_URL, PG_DATA_DIR, PG_LOG_PATH, PG_PORT, PG_SOCKET_DIR };
+export {
+  ADMIN_DATABASE_URL,
+  LOCAL_DATABASE_URL,
+  PG_DATA_DIR,
+  PG_LOG_PATH,
+  PG_PORT,
+  PG_SOCKET_DIR,
+};
 
 const log = (msg) => console.log(`[dev:up] ${msg}`);
 const die = (msg) => {
@@ -77,9 +84,19 @@ const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
 const PG_BIN = findPgBin();
 // Per-checkout tag: /tmp is shared across sandboxes and checkouts, and the
 // record must never be confused between two trees (its root is identity).
-const ROOT_TAG = crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 8);
-const DEV_LOG_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.log`);
-const DEV_META_PATH = path.join(os.tmpdir(), `linkedup-next-dev-${ROOT_TAG}.json`);
+const ROOT_TAG = crypto
+  .createHash("sha1")
+  .update(ROOT)
+  .digest("hex")
+  .slice(0, 8);
+const DEV_LOG_PATH = path.join(
+  os.tmpdir(),
+  `linkedup-next-dev-${ROOT_TAG}.log`,
+);
+const DEV_META_PATH = path.join(
+  os.tmpdir(),
+  `linkedup-next-dev-${ROOT_TAG}.json`,
+);
 // Measured 2026-10-12 on the shared 2-core sandbox: with a foreign matrix run
 // at load ~40, initdb took 48s and the landing page's first compile exceeded
 // 240s (still running when this budget expired — the server itself was Ready
@@ -105,7 +122,12 @@ export function pgBinCandidates(pathEnv = process.env.PATH ?? "") {
 /** Locate PostgreSQL server binaries (initdb, pg_ctl, psql, pg_isready); null when absent. */
 function findPgBin() {
   for (const dir of pgBinCandidates()) {
-    if (["initdb", "pg_ctl", "psql", "pg_isready"].every((b) => existsSync(path.join(dir, b)))) return dir;
+    if (
+      ["initdb", "pg_ctl", "psql", "pg_isready"].every((b) =>
+        existsSync(path.join(dir, b)),
+      )
+    )
+      return dir;
   }
   return null;
 }
@@ -160,7 +182,14 @@ export function parseListeningPids(ssOutput, port) {
 
 /** PIDs from `lsof -nP -iTCP:<port> -sTCP:LISTEN -t` output (one pid per line). */
 export function parseLsofPids(lsofOutput) {
-  return [...new Set(lsofOutput.split("\n").map((l) => Number(l.trim())).filter((n) => Number.isInteger(n) && n > 0))];
+  return [
+    ...new Set(
+      lsofOutput
+        .split("\n")
+        .map((l) => Number(l.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0),
+    ),
+  ];
 }
 
 /**
@@ -169,22 +198,39 @@ export function parseLsofPids(lsofOutput) {
  * env does not set, so stripping the process env alone is not isolation.
  * `files` maps a file name to its content (absent files omitted).
  */
-export const NEXT_ENV_FILES = [".env", ".env.local", ".env.development", ".env.development.local"];
+export const NEXT_ENV_FILES = [
+  ".env",
+  ".env.local",
+  ".env.development",
+  ".env.development.local",
+];
 export function envFileProblems(files, { databaseUrl }) {
   const problems = [];
   for (const [name, content] of Object.entries(files)) {
     for (const raw of content.split(/\r?\n/)) {
       const line = raw.trim();
       if (!line || line.startsWith("#")) continue;
-      const m = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+      const m = line.match(
+        /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/,
+      );
       if (!m) continue;
       const [, key, value] = m;
       if (/CLERK|STREAM/i.test(key)) {
         problems.push(`${name} defines ${key}: dev would leave keyless mode`);
-      } else if (/^(DATABASE_URL|POSTGRES_URL|DIRECT_URL|SUPABASE_DB_URL)$/.test(key)) {
+      } else if (
+        /^(DATABASE_URL|POSTGRES_URL|DIRECT_URL|SUPABASE_DB_URL)$/.test(key)
+      ) {
         const unquoted = value.replace(/^["']|["']$/g, "");
-        if (!(name === ".env.local" && key === "DATABASE_URL" && unquoted === databaseUrl)) {
-          problems.push(`${name} defines ${key}: only .env.local's DATABASE_URL=${databaseUrl} is allowed`);
+        if (
+          !(
+            name === ".env.local" &&
+            key === "DATABASE_URL" &&
+            unquoted === databaseUrl
+          )
+        ) {
+          problems.push(
+            `${name} defines ${key}: only .env.local's DATABASE_URL=${databaseUrl} is allowed`,
+          );
         }
       }
     }
@@ -221,7 +267,10 @@ export function classifyServerIdentity({ meta, cmdline, cwd, root, port }) {
 }
 
 /** True when meta records exactly the configuration dev:up would start now. */
-export function metaMatchesExpectation(meta, { port, root, databaseUrl, journeyProof = false }) {
+export function metaMatchesExpectation(
+  meta,
+  { port, root, databaseUrl, journeyProof = false },
+) {
   return Boolean(
     meta &&
       meta.kind === "linkedup-dev-server" &&
@@ -276,7 +325,9 @@ export function dbIdentityMismatches(report, expected) {
     );
   }
   if (Number(db.serverPort) !== expected.port) {
-    failures.push(`server port ${JSON.stringify(db.serverPort)} != ${expected.port}`);
+    failures.push(
+      `server port ${JSON.stringify(db.serverPort)} != ${expected.port}`,
+    );
   }
   if (db.dataDirectory !== expected.dataDirectory) {
     failures.push(
@@ -295,7 +346,10 @@ const HAS_PROC = existsSync("/proc/self/stat");
 
 function capture(cmd, args) {
   try {
-    return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return execFileSync(cmd, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
   } catch {
     return null;
   }
@@ -331,7 +385,10 @@ function procPgid(pid) {
   if (HAS_PROC) {
     try {
       const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-      const fields = stat.slice(stat.lastIndexOf(")") + 1).trim().split(/\s+/);
+      const fields = stat
+        .slice(stat.lastIndexOf(")") + 1)
+        .trim()
+        .split(/\s+/);
       return Number(fields[2]); // after (comm): state, ppid, pgrp
     } catch {
       return null;
@@ -346,7 +403,9 @@ function procPgid(pid) {
 function listeningPids(port) {
   if (existsSync("/usr/sbin/lsof") || existsSync("/usr/bin/lsof")) {
     // lsof exits 1 when nothing listens: capture() returns null then.
-    return parseLsofPids(capture("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"]) ?? "");
+    return parseLsofPids(
+      capture("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"]) ?? "",
+    );
   }
   const ss = capture("ss", ["-ltnp"]);
   if (ss === null) die("need lsof or ss to inspect the dev port");
@@ -357,7 +416,9 @@ function describePids(pids) {
   return pids
     .map((pid) => {
       const cmdline = procCmdline(pid);
-      const args = cmdline ? cmdline.split("\u0000").filter(Boolean).join(" ") : "(gone)";
+      const args = cmdline
+        ? cmdline.split("\u0000").filter(Boolean).join(" ")
+        : "(gone)";
       return `pid ${pid}: ${args.slice(0, 120)}`;
     })
     .join("; ");
@@ -401,7 +462,9 @@ function assertEnvFilesIsolated() {
         "Move those variables out of this checkout's env files (dev:up never edits them beyond .env.local's DATABASE_URL).",
     );
   }
-  log(`env files isolated (${Object.keys(files).join(", ") || "none present"})`);
+  log(
+    `env files isolated (${Object.keys(files).join(", ") || "none present"})`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -410,7 +473,9 @@ function assertEnvFilesIsolated() {
 
 function pgIsReady() {
   try {
-    run(pg("pg_isready"), ["-h", "127.0.0.1", "-p", String(PG_PORT)], { capture: true });
+    run(pg("pg_isready"), ["-h", "127.0.0.1", "-p", String(PG_PORT)], {
+      capture: true,
+    });
     return true;
   } catch {
     return false;
@@ -421,8 +486,13 @@ function initdbIfNeeded() {
   const pgBin = requirePgBin();
   if (existsSync(path.join(PG_DATA_DIR, "PG_VERSION"))) {
     // A cluster made by another major version cannot be started by this one.
-    const clusterMajor = readFileSync(path.join(PG_DATA_DIR, "PG_VERSION"), "utf8").trim();
-    const binMajor = (run(path.join(pgBin, "pg_ctl"), ["--version"], { capture: true }).match(/(\d+)\./) ?? [])[1];
+    const clusterMajor = readFileSync(
+      path.join(PG_DATA_DIR, "PG_VERSION"),
+      "utf8",
+    ).trim();
+    const binMajor = (run(path.join(pgBin, "pg_ctl"), ["--version"], {
+      capture: true,
+    }).match(/(\d+)\./) ?? [])[1];
     if (binMajor && clusterMajor !== binMajor) {
       die(
         `${PG_DATA_DIR} holds a PostgreSQL ${clusterMajor} cluster but the server binaries are ${binMajor}. ` +
@@ -435,15 +505,18 @@ function initdbIfNeeded() {
   mkdirSync(PG_SOCKET_DIR, { recursive: true });
   // A leftover empty/broken directory (a previously interrupted init) would
   // make initdb refuse; start clean.
-  if (existsSync(PG_DATA_DIR)) rmSync(PG_DATA_DIR, { recursive: true, force: true });
+  if (existsSync(PG_DATA_DIR))
+    rmSync(PG_DATA_DIR, { recursive: true, force: true });
   mkdirSync(PG_DATA_DIR, { recursive: true });
   const pwFile = path.join(PG_DATA_DIR, "..", "pg-pwfile");
   writeFileSync(pwFile, "postgres\n");
   try {
     run(path.join(pgBin, "initdb"), [
-      "-D", PG_DATA_DIR,
+      "-D",
+      PG_DATA_DIR,
       "--username=postgres",
-      "--pwfile", pwFile,
+      "--pwfile",
+      pwFile,
       "--auth-host=scram-sha-256",
       "--auth-local=trust",
       "--encoding=UTF8",
@@ -460,9 +533,12 @@ function startProjectPostgres() {
   // -o flags pin the project port, a project socket directory and a
   // localhost-only listener — the system cluster on 5432 is never involved.
   run(path.join(pgBin, "pg_ctl"), [
-    "-D", PG_DATA_DIR,
-    "-l", PG_LOG_PATH,
-    "-o", `-p ${PG_PORT} -k ${PG_SOCKET_DIR} -c listen_addresses=127.0.0.1`,
+    "-D",
+    PG_DATA_DIR,
+    "-l",
+    PG_LOG_PATH,
+    "-o",
+    `-p ${PG_PORT} -k ${PG_SOCKET_DIR} -c listen_addresses=127.0.0.1`,
     "-w",
     "start",
   ]);
@@ -490,14 +566,21 @@ function ensurePostgres() {
   startProjectPostgres();
   const deadline = Date.now() + 30_000;
   while (!pgIsReady()) {
-    if (Date.now() > deadline) die("project PostgreSQL did not become ready within 30s");
+    if (Date.now() > deadline)
+      die("project PostgreSQL did not become ready within 30s");
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
   }
-  log(`project PostgreSQL ready on 127.0.0.1:${PG_PORT} (started in ${Date.now() - startedAt}ms)`);
+  log(
+    `project PostgreSQL ready on 127.0.0.1:${PG_PORT} (started in ${Date.now() - startedAt}ms)`,
+  );
 
   const hasDb = run(
     pg("psql"),
-    [ADMIN_DATABASE_URL, "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'linkedup'"],
+    [
+      ADMIN_DATABASE_URL,
+      "-tAc",
+      "SELECT 1 FROM pg_database WHERE datname = 'linkedup'",
+    ],
     { capture: true },
   ).trim();
   if (hasDb === "1") {
@@ -531,7 +614,9 @@ const SEED_CANDIDATES = [
 function runSeedIfPresent() {
   const seedFile = SEED_CANDIDATES.find((f) => existsSync(path.join(ROOT, f)));
   if (!seedFile) {
-    log("no seed script found (scripts/seed.* or src/db/seed.*) — skipping seed");
+    log(
+      "no seed script found (scripts/seed.* or src/db/seed.*) — skipping seed",
+    );
     return;
   }
   log(`seeding via ${seedFile} (idempotent)`);
@@ -594,7 +679,9 @@ function clearDevMeta() {
 /** Stop a server dev:up itself started (identity already verified). */
 function stopOurServer(meta) {
   const pgid = procPgid(meta.pid);
-  const targets = [pgid ? -pgid : null, meta.pid].filter((t) => t !== null && t !== 0);
+  const targets = [pgid ? -pgid : null, meta.pid].filter(
+    (t) => t !== null && t !== 0,
+  );
   for (const target of targets) {
     try {
       process.kill(target, "SIGTERM");
@@ -618,12 +705,16 @@ function stopOurServer(meta) {
 
 async function startDevServer() {
   const out = openSync(DEV_LOG_PATH, "a");
-  const child = spawn("pnpm", ["exec", "next", "dev", "--port", String(APP_PORT)], {
-    cwd: ROOT,
-    detached: true, // own process group: survives dev:up, killable as -pgid
-    stdio: ["ignore", out, out],
-    env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
-  });
+  const child = spawn(
+    "pnpm",
+    ["exec", "next", "dev", "--port", String(APP_PORT)],
+    {
+      cwd: ROOT,
+      detached: true, // own process group: survives dev:up, killable as -pgid
+      stdio: ["ignore", out, out],
+      env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
+    },
+  );
   const meta = {
     kind: "linkedup-dev-server",
     pid: child.pid,
@@ -635,7 +726,9 @@ async function startDevServer() {
   };
   writeFileSync(DEV_META_PATH, JSON.stringify(meta, null, 2));
   child.unref();
-  log(`starting keyless next dev on :${APP_PORT} (pid ${child.pid}, log ${DEV_LOG_PATH})`);
+  log(
+    `starting keyless next dev on :${APP_PORT} (pid ${child.pid}, log ${DEV_LOG_PATH})`,
+  );
 
   let exited = null;
   child.once("exit", (code, signal) => {
@@ -646,14 +739,18 @@ async function startDevServer() {
   while (Date.now() < deadline) {
     if (exited) {
       dumpLogTail();
-      die(`next dev exited early (code ${exited.code}, signal ${exited.signal})`);
+      die(
+        `next dev exited early (code ${exited.code}, signal ${exited.signal})`,
+      );
     }
     const status = await fetchStatus(`${BASE_URL}/`);
     if (status === 200) return;
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
   }
   dumpLogTail();
-  die(`dev server not ready (HTTP 200 on /) within ${READINESS_TIMEOUT_MS / 1000}s`);
+  die(
+    `dev server not ready (HTTP 200 on /) within ${READINESS_TIMEOUT_MS / 1000}s`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -679,7 +776,9 @@ async function verifyAppAndKeylessMode() {
 
   const home = await fetchBody(`${BASE_URL}/`);
   if (home.status !== 200) {
-    die(`/ answered ${home.status ?? "no response"} — expected the LinkedUp landing page`);
+    die(
+      `/ answered ${home.status ?? "no response"} — expected the LinkedUp landing page`,
+    );
   }
   const titleMatch = home.body.match(/<title>([^<]*)<\/title>/i);
   if (!titleMatch || !/linkedup/i.test(titleMatch[1])) {
@@ -692,35 +791,84 @@ async function verifyAppAndKeylessMode() {
   const signIn = await fetchBody(`${BASE_URL}/sign-in`);
   if (signIn.status !== 200) {
     dumpLogTail();
-    die(`/sign-in returned ${signIn.status ?? "no response"} — keyless Clerk did not serve the sign-in page`);
+    die(
+      `/sign-in returned ${signIn.status ?? "no response"} — keyless Clerk did not serve the sign-in page`,
+    );
   }
   for (const marker of KEYLESS_FAILURE_MARKERS) {
     if (signIn.body.includes(marker)) {
-      die(`/sign-in renders "${marker}" — the stack is not keyless-clean (check .env.local for Clerk keys)`);
+      die(
+        `/sign-in renders "${marker}" — the stack is not keyless-clean (check .env.local for Clerk keys)`,
+      );
     }
   }
 
   const appPage = await fetchBody(`${BASE_URL}/app`);
   if (appPage.status !== 200) {
-    die(`/app returned ${appPage.status ?? "no response"} — the protected app route did not render`);
+    die(
+      `/app returned ${appPage.status ?? "no response"} — the protected app route did not render`,
+    );
   }
   for (const marker of KEYLESS_FAILURE_MARKERS) {
     if (appPage.body.includes(marker)) {
-      die(`/app renders "${marker}" — the stack is not keyless-clean (check .env.local for Clerk keys)`);
+      die(
+        `/app renders "${marker}" — the stack is not keyless-clean (check .env.local for Clerk keys)`,
+      );
     }
   }
   if (!/dashboard/i.test(appPage.body)) {
-    die("/app did not render the LinkedUp app shell (no dashboard content) — is something else serving the port?");
+    die(
+      "/app did not render the LinkedUp app shell (no dashboard content) — is something else serving the port?",
+    );
   }
 
   // The server's env was built by serverEnvFrom (no Clerk/Stream/database
   // variables inherited) and assertEnvFilesIsolated refused any env file
   // that would put them back; the data layer check below proves which
   // database the app's own client reaches.
-  log("asserting the app data layer uses the project database (app's own client)");
+  log(
+    "asserting the app data layer uses the project database (app's own client)",
+  );
   run("pnpm", ["exec", "tsx", "scripts/verify-db-identity.mjs"], {
     env: serverEnvFrom(process.env, { databaseUrl: LOCAL_DATABASE_URL }),
   });
+
+  // Next dev compiles API routes on demand. The call journey's transport
+  // fetches its ICE config with a 10 s client timeout (fetchRoomIceConfig's
+  // AbortSignal); a cold /api/call/ice compile under load can outlive it and
+  // fail the call with a retryable network error before any request is ever
+  // served (observed on a loaded sandbox: client abort, no server access
+  // log). Warm both call routes now — an unauthenticated request gets a 401
+  // JSON answer, which proves the route compiled and answers.
+  const warmRoomId = "00000000-0000-4000-8000-000000000000";
+  const warm = async (url, init) => {
+    try {
+      const res = await fetch(url, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(90_000),
+        headers: { "user-agent": "linkedup-dev-up/2.0" },
+        ...init,
+      });
+      return res.status;
+    } catch {
+      return null;
+    }
+  };
+  const iceStatus = await warm(`${BASE_URL}/api/call/ice?roomId=${warmRoomId}`);
+  if (iceStatus === null)
+    die(
+      "/api/call/ice never answered the warm-up request — the call service route is broken",
+    );
+  const signalStatus = await warm(`${BASE_URL}/api/call/signal`, {
+    method: "POST",
+  });
+  if (signalStatus === null)
+    die(
+      "/api/call/signal never answered the warm-up request — the signaling route is broken",
+    );
+  log(
+    `call routes warmed: /api/call/ice → ${iceStatus} · /api/call/signal → ${signalStatus}`,
+  );
 
   log(
     `verified: LinkedUp on :${APP_PORT} · keyless Clerk sign-in · /app shell clean · ` +
@@ -751,17 +899,23 @@ async function ensureDevServer() {
   }
 
   if (identity === "ours") {
-    const healthy = (await fetchStatus(`${BASE_URL}/`, { timeoutMs: 30_000 })) === 200;
-    if (healthy && metaMatchesExpectation(meta, {
-      port: APP_PORT,
-      root: ROOT,
-      databaseUrl: LOCAL_DATABASE_URL,
-      journeyProof: JOURNEY_PROOF,
-    })) {
+    const healthy =
+      (await fetchStatus(`${BASE_URL}/`, { timeoutMs: 30_000 })) === 200;
+    if (
+      healthy &&
+      metaMatchesExpectation(meta, {
+        port: APP_PORT,
+        root: ROOT,
+        databaseUrl: LOCAL_DATABASE_URL,
+        journeyProof: JOURNEY_PROOF,
+      })
+    ) {
       log(`healthy dev server already on :${APP_PORT} — reusing it`);
       return;
     }
-    log(`replacing a dev:up-started server on :${APP_PORT} (stale configuration or unhealthy)`);
+    log(
+      `replacing a dev:up-started server on :${APP_PORT} (stale configuration or unhealthy)`,
+    );
     stopOurServer(meta);
     await startDevServer();
     return;
@@ -806,7 +960,9 @@ function down() {
     stopOurServer(meta);
     log(`stopped the dev server (pid ${meta.pid})`);
   } else if (identity === "foreign") {
-    log(`the recorded pid ${meta.pid} is not our dev server any more — left alone`);
+    log(
+      `the recorded pid ${meta.pid} is not our dev server any more — left alone`,
+    );
   }
   clearDevMeta();
   if (existsSync(path.join(PG_DATA_DIR, "postmaster.pid"))) {
@@ -820,7 +976,9 @@ async function main() {
     down();
     return;
   }
-  log(`stack: project Postgres on 127.0.0.1:${PG_PORT} (data ${PG_DATA_DIR}, binaries ${PG_BIN ?? "missing"}), dev server on :${APP_PORT}`);
+  log(
+    `stack: project Postgres on 127.0.0.1:${PG_PORT} (data ${PG_DATA_DIR}, binaries ${PG_BIN ?? "missing"}), dev server on :${APP_PORT}`,
+  );
   ensureEnvFile();
   assertEnvFilesIsolated();
   ensurePostgres();
@@ -833,6 +991,9 @@ async function main() {
   log(`done. app: http://localhost:${APP_PORT} · db: ${LOCAL_DATABASE_URL}`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => die(err.stack || err.message));
 }

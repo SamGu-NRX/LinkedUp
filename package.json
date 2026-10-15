@@ -15,6 +15,7 @@
     "db:push": "npx drizzle-kit push:pg",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
+    "test:acceptance": "node scripts/acceptance/run.mjs",
     "dev:up": "node scripts/dev-up.mjs",
     "dev:down": "node scripts/dev-up.mjs --down",
     "call-eval": "node tools/call-eval/scripts/run-eval.mjs",
