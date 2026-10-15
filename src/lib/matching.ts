@@ -8,7 +8,7 @@
 // is the production pairing with its transaction removed.
 import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { queueEntries, rooms, users } from "@/db/schema";
+import { callSessions, queueEntries, rooms, users } from "@/db/schema";
 import { closeRoomSessions } from "@/lib/call/mesh";
 
 export type QueueType = "casual" | "professional";
@@ -33,6 +33,50 @@ export type QueueStateForUser =
  * poll-gap distribution exists.
  */
 export const STALE_ENTRY_MS = 30_000;
+
+/**
+ * Either participant missing for two minutes retires the room. This gives
+ * a reload time to rejoin after the mesh's 10-second session expiry. Two
+ * minutes is a product grace period; no measured reload-gap data exists.
+ */
+export const ROOM_INACTIVITY_MS = 2 * 60_000;
+
+function inactiveRoom(cutoff: Date) {
+  // Drizzle drops interpolated column qualifiers in SELECT expressions.
+  // Keep rooms.id explicit so these subqueries cannot bind to a queue/session id.
+  return sql<boolean>`EXISTS (
+    SELECT 1 FROM (VALUES (${rooms.user1Id}), (${rooms.user2Id})) AS participant(user_id)
+    WHERE GREATEST(
+      ${rooms.createdAt},
+      (SELECT max(q.last_seen_at) FROM queue_entries q
+       WHERE q.room_id = rooms.id AND q.user_id = participant.user_id AND q.status = 'matched'),
+      (SELECT max(s.last_heartbeat_at) FROM call_sessions s
+       WHERE s.room_id = rooms.id AND s.user_id = participant.user_id)
+    ) < ${cutoff.toISOString()}::timestamptz
+  )`;
+}
+
+/** Only inspect this person's matched room; queue polls do not scan all rooms. */
+async function expireInactiveRoomForUser(userId: number, now: Date): Promise<void> {
+  const matches = await db.select({ roomId: queueEntries.roomId }).from(queueEntries)
+    .where(and(eq(queueEntries.userId, userId), eq(queueEntries.status, "matched")));
+  for (const match of matches) {
+    if (match.roomId) await expireInactiveRoom(match.roomId, now);
+  }
+}
+
+async function expireInactiveRoom(roomId: string, now: Date): Promise<boolean> {
+  const cutoff = new Date(now.getTime() - ROOM_INACTIVITY_MS);
+  const [candidate] = await db.select({ status: rooms.status, inactive: inactiveRoom(cutoff) }).from(rooms)
+    .where(eq(rooms.id, roomId));
+  if (!candidate || candidate.status !== "active") return true;
+  if (!candidate.inactive) return false;
+  if (await endRoomWhen(roomId, now, cutoff)) return true;
+  // Another expiry may have ended the room while this request waited for
+  // its locks. A refreshed heartbeat can also cancel expiry, so read which won.
+  const [current] = await db.select({ status: rooms.status }).from(rooms).where(eq(rooms.id, roomId));
+  return current?.status !== "active";
+}
 
 /** True when a waiting entry has not been seen within the stale window. */
 export function isQueueEntryStale(
@@ -61,12 +105,12 @@ export async function expireStaleQueueEntries(now: Date = new Date()): Promise<v
     );
 }
 
-/** The person is still here: refresh their waiting entry's liveness. */
-export async function touchWaitingEntry(userId: number, now: Date = new Date()): Promise<void> {
+/** Queue and match-offer polls both count as this person still being here. */
+async function touchQueueEntry(userId: number, now: Date = new Date()): Promise<void> {
   await db
     .update(queueEntries)
     .set({ lastSeenAt: now })
-    .where(and(eq(queueEntries.userId, userId), eq(queueEntries.status, "waiting")));
+    .where(and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ["waiting", "matched"])));
 }
 
 /**
@@ -100,6 +144,7 @@ export async function queueJoin(options: {
   const { userId, queueType } = options;
   const now = options.now ?? new Date();
 
+  await expireInactiveRoomForUser(userId, now);
   await expireStaleQueueEntries(now);
   await releaseEndedRoomEntries(now);
 
@@ -197,10 +242,12 @@ async function cancelOnce(userId: number, now: Date): Promise<boolean> {
 }
 
 export async function queueStateForUser(userId: number): Promise<QueueStateForUser> {
-  // A poll is the person saying they are still here.
-  await touchWaitingEntry(userId);
-  await expireStaleQueueEntries();
-  await releaseEndedRoomEntries();
+  const now = new Date();
+  // Retire an abandoned match before this returning tab can revive its offer.
+  await expireInactiveRoomForUser(userId, now);
+  await touchQueueEntry(userId, now);
+  await expireStaleQueueEntries(now);
+  await releaseEndedRoomEntries(now);
 
   let entry = await db.query.queueEntries.findFirst({
     where: and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ["waiting", "matched"])),
@@ -274,7 +321,9 @@ export async function getRoomForUser(clerkUserId: string, roomId: string): Promi
   if (!room || (room.user1Id !== me.id && room.user2Id !== me.id)) {
     return { allowed: false, reason: "not_a_participant" };
   }
-  if (room.status !== "active") return { allowed: false, reason: "room_ended" };
+  if (room.status !== "active" || await expireInactiveRoom(roomId, new Date())) {
+    return { allowed: false, reason: "room_ended" };
+  }
 
   const partnerId = room.user1Id === me.id ? room.user2Id : room.user1Id;
   const partner = await db.query.users.findFirst({ where: eq(users.id, partnerId) });
@@ -296,6 +345,10 @@ export async function getRoomForUser(clerkUserId: string, roomId: string): Promi
 
 /** Ends a room. Idempotent: ending an ended room is a no-op returning false. */
 export async function endRoom(roomId: string, now: Date = new Date()): Promise<boolean> {
+  return endRoomWhen(roomId, now);
+}
+
+async function endRoomWhen(roomId: string, now: Date, inactiveBefore?: Date): Promise<boolean> {
   const ended = await db.transaction(async (tx) => {
     // Lock queue entries before the room, in the same order as cancelOnce.
     // Otherwise simultaneous decline and end can deadlock on those rows.
@@ -305,11 +358,19 @@ export async function endRoom(roomId: string, now: Date = new Date()): Promise<b
       .where(and(eq(queueEntries.roomId, roomId), eq(queueEntries.status, "matched")))
       .orderBy(queueEntries.id)
       .for("update");
+    if (inactiveBefore) {
+      // Joins lock room then sessions. Keep that order after the queue locks,
+      // and recheck liveness after any in-flight heartbeat has committed.
+      await tx.select({ id: rooms.id }).from(rooms).where(eq(rooms.id, roomId)).for("update");
+      await tx.select({ id: callSessions.id }).from(callSessions)
+        .where(eq(callSessions.roomId, roomId)).orderBy(callSessions.id).for("update");
+    }
     const updated = await tx
       .update(rooms)
       .set({ status: "ended", endedAt: now })
-      .where(and(eq(rooms.id, roomId), eq(rooms.status, "active")))
+      .where(and(eq(rooms.id, roomId), eq(rooms.status, "active"), inactiveBefore ? inactiveRoom(inactiveBefore) : undefined))
       .returning({ id: rooms.id });
+    if (inactiveBefore && updated.length === 0) return false;
     // Release both matches in the room-ending commit, without waiting for
     // a later queue poll. The predicate preserves a partner already requeued
     // by a concurrent decline.
@@ -322,7 +383,7 @@ export async function endRoom(roomId: string, now: Date = new Date()): Promise<b
   // The call goes with the room: its open sessions close as "ended". (A
   // poll in an ended room also closes the poller's session, so this is
   // promptness, not correctness.)
-  await closeRoomSessions(roomId, now);
+  if (ended || !inactiveBefore) await closeRoomSessions(roomId, now);
   return ended;
 }
 
