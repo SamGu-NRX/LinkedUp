@@ -266,12 +266,12 @@ for (const viewport of viewports) {
       await expect(
         longIntro.getByText(longQuestion, { exact: true }),
       ).toBeVisible();
+      await a.page.bringToFront();
       await expect(a.page.locator("[data-call-root]")).toHaveAttribute(
         "data-call-local-media",
         "ready",
       );
       await collapseKeylessPrompt(a.page);
-      await a.page.bringToFront();
       await expect
         .poll(() => a.page.evaluate(() => document.hasFocus()))
         .toBe(true);
