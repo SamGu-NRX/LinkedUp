@@ -16,7 +16,13 @@ pnpm exec vitest run tests/unit/voice-call-screen.honesty.test.tsx tests/unit/vo
 ~/.long-run/bin/heavy node tools/call-eval/scripts/prove-turn.mjs --scenarios=H-17,H-01,H-18 --seeds=1,2,3
 ```
 
-H-17 passed 3/3 and H-01 passed 3/3. H-18 initially failed its verifier's expected color label. The corrected H-18 run passed 2/3 seeds; seed 3 timed out during keyboard retry. Its retry-selection race is under investigation. [Recovery results](recovery/results.json) record this incomplete check separately from the media passes.
+H-17 passed 3/3 and H-01 passed 3/3. H-18 initially failed its verifier's expected color label. A later 2/3 run had a retry timeout that did not reproduce in its diagnostic seed. Source inspection found a race in selecting callers before both old attempts settled; the verifier now waits for both original connections to close.
+
+```sh
+~/.long-run/bin/heavy node tools/call-eval/scripts/prove-turn.mjs --scenarios=H-18 --seeds=1,2,3 --out=docs/lane2/verification/recovery
+```
+
+The final H-18 run passed seeds 2 and 3, proving real TURN request loss, ICE restarts, honest exhaustion, and keyboard retry with relayed live media on both callers. Seed 1 failed inside `@clerk/testing` sign-in before entering the call; its error contained no further detail. This is 2/3, not a full pass. [Recovery results](recovery/results.json) retain all three records. An earlier seed-1 run also recovered successfully, but it does not replace the final run's failed sign-in.
 
 ## Build
 

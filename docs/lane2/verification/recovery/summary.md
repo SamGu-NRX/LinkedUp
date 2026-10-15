@@ -1,6 +1,6 @@
 # LinkedUp call eval summary
 
-Whole-run wall time: 134.7 s
+Whole-run wall time: 84.7 s
 
 | Scenario | Pass | Total |
 |---|---|---|
@@ -18,4 +18,4 @@ p95 H-07 10 s-drop recovery: n/a ms (n=0)
 - platform: darwin arm64
 
 Failures:
-- H-18 seed 3 (p2p-postgres): A: condition not reached within 15000 ms
+- H-18 seed 1 (p2p-postgres): Failed to sign in with email peer-a+clerk_test_callh@example.com:

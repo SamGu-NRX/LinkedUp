@@ -1,6 +1,6 @@
 # Call media proof
 
-These six results are the H-17 and H-01 records from the executed three-seed matrix. H-18 recovery is reported separately in [recovery/summary.md](recovery/summary.md), after correcting its verifier's expected color label.
+These six results are the H-17 and H-01 records from the executed three-seed matrix. H-18 recovery is reported separately in [recovery/summary.md](recovery/summary.md), after correcting its expected color label and synchronizing retry selection with closed original attempts.
 
 | Scenario | Passed | Seeds |
 | --- | --- | --- |
