@@ -65,10 +65,15 @@ async function expireInactiveRoomForUser(userId: number, now: Date): Promise<voi
   }
 }
 
-async function expireInactiveRoom(roomId: string, now: Date): Promise<boolean> {
+/** Signaling reconnects without page navigation, before renewing its heartbeat. */
+export async function expireInactiveRoomForParticipant(userId: number, roomId: string, now: Date = new Date()): Promise<void> {
+  await expireInactiveRoom(roomId, now, userId);
+}
+
+async function expireInactiveRoom(roomId: string, now: Date, participantId?: number): Promise<boolean> {
   const cutoff = new Date(now.getTime() - ROOM_INACTIVITY_MS);
   const [candidate] = await db.select({ status: rooms.status, inactive: inactiveRoom(cutoff) }).from(rooms)
-    .where(eq(rooms.id, roomId));
+    .where(and(eq(rooms.id, roomId), participantId === undefined ? undefined : or(eq(rooms.user1Id, participantId), eq(rooms.user2Id, participantId))));
   if (!candidate || candidate.status !== "active") return true;
   if (!candidate.inactive) return false;
   if (await endRoomWhen(roomId, now, cutoff)) return true;
