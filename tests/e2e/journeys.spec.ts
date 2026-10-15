@@ -10,7 +10,7 @@
 //
 // After onboarding the journeys use the labelled journey-proof path
 // (src/app/journey-proof/) when the reserved middleware blocks finished
-// users back to /onboarding; the first test below witnesses that loop.
+// users back to /onboarding; the first test verifies stable recovery there.
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import {
   PROOF_CALL,
@@ -179,6 +179,8 @@ test("a finished user without the configured session claim settles on recovery w
   expect(new URL(page.url()).pathname).toBe("/onboarding");
   await expect(page.getByRole("heading", { name: "Finishing setup" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  const keylessPrompt = page.getByRole("button", { name: "Keyless prompt", exact: true });
+  if (await keylessPrompt.getAttribute("aria-expanded") === "true") await keylessPrompt.click();
   const captureRecovery = async (state: string) => {
     for (const reducedMotion of ["no-preference", "reduce"] as const) {
       await page.emulateMedia({ reducedMotion });
@@ -343,11 +345,13 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     const roomId = await expectPaired(a, b);
     await expectSameRoom(a, b, roomId);
     await a.page.getByTestId("leave-call").click();
-    await expect(a.page.getByRole("heading", { name: "You left the call" })).toBeFocused();
+    await expect(a.page.getByRole("heading", { name: "You left the call", level: 2 })).toBeFocused();
     await a.page.keyboard.press("Tab");
     await a.page.keyboard.press("Space");
     for (let i = 0; i < 3; i += 1) await a.page.keyboard.press("ArrowRight");
     await expect(a.page.getByRole("radio", { name: "4 stars", exact: true })).toBeChecked();
+    const keylessPrompt = a.page.getByRole("button", { name: "Keyless prompt", exact: true });
+    if (await keylessPrompt.getAttribute("aria-expanded") === "true") await keylessPrompt.click();
 
     const capture = async (state: string) => {
       if (seed !== 0) return;
@@ -384,7 +388,11 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     expect(await one('SELECT user_id, rating FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ user_id: a.userId, rating: 4 });
     expect((await roomRow(roomId))?.status).toBe("ended");
     await b.page.getByTestId("leave-call").click();
-    await b.page.getByRole("radio", { name: "5 stars", exact: true }).check();
+    await expect(b.page.getByRole("heading", { name: "You left the call", level: 2 })).toBeFocused();
+    await b.page.keyboard.press("Tab");
+    await b.page.keyboard.press("Space");
+    for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
+    await expect(b.page.getByRole("radio", { name: "5 stars", exact: true })).toBeChecked();
     await b.page.getByTestId("call-done").click();
     await expect(b.page.locator('[data-journey-proof="queue"]')).toBeVisible();
     expect(await one('SELECT count(*)::int AS count FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ count: 2 });
