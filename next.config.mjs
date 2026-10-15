@@ -66,6 +66,11 @@ const nextConfig = {
           destination: "/journey-proof/call/:room",
         },
         {
+          source: "/onboarding",
+          has: [{ type: "query", key: "journey-proof", value: "ice" }],
+          destination: "/api/call/ice",
+        },
+        {
           // The call's signaling endpoint: an API route, which the
           // middleware would also send back to /onboarding.
           source: "/onboarding",

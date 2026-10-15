@@ -48,8 +48,9 @@ const iceResponse = z.object({
 
 export class IceAccessError extends Error {}
 
-export async function fetchRoomIceConfig(roomId: string): Promise<IceCredentials> {
-  const response = await fetch(`/api/call/ice?roomId=${encodeURIComponent(roomId)}`, {
+export async function fetchRoomIceConfig(roomId: string, endpoint = "/api/call/ice"): Promise<IceCredentials> {
+  const query = endpoint.includes("?") ? "&" : "?";
+  const response = await fetch(`${endpoint}${query}roomId=${encodeURIComponent(roomId)}`, {
     cache: "no-store", signal: AbortSignal.timeout(10_000),
   });
   if (response.status === 403 || response.status === 401) throw new IceAccessError("You no longer have access to this call.");

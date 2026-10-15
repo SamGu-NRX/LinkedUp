@@ -1,6 +1,6 @@
 // @vitest-environment node
 // The journey-proof path must not exist in production or on Vercel.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
@@ -30,6 +30,7 @@ describe("journeyProofEnabled", () => {
 });
 
 describe("next.config.mjs", () => {
+  afterEach(() => vi.unstubAllEnvs());
   /** The config Next would load for a phase, and its rewrites. */
   async function load(phase: string) {
     const mod = (await import("../../next.config.mjs")) as { default: unknown };
@@ -38,6 +39,17 @@ describe("next.config.mjs", () => {
     };
     return config.rewrites();
   }
+
+  it("registers the ICE tunnel only on the local proof server", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("LINKEDUP_JOURNEY_PROOF", "1");
+    vi.stubEnv("VERCEL", "");
+    expect(await load("phase-development-server")).toMatchObject({ beforeFiles: expect.arrayContaining([
+      { source: "/onboarding", has: [{ type: "query", key: "journey-proof", value: "ice" }], destination: "/api/call/ice" },
+    ]) });
+    vi.stubEnv("LINKEDUP_JOURNEY_PROOF", "");
+    expect(await load("phase-development-server")).toEqual([]);
+  });
 
   it("refuses a production build with the flag set, and a Vercel deployment", async () => {
     const saved = { ...process.env };

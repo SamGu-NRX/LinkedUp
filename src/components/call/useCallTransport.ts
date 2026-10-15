@@ -23,6 +23,7 @@ export interface CallConnection {
   selfId: string;
   /** The signaling endpoint (the journey-proof path passes its own). */
   signalingEndpoint: string;
+  iceEndpoint?: string;
 }
 
 export interface RemoteState {
@@ -68,10 +69,11 @@ export function useCallTransport({
   const roomId = connection?.roomId;
   const selfId = connection?.selfId;
   const endpoint = connection?.signalingEndpoint;
+  const iceEndpoint = connection?.iceEndpoint ?? "/api/call/ice";
   const getRtcConfig = useMemo(() => sessionIceConfiguration(() => {
     if (!roomId || !selfId) throw new Error("No call participant selected.");
-    return fetchRoomIceConfig(roomId);
-  }), [roomId, selfId]);
+    return fetchRoomIceConfig(roomId, iceEndpoint);
+  }), [roomId, selfId, iceEndpoint]);
 
   useEffect(() => {
     if (!active || !roomId || !selfId || !endpoint) return;

@@ -6,6 +6,13 @@ import { sessionIceConfiguration, connectionPath, fetchRoomIceConfig, IceAccessE
 afterEach(() => vi.unstubAllGlobals());
 
 describe("call ICE credentials", () => {
+  it("preserves the proof tunnel query when fetching room credentials", async () => {
+    const issued = { iceServers: [{ urls: ["stun:example"] }], expiresAt: 3_601_000 };
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify(issued)));
+    vi.stubGlobal("fetch", request);
+    expect(await fetchRoomIceConfig("room-1", "/onboarding?journey-proof=ice")).toEqual(issued);
+    expect(request.mock.calls[0][0]).toBe("/onboarding?journey-proof=ice&roomId=room-1");
+  });
   it("keeps endpoint access refusal distinct from a provider outage", async () => {
     const request = vi.fn().mockResolvedValueOnce(new Response("", { status: 403 })).mockResolvedValueOnce(new Response("", { status: 503 }));
     vi.stubGlobal("fetch", request);
