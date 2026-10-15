@@ -9,7 +9,7 @@ import type { RoomAccess } from "@/lib/matching";
 import { endRoomAction } from "@/app/app/smart-connection/_actions";
 import { saveCallRatingAction } from "./_actions";
 
-function useCallFinish(roomId: string, exitHref: string) {
+function useCallFinish(roomId: string, exitHref: string, roomState: "active" | "ended") {
   const router = useRouter();
   const rating = useRef<number | null>(null);
   const finishing = useRef(false);
@@ -40,14 +40,16 @@ function useCallFinish(roomId: string, exitHref: string) {
           return;
         }
       }
-      setStatus({ state: "saving", message: "Finishing your call…" });
-      const ended = await endRoomAction(roomId);
-      if (!ended.success) {
-        setStatus({
-          state: "error",
-          message: `Could not finish your call: ${ended.error}. Choose Done to retry.`,
-        });
-        return;
+      if (roomState === "active") {
+        setStatus({ state: "saving", message: "Finishing your call…" });
+        const ended = await endRoomAction(roomId);
+        if (!ended.success) {
+          setStatus({
+            state: "error",
+            message: `Could not finish your call: ${ended.error}. Choose Done to retry.`,
+          });
+          return;
+        }
       }
       router.push(exitHref);
     } catch {
@@ -84,7 +86,7 @@ export default function CallScreenClient({
   /** Where Done goes after ending the room. */
   exitHref: string;
 }) {
-  const { status, finishCall, rate } = useCallFinish(access.roomId, exitHref);
+  const { status, finishCall, rate } = useCallFinish(access.roomId, exitHref, "active");
   const participants: [Participant, Participant] = [
     {
       id: String(access.me.id),
@@ -137,7 +139,7 @@ export function CompletedCallRating({
   roomId: string;
   exitHref: string;
 }) {
-  const { status, finishCall, rate } = useCallFinish(roomId, exitHref);
+  const { status, finishCall, rate } = useCallFinish(roomId, exitHref, "ended");
   const [rating, setRating] = useState<number | null>(null);
   return (
     <CallFinishLayout status={status}>

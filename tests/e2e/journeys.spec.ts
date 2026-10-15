@@ -395,10 +395,6 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     await b.page.reload();
     await expect(b.page.getByRole("heading", { name: "This call has ended" })).toBeFocused();
     await expect(b.page.getByTestId("join-call")).toHaveCount(0);
-    await b.page.keyboard.press("Tab");
-    await b.page.keyboard.press("Space");
-    for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
-    await expect(b.page.getByRole("radio", { name: "5 stars", exact: true })).toBeChecked();
     if (seed === 0) {
       for (const reducedMotion of ["no-preference", "reduce"] as const) {
         await b.page.emulateMedia({ reducedMotion });
@@ -409,6 +405,10 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
         }
       }
     }
+    await b.page.keyboard.press("Tab");
+    await b.page.keyboard.press("Space");
+    for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
+    await expect(b.page.getByRole("radio", { name: "5 stars", exact: true })).toBeChecked();
     await b.page.getByTestId("call-done").click();
     await expect(b.page.locator('[data-journey-proof="queue"]')).toBeVisible();
     expect(await one('SELECT count(*)::int AS count FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ count: 2 });

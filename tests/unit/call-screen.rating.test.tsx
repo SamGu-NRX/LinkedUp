@@ -75,6 +75,7 @@ describe("finishing a call", () => {
     fireEvent.click(view.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/app"));
     expect(actions.save).toHaveBeenCalledWith({ roomId: access.roomId, rating: 5 });
+    expect(actions.end).not.toHaveBeenCalled();
   });
   it("saves the selected rating before ending the room or navigating", async () => {
     let saved!: (value: { success: true }) => void;
