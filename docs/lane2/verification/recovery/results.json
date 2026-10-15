@@ -1,0 +1,189 @@
+[
+  {
+    "scenario": "H-18",
+    "transport": "p2p-postgres",
+    "seed": 1,
+    "pass": false,
+    "passCondition": null,
+    "measurements": null,
+    "failure": {
+      "message": "Failed to sign in with email peer-a+clerk_test_callh@example.com: ",
+      "stack": "Error: Failed to sign in with email peer-a+clerk_test_callh@example.com: \n    at Object.d [as signIn] (file:///Users/samgu/Programming%20Projects/fleet-leads/wt/linkedup-turn/node_modules/.pnpm/@clerk+testing@2.2.45_@playwright+test@1.64.0_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/@clerk/testing/dist/playwright/index.mjs:1:1394)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async signIn (file:///Users/samgu/Programming%20Projects/fleet-leads/wt/linkedup-turn/tools/call-eval/runner/linkedup.mjs:187:3)"
+    },
+    "ms": 814
+  },
+  {
+    "scenario": "H-18",
+    "transport": "p2p-postgres",
+    "seed": 2,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 2,
+      "errors": [
+        null,
+        "Can't reach the other person. A network may be blocking calls. Try again or switch networks."
+      ],
+      "probe": [
+        {
+          "everConnected": false,
+          "closed": true
+        }
+      ],
+      "restarts": [
+        0,
+        4
+      ],
+      "relayStats": {
+        "allocations": 0,
+        "relayedToPeer": 0,
+        "relayedToClient": 0,
+        "droppedRequests": 104,
+        "live": 0
+      },
+      "droppedRequests": 104,
+      "captures": [
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "no-preference",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "reduce",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "no-preference",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "reduce",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        }
+      ],
+      "keyboardRetryRecovered": true,
+      "recoveredPaths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ]
+    },
+    "failure": null,
+    "ms": 37193
+  },
+  {
+    "scenario": "H-18",
+    "transport": "p2p-postgres",
+    "seed": 3,
+    "pass": true,
+    "passCondition": null,
+    "measurements": {
+      "seed": 3,
+      "errors": [
+        "Can't reach the other person. A network may be blocking calls. Try again or switch networks.",
+        null
+      ],
+      "probe": [
+        {
+          "everConnected": false,
+          "closed": true
+        }
+      ],
+      "restarts": [
+        0,
+        4
+      ],
+      "relayStats": {
+        "allocations": 3,
+        "relayedToPeer": 479,
+        "relayedToClient": 479,
+        "droppedRequests": 207,
+        "live": 0
+      },
+      "droppedRequests": 103,
+      "captures": [
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "no-preference",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "reducedMotion": "reduce",
+          "viewport": 1440,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "no-preference",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": false
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "reducedMotion": "reduce",
+          "viewport": 390,
+          "overflow": false,
+          "runningAnimations": 0,
+          "reduced": true
+        }
+      ],
+      "keyboardRetryRecovered": true,
+      "recoveredPaths": [
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ],
+        [
+          {
+            "local": "relay",
+            "remote": "relay"
+          }
+        ]
+      ]
+    },
+    "failure": null,
+    "ms": 38267
+  }
+]

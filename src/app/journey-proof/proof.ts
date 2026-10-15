@@ -17,6 +17,7 @@ export const JOURNEY_PROOF_QUEUE = "/onboarding?journey-proof=queue";
 export const JOURNEY_PROOF_CALL_PREFIX = "/onboarding?journey-proof=call&room=";
 /** The signaling endpoint, reached the same way (next.config.mjs rewrites it to /api/call/signal). */
 export const JOURNEY_PROOF_SIGNAL = "/onboarding?journey-proof=signal";
+export const JOURNEY_PROOF_ICE = "/onboarding?journey-proof=ice";
 
 export function requireJourneyProof(): void {
   let enabled = false;

@@ -32,10 +32,12 @@ const refusalCopy: Record<string, { title: string; detail: string }> = {
 export default async function CallRoom({
   id,
   signalingEndpoint = "/api/call/signal",
+  iceEndpoint = "/api/call/ice",
   exitHref = "/app",
 }: {
   id: string;
   signalingEndpoint?: string;
+  iceEndpoint?: string;
   exitHref?: string;
 }) {
   const { userId } = await auth();
@@ -68,5 +70,5 @@ export default async function CallRoom({
     );
   }
 
-  return <CallScreenClient access={access} signalingEndpoint={signalingEndpoint} exitHref={exitHref} />;
+  return <CallScreenClient access={access} signalingEndpoint={signalingEndpoint} iceEndpoint={iceEndpoint} exitHref={exitHref} />;
 }

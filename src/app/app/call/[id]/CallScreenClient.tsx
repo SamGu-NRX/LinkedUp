@@ -10,11 +10,13 @@ import { endRoomAction } from "@/app/app/smart-connection/_actions";
 export default function CallScreenClient({
   access,
   signalingEndpoint,
+  iceEndpoint,
   exitHref,
 }: {
   access: Extract<RoomAccess, { allowed: true }>;
   /** Where the call signals: /api/call/signal, or the journey-proof path's own. */
   signalingEndpoint: string;
+  iceEndpoint: string;
   /** Where Done goes after ending the room. */
   exitHref: string;
 }) {
@@ -31,7 +33,7 @@ export default function CallScreenClient({
       participants={participants}
       matchIntro={access.intro}
       initialDuration={300}
-      call={{ roomId: access.roomId, selfId: String(access.me.id), signalingEndpoint }}
+      call={{ roomId: access.roomId, selfId: String(access.me.id), signalingEndpoint, iceEndpoint }}
       // Leaving is leaving the call, not ending the room: the screen offers
       // Rejoin, and the other person stays connected.
       onEndCall={() => {}}

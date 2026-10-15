@@ -17,7 +17,7 @@ const CONTRACTS = loadContracts();
 const RUNNER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(RUNNER_DIR, "..", "out");
 
-export const H_IDS = Array.from({ length: 16 }, (_, i) => `H-${String(i + 1).padStart(2, "0")}`);
+export const H_IDS = Array.from({ length: 18 }, (_, i) => `H-${String(i + 1).padStart(2, "0")}`);
 export const P_IDS = Array.from({ length: 5 }, (_, i) => `P-0${i + 1}`);
 export const ALL_SCENARIOS = [...H_IDS, ...P_IDS];
 
@@ -93,11 +93,11 @@ async function runOneInner(ctx, scenarioId, seed, log) {
  * Run a matrix of scenario x seed cells over the given transports.
  * @param {{ transports?: string[], scenarios?: string[], seeds?: number[], baseUrl?: string | null, page?: "bench" | "real", signaling?: "reference" | "convex", log?: (msg: string) => void, write?: boolean, onResult?: (result: any) => void, skipCell?: ((scenario: string, seed: number, transport: string) => boolean) | null }} [options]
  */
-export async function runScenarios({ scenarios = ["H-01"], seeds = [1], baseUrl, log = console.log, write = true, onResult = /** @type {(result: any) => void} */ (() => {}) } = {}) {
+export async function runScenarios({ scenarios = ["H-01"], seeds = [1], baseUrl, log = console.log, write = true, turn = null, onResult = /** @type {(result: any) => void} */ (() => {}) } = {}) {
   const results = [];
   const wallStart = Date.now();
   for (const transport of ["p2p-postgres"]) {
-    const ctx = new RunContext({ baseUrl, log });
+    const ctx = new RunContext({ baseUrl, log, turn });
     await ctx.start();
     try {
       if (scenarios.some((s) => s.startsWith("H"))) await ensureFixtures(ctx, log);
