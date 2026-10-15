@@ -767,6 +767,7 @@ function ProblemPanel({
           {onDone && (
             <button
               type="button"
+              data-testid="call-done"
               onClick={onDone}
               className={cn(focusRing, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium hover:bg-white/15")}
             >
