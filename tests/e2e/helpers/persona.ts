@@ -76,6 +76,10 @@ export async function signUpPersona(
   await fillIfPresent('input[name="lastName"]', persona.lastName);
   await page.locator('input[name="emailAddress"]').fill(persona.email);
   await fillIfPresent('input[name="password"]', persona.password);
+  // At 390px the expanded development prompt covers Continue. Collapse the
+  // actual expanded control rather than clicking through its overlay.
+  const prompt = page.getByRole("button", { name: "Keyless prompt", exact: true, expanded: true });
+  if (await prompt.count()) await prompt.click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   // Clerk renders the code as one autocomplete=one-time-code input; typing

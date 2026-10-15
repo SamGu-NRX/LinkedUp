@@ -242,7 +242,8 @@ for (const viewport of viewports) {
         longIntro.getByText(longQuestion, { exact: true }),
       ).toBeVisible();
       await longIntro.focus();
-      await a.page.keyboard.press("End");
+      await expect(longIntro).toBeFocused();
+      await longIntro.press("PageDown");
       await expect
         .poll(() => longIntro.evaluate((element) => element.scrollTop))
         .toBeGreaterThan(0);

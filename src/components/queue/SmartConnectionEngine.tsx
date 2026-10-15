@@ -235,7 +235,9 @@ export default function SmartConnectionEngine({
           <Button
             data-call-accept=""
             size="lg"
-            className={`${queueButton} rounded-full bg-emerald-600 px-8 text-base text-white hover:bg-emerald-700`}
+            // The compiled emerald 700 token gives 5.37:1 contrast with white;
+            // emerald 600 gives 3.67:1, below 4.5:1 for this 16px label.
+            className={`${queueButton} rounded-full bg-emerald-700 px-8 text-base text-white hover:bg-emerald-800`}
             onClick={handleAccept}
           >
             Join the call
