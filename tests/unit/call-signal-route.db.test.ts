@@ -4,14 +4,14 @@
 // user is set per test); the database is the stack's.
 import "./support/use-stack-db";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { like } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { NextRequest } from "next/server";
 
 const clerk = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId: clerk.userId }) }));
 
 const { db } = await import("@/db");
-const { rooms, users } = await import("@/db/schema");
+const { callSessions, queueEntries, rooms, users } = await import("@/db/schema");
 const { POST } = await import("@/app/api/call/signal/route");
 
 const PREFIX = "witness_route_";
@@ -134,5 +134,42 @@ describe("the order of the front door", () => {
     clerk.userId = clerkId;
     const res = await answer(request({ op: "join", roomId: room2.id, sessionId: "unonboarded-1" }));
     expect(res).toMatchObject({ status: 403, body: { code: "FORBIDDEN" } });
+  });
+});
+
+
+describe("a resumed call cannot revive an abandoned room", () => {
+  async function abandoned() {
+    const tag = crypto.randomUUID();
+    const members = await db.insert(users).values(["a", "b"].map(who => ({ clerkId: `${PREFIX}stale_${tag}_${who}`, email: `${tag}${who}@witness.local`, onboardingComplete: true }))).returning({ id: users.id, clerkId: users.clerkId });
+    const old = new Date(Date.now() - 180_000);
+    const [room] = await db.insert(rooms).values({ queueType: "casual", user1Id: members[0].id, user2Id: members[1].id, createdAt: old }).returning();
+    await db.insert(queueEntries).values(members.map(person => ({ userId: person.id, queueType: "casual", status: "matched", roomId: room.id, joinedAt: old, lastSeenAt: old })));
+    await db.insert(callSessions).values(members.map(person => ({ userId: person.id, roomId: room.id, sessionId: `stale-${person.id}`, lastHeartbeatAt: old, createdAt: old, updatedAt: old })));
+    return { room, members };
+  }
+
+  it.each(["join", "poll"] as const)("refuses a stale participant's %s before renewing their heartbeat", async op => {
+    const { room, members } = await abandoned();
+    clerk.userId = members[0].clerkId;
+    const result = await answer(request({ op, roomId: room.id, sessionId: op === "poll" ? `stale-${members[0].id}` : "fresh-reconnect" }));
+    expect(result).toMatchObject(op === "join"
+      ? { status: 410, body: { code: "ROOM_ENDED" } }
+      : { status: 200, body: { alive: false, reason: "ended" } });
+    const [stored] = await db.select({ status: rooms.status }).from(rooms).where(eq(rooms.id, room.id));
+    expect(stored).toEqual({ status: "ended" });
+    const entries = await db.select({ status: queueEntries.status }).from(queueEntries).where(eq(queueEntries.roomId, room.id));
+    expect(entries).toEqual([{ status: "exited" }, { status: "exited" }]);
+    const sessions = await db.select({ state: callSessions.state, reason: callSessions.closedReason }).from(callSessions).where(eq(callSessions.roomId, room.id));
+    expect(sessions).toEqual([{ state: "closed", reason: "ended" }, { state: "closed", reason: "ended" }]);
+  });
+
+  it("does not let an outsider mutate an abandoned room", async () => {
+    const { room } = await abandoned();
+    clerk.userId = outsiderClerkId;
+    expect(await answer(request({ op: "join", roomId: room.id, sessionId: "outsider-reconnect" }))).toMatchObject({ status: 403, body: { code: "FORBIDDEN" } });
+    const [stored] = await db.select({ status: rooms.status }).from(rooms).where(eq(rooms.id, room.id));
+    expect(stored).toEqual({ status: "active" });
+    await db.update(queueEntries).set({ status: "exited" }).where(and(eq(queueEntries.roomId, room.id), eq(queueEntries.status, "matched")));
   });
 });

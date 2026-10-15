@@ -55,14 +55,14 @@ const participants = [
 ] as [{ id: string; name: string; avatarUrl: string }, { id: string; name: string; avatarUrl: string }];
 const call = { roomId: "room-1", selfId: "1", signalingEndpoint: "/api/call/signal" };
 
-function renderScreen() {
+function renderScreen(onDone: () => void = vi.fn()) {
   return render(
     <VoiceCallScreen
       callType="casual"
       participants={participants}
       initialDuration={300}
       call={call}
-      onDone={vi.fn()}
+      onDone={onDone}
       onEndCall={vi.fn()}
       onExtendCall={vi.fn()}
       onToggleMute={vi.fn()}
@@ -136,6 +136,21 @@ describe("the phase is the transport's", () => {
     expect(getByTestId("call-error")).toHaveTextContent("Could not connect");
     fireEvent.click(getByTestId("retry-call"));
     expect(hook.retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases live devices before finishing from a transport failure", async () => {
+    hook.phase = "failed";
+    hook.error = { kind: "network", message: "Connection lost.", retryable: true };
+    let tracksWhenDone: string[] = [];
+    const done = () => {
+      const stream = hook.calls.at(-1)!.stream as FakeMediaStream;
+      tracksWhenDone = stream.getTracks().map(track => track.readyState);
+    };
+    const { container, getByRole } = renderScreen(done);
+    await waitFor(() => expect(root(container)).toHaveAttribute("data-call-local-media", "ready"));
+    fireEvent.click(getByRole("button", { name: "Back to the queue" }));
+    expect(tracksWhenDone).toEqual(["ended", "ended"]);
+    expect(root(container)).toHaveAttribute("data-call-phase", "left");
   });
 
   it("a refusal (the room ended) offers no reconnect", async () => {

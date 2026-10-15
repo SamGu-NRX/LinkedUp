@@ -15,6 +15,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { MeshError, joinCall, leaveCall, pollCall, sendSignals, setMediaState } from "@/lib/call/mesh";
 import { SEND_BATCH, sessionIdSchema, signalSchema } from "@/lib/call/signal-protocol";
+import { expireInactiveRoomForParticipant } from "@/lib/matching";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +117,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (body.op === "join" || body.op === "poll") {
+      await expireInactiveRoomForParticipant(me.id, body.roomId);
+    }
     switch (body.op) {
       case "join":
         return NextResponse.json(await joinCall(me.id, body.roomId, body.sessionId));

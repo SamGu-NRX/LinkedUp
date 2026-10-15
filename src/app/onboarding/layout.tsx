@@ -4,19 +4,14 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import FinishingSetup from "./FinishingSetup";
 
-/**
- * Onboarding exit gate. Completion lives in Postgres
- * (users.onboarding_complete), not Clerk metadata, so a user who has
- * already finished onboarding is sent straight to /app instead of seeing
- * the wizard again.
- */
 export default async function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
 
   if (userId) {
     const record = await db.query.users.findFirst({
@@ -24,7 +19,8 @@ export default async function OnboardingLayout({
     });
 
     if (record?.onboardingComplete) {
-      redirect("/app");
+      if (sessionClaims?.metadata?.onboardingComplete === true) redirect("/app");
+      return <FinishingSetup />;
     }
   }
 

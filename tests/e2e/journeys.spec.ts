@@ -9,8 +9,8 @@
 // Clerk's own Frontend API, to pass Clerk's bot check).
 //
 // After onboarding the journeys use the labelled journey-proof path
-// (src/app/journey-proof/) because the reserved middleware loops finished
-// users back to /onboarding; the first test below witnesses that loop.
+// (src/app/journey-proof/) when the reserved middleware blocks finished
+// users back to /onboarding; the first test verifies stable recovery there.
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import {
   PROOF_CALL,
@@ -37,6 +37,8 @@ import {
 
 const SEEDS = Number(process.env.J_SEEDS ?? 10);
 const ONLY = process.env.J_CASES?.split(",");
+// Screenshot-only: development overlays otherwise cover the phone's status text.
+const CAPTURE_STYLE = '#clerk-components:has(button[aria-label="Keyless prompt"]), nextjs-portal { visibility: hidden !important; }';
 
 /** Small deterministic PRNG so a seed replays the same order and waits. */
 function rng(seed: number) {
@@ -67,9 +69,12 @@ async function newActor(browser: Browser, letter: string): Promise<Actor> {
   const context = await browser.newContext();
   created.push({ context, email: persona.email });
   const page = await context.newPage();
+  const runtimeErrors: string[] = [];
+  page.on("pageerror", error => runtimeErrors.push(error.name));
   await signUpPersona(page, persona);
   await completeOnboarding(page, persona);
 
+  expect(runtimeErrors, `${letter}: authentication and onboarding runtime errors`).toEqual([]);
   // The wizard's answers are in Postgres, and the person is marked done.
   const row = await userRowByEmail(persona.email);
   expect(row, `${letter}: users row`).not.toBeNull();
@@ -155,7 +160,7 @@ test.afterEach(async ({}, testInfo) => {
   for (const email of emails) await deleteClerkUserByEmail(email);
 });
 
-test("witness (expected to fail until Sam settles the middleware): a finished user reaches /app", async ({
+test("a finished user without the configured session claim settles on recovery without looping", async ({
   browser,
 }) => {
   test.setTimeout(240_000);
@@ -166,8 +171,6 @@ test("witness (expected to fail until Sam settles the middleware): a finished us
   let onboardingLoads = 0;
   await signUpPersona(page, persona);
   await completeOnboarding(page, persona);
-  // Declared after setup so a broken sign-up or onboarding still fails.
-  test.fail(true, "src/middleware.ts gates on a session claim the keyless instance never issues");
   page.on("request", (r) => {
     if (new URL(r.url()).pathname === "/onboarding") onboardingLoads += 1;
   });
@@ -175,7 +178,39 @@ test("witness (expected to fail until Sam settles the middleware): a finished us
   // Someone who finished onboarding should settle in the app, not bounce
   // between /app and /onboarding.
   expect(onboardingLoads, "requests for /onboarding in the 10 s after finishing").toBeLessThan(3);
-  expect(new URL(page.url()).pathname).toBe("/app");
+  expect(new URL(page.url()).pathname).toBe("/onboarding");
+  await expect(page.getByRole("heading", { name: "Finishing setup" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  const keylessPrompt = page.getByRole("button", { name: "Keyless prompt", exact: true });
+  if (await keylessPrompt.getAttribute("aria-expanded") === "true") await keylessPrompt.click();
+  const captureRecovery = async (state: string) => {
+    for (const reducedMotion of ["no-preference", "reduce"] as const) {
+      await page.emulateMedia({ reducedMotion });
+      for (const [width, height] of [[1440, 900], [390, 844]]) {
+        await page.setViewportSize({ width, height });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        if (state === "onboarding-refreshing") await expect(page.getByRole("status")).toContainText("Updating your sign-in");
+        await page.screenshot({ style: CAPTURE_STYLE, path: `docs/lane-6/screenshots/${state}-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
+      }
+    }
+  };
+  await captureRecovery("onboarding-missing-claim");
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "Try again" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("status")).toContainText("Check your connection");
+  await captureRecovery("onboarding-refresh-error");
+  await context.setOffline(false);
+  const network = await context.newCDPSession(page);
+  await network.send("Network.enable");
+  // Hold the real response long enough to capture both viewport sizes.
+  await network.send("Network.emulateNetworkConditions", { offline: false, latency: 5_000, downloadThroughput: -1, uploadThroughput: -1 });
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByRole("status")).toContainText("Updating your sign-in");
+  await captureRecovery("onboarding-refreshing");
+  await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible({ timeout: 30_000 });
+  await network.detach();
 });
 
 const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> = {
@@ -305,6 +340,80 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
 
     // Accepting again returns to the same room.
     expect(await acceptMatch(goer.page)).toBe(roomId);
+  },
+
+  "J8 post-call rating persists and retries after a lost connection": async (browser, seed) => {
+    const [a, b] = await actors(browser, ["A", "B"]);
+    await Promise.all([gotoQueue(a.page, "casual"), gotoQueue(b.page, "casual")]);
+    const roomId = await expectPaired(a, b);
+    await expectSameRoom(a, b, roomId);
+    await a.page.getByTestId("leave-call").click();
+    await expect(a.page.getByRole("heading", { name: "You left the call", level: 2 })).toBeFocused();
+    await a.page.keyboard.press("Tab");
+    await a.page.keyboard.press("Space");
+    for (let i = 0; i < 3; i += 1) await a.page.keyboard.press("ArrowRight");
+    await expect(a.page.getByRole("radio", { name: "4 stars", exact: true })).toBeChecked();
+    const keylessPrompt = a.page.getByRole("button", { name: "Keyless prompt", exact: true });
+    if (await keylessPrompt.getAttribute("aria-expanded") === "true") await keylessPrompt.click();
+    await a.page.getByRole("radio", { name: "4 stars", exact: true }).focus();
+
+    const capture = async (state: string) => {
+      if (seed !== 0) return;
+      for (const reducedMotion of ["no-preference", "reduce"] as const) {
+        await a.page.emulateMedia({ reducedMotion });
+        for (const [width, height] of [[1440, 900], [390, 844]]) {
+          await a.page.setViewportSize({ width, height });
+          expect(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          if (state === "rating-saving") await expect(a.page.getByTestId("call-done")).toBeDisabled();
+          await a.page.screenshot({ style: CAPTURE_STYLE, path: `docs/lane-6/screenshots/${state}-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
+        }
+      }
+    };
+    await capture("rating-selected");
+    await a.context.setOffline(true);
+    await a.page.getByTestId("call-done").click();
+    await expect(a.page.locator('[data-call-finish-status="error"]')).toContainText("Choose Done to retry");
+    await expect(a.page.getByTestId("call-done")).toBeEnabled();
+    await expect(a.page.getByRole("radio", { name: "4 stars", exact: true })).toBeChecked();
+    await capture("rating-save-error");
+    expect(await one('SELECT count(*)::int AS count FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ count: 0 });
+    await a.context.setOffline(false);
+
+    // Slow the real link to inspect pending feedback without intercepting requests.
+    const network = await a.context.newCDPSession(a.page);
+    await network.send("Network.enable");
+    await network.send("Network.emulateNetworkConditions", { offline: false, latency: 5_000, downloadThroughput: -1, uploadThroughput: -1 });
+    await a.page.getByTestId("call-done").click();
+    await expect(a.page.getByTestId("call-done")).toBeDisabled();
+    await capture("rating-saving");
+    await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await expect(a.page.locator('[data-journey-proof="queue"]')).toBeVisible({ timeout: 60_000 });
+    await network.detach();
+    expect(await one('SELECT user_id, rating FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ user_id: a.userId, rating: 4 });
+    expect((await roomRow(roomId))?.status).toBe("ended");
+    // A server refresh after the partner's Done must preserve rating access.
+    await b.page.reload();
+    await expect(b.page.getByRole("heading", { name: "This call has ended" })).toBeFocused();
+    await expect(b.page.getByTestId("join-call")).toHaveCount(0);
+    if (seed === 0) {
+      for (const reducedMotion of ["no-preference", "reduce"] as const) {
+        await b.page.emulateMedia({ reducedMotion });
+        for (const [width, height] of [[1440, 900], [390, 844]]) {
+          await b.page.setViewportSize({ width, height });
+          expect(await b.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          await b.page.screenshot({ style: CAPTURE_STYLE, path: `docs/lane-6/screenshots/rating-ended-room-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
+        }
+      }
+    }
+    await expect(b.page.getByRole("radio", { name: "1 star", exact: true })).toBeEnabled();
+    await b.page.keyboard.press("Tab");
+    await b.page.keyboard.press("Space");
+    for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
+    await expect(b.page.getByRole("radio", { name: "5 stars", exact: true })).toBeChecked();
+    await expect(b.page.locator("[data-call-rating] svg.fill-amber-400")).toHaveCount(5);
+    await b.page.getByTestId("call-done").click();
+    await expect(b.page.locator('[data-journey-proof="queue"]')).toBeVisible();
+    expect(await one('SELECT count(*)::int AS count FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ count: 2 });
   },
 
   "J7 signed-out access to the call": async (browser) => {

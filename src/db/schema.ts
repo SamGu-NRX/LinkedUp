@@ -13,6 +13,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -202,3 +203,19 @@ export const callUserBudgets = pgTable("call_user_budgets", {
   windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
   used: integer("used").notNull(),
 });
+
+export const callRatings = pgTable(
+  "call_ratings",
+  {
+    id: serial("id").primaryKey(),
+    roomId: uuid("room_id").notNull().references(() => rooms.id, { onDelete: "cascade" }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("call_ratings_room_user_unique").on(table.roomId, table.userId),
+    check("call_ratings_rating_range", sql`${table.rating} BETWEEN 1 AND 5`),
+  ],
+);

@@ -7,13 +7,13 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
   endRoom,
-  getRoomForUser,
   queueCancel,
   queueJoin,
   queueStateForUser,
   type QueueStateForUser,
   type QueueType,
 } from "@/lib/matching";
+import { getCallParticipantId } from "@/lib/call/ratings";
 
 export type ActionError = { success: false; error: string };
 
@@ -52,8 +52,8 @@ export async function queueStateAction(): Promise<{ success: true; state: QueueS
 export async function endRoomAction(roomId: string): Promise<{ success: true; ended: boolean } | ActionError> {
   const { userId } = await auth();
   if (!userId) return { success: false, error: "Not signed in" };
-  const access = await getRoomForUser(userId, roomId);
-  if (!access.allowed) return { success: false, error: access.reason };
+  const participantId = await getCallParticipantId(userId, roomId);
+  if (participantId === null) return { success: false, error: "not_a_participant" };
   const ended = await endRoom(roomId);
   return { success: true, ended };
 }

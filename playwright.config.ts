@@ -1,4 +1,6 @@
 import { defineConfig } from "@playwright/test";
+import { APP_PORT } from "./scripts/stack-paths.cjs";
+const baseURL = `http://localhost:${APP_PORT}`;
 
 /**
  * Playwright for the LinkedUp call journey.
@@ -22,7 +24,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: [["list"]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL,
     // Dev-mode first compile of a route (e.g. Clerk's sign-in catch-all) can
     // take tens of seconds; navigation must outlive that.
     navigationTimeout: 120_000,
@@ -47,7 +49,7 @@ export default defineConfig({
     // Serves the labelled journey-proof path (next.config.mjs) for the J
     // suite; dev:up replaces a running server started without it.
     env: { LINKEDUP_JOURNEY_PROOF: "1" },
-    url: "http://localhost:3000",
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 300_000,
     stdout: "pipe",

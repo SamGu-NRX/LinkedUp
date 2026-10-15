@@ -385,6 +385,12 @@ export default function VoiceCallScreen({
     void startCapture();
   };
 
+  const handleDone = () => {
+    // Finishing can wait on the server; release devices before that request.
+    if (!leftRef.current) handleLeave();
+    onDone?.();
+  };
+
   const remaining = Math.max(initialDuration - elapsed, 0);
   const remotes = [...transport.remotes.entries()];
   const transportFailed = phase === "failed" && screenPhase !== "failed" && transport.error;
@@ -432,7 +438,7 @@ export default function VoiceCallScreen({
             onRateCall(value);
           }}
           onRejoin={handleRejoin}
-          onDone={onDone}
+          onDone={onDone ? handleDone : undefined}
         />
       ) : (
         <>
@@ -468,7 +474,7 @@ export default function VoiceCallScreen({
                 }
                 onRetryMedia={captureError && !localReady ? () => void startCapture() : undefined}
                 onRetryCall={localReady && transport.error?.retryable ? transport.retry : undefined}
-                onDone={onDone}
+                onDone={onDone ? handleDone : undefined}
               />
             ) : remotes.length === 0 ? (
               <WaitingTile name={partner?.name} phase={phase} />
@@ -779,15 +785,17 @@ function ProblemPanel({
   );
 }
 
-function LeftScreen({
+export function LeftScreen({
+  title = "You left the call",
   rating,
   onRate,
   onRejoin,
   onDone,
 }: {
+  title?: string;
   rating: number | null;
   onRate: (value: number) => void;
-  onRejoin: () => void;
+  onRejoin?: () => void;
   onDone?: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -800,7 +808,7 @@ function LeftScreen({
     <section className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="flex flex-col gap-2">
         <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold outline-none">
-          You left the call
+          {title}
         </h2>
         <p className="text-sm text-zinc-400">Your camera and microphone are off.</p>
       </div>
@@ -831,14 +839,14 @@ function LeftScreen({
         </div>
       </fieldset>
       <div className="flex flex-wrap justify-center gap-2">
-        <button
+        {onRejoin && <button
           type="button"
           data-testid="join-call"
           onClick={onRejoin}
           className={cn(focusRing, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium hover:bg-white/15")}
         >
           Rejoin
-        </button>
+        </button>}
         {onDone && (
           <button
             type="button"

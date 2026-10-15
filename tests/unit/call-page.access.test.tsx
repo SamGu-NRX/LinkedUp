@@ -8,7 +8,7 @@
  * tests pin the page's own behavior:
  *   - signed-out visitors are refused honestly (never reach the room lookup);
  *   - a signed-in non-participant is refused with a truthful reason;
- *   - an ended room is refused with a truthful reason;
+ *   - an ended room's participant can rate without mounting the call;
  *   - only the two room participants reach the call screen, and the
  *     participants passed down are exactly the ones the access record
  *     derived from the room row (never invented client-side).
@@ -20,10 +20,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { RoomAccess } from "@/lib/matching";
 
-const { authMock, getRoomForUserMock, callScreenClientMock } = vi.hoisted(() => ({
+const { authMock, getRoomForUserMock, callScreenClientMock, completedRatingMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   getRoomForUserMock: vi.fn<(clerkUserId: string, roomId: string) => Promise<unknown>>(),
   callScreenClientMock: vi.fn<(props: { access: unknown }) => null>(() => null),
+  completedRatingMock: vi.fn<(props: { roomId: string; exitHref: string }) => null>(() => null),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: authMock }));
@@ -37,6 +38,7 @@ vi.mock("@/lib/matching", () => ({ getRoomForUser: getRoomForUserMock }));
 // VoiceCallScreen); mock THAT specifier so the DOM stays isolated.
 vi.mock("@/app/app/call/[id]/CallScreenClient", () => ({
   default: callScreenClientMock,
+  CompletedCallRating: completedRatingMock,
 }));
 
 const { default: CallPage } = await import("@/app/app/call/[id]/page");
@@ -68,6 +70,7 @@ describe("CallPage access control (page-level witnesses)", () => {
     authMock.mockReset();
     getRoomForUserMock.mockReset();
     callScreenClientMock.mockClear();
+    completedRatingMock.mockClear();
   });
 
   it("refuses a signed-out visitor honestly and never touches the room lookup", async () => {
@@ -83,6 +86,7 @@ describe("CallPage access control (page-level witnesses)", () => {
     const link = screen.getByRole("link", { name: "Sign in" });
     expect(link.getAttribute("href")).toBe("/sign-in");
     expect(callScreenClientMock).not.toHaveBeenCalled();
+    expect(completedRatingMock).not.toHaveBeenCalled();
   });
 
   it("refuses a signed-in non-participant through the server-side membership check", async () => {
@@ -98,17 +102,16 @@ describe("CallPage access control (page-level witnesses)", () => {
     expect(refusal?.getAttribute("data-refusal-reason")).toBe("not_a_participant");
     expect(screen.getByText("You're not in this call")).toBeTruthy();
     expect(callScreenClientMock).not.toHaveBeenCalled();
+    expect(completedRatingMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a participant of an ended room with the truthful reason", async () => {
+  it("lets an ended room's participant finish rating without mounting the call", async () => {
     authMock.mockResolvedValue({ userId: "clerk_me" });
     getRoomForUserMock.mockResolvedValue({ allowed: false, reason: "room_ended" });
 
     await renderCallPage("room-1");
 
-    const refusal = document.querySelector("[data-call-refusal]");
-    expect(refusal?.getAttribute("data-refusal-reason")).toBe("room_ended");
-    expect(screen.getByText("This call has ended")).toBeTruthy();
+    expect(completedRatingMock.mock.calls[0]?.[0]).toEqual({ roomId: "room-1", exitHref: "/app" });
     expect(callScreenClientMock).not.toHaveBeenCalled();
   });
 

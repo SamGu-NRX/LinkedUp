@@ -79,6 +79,8 @@ interface Peer {
   remoteStream: MediaStream;
   streamAnnounced: boolean;
   everConnected: boolean;
+  mediaReceived: boolean;
+  mediaCleanup: Array<() => void>;
   /** Incoming signals for this peer are applied one at a time, in order. */
   chain: Promise<void>;
   disconnectedTimer: ReturnType<typeof setTimeout> | null;
@@ -146,26 +148,16 @@ export function createP2PTransport({
     setPhase("failed");
   }
 
-  /**
-   * Connected once signaling is up and every peer we have reached is still
-   * reachable. A peer that has never connected holds the call in its current
-   * joining/reconnecting phase but cannot drag a connected call back down.
-   */
+  /** SDP can create a muted track before any RTP arrives. Wait for media. */
   function refreshPhase(): void {
     if (leaving || phase === "left" || phase === "failed" || phase === "idle")
       return;
-    if (!signalingUp) {
-      setPhase(phase === "joining" ? "joining" : "reconnecting");
-      return;
-    }
     const all = [...peers.values()];
-    const broken = all.some(
-      (p) => p.everConnected && p.pc.connectionState !== "connected",
+    const ready = signalingUp && all.length > 0 && all.every(
+      (peer) => peer.pc.connectionState === "connected" && peer.mediaReceived,
     );
-    const pending = all.some((p) => !p.everConnected);
-    if (broken) setPhase("reconnecting");
-    else if (pending && phase !== "connected") return;
-    else setPhase("connected");
+    if (ready) setPhase("connected");
+    else setPhase(phase === "joining" ? "joining" : "reconnecting");
   }
 
   function terminal(): boolean {
@@ -209,6 +201,8 @@ export function createP2PTransport({
       remoteStream: new MediaStream(),
       streamAnnounced: false,
       everConnected: false,
+      mediaReceived: false,
+      mediaCleanup: [],
       chain: Promise.resolve(),
       disconnectedTimer: null,
       watchdog: null,
@@ -245,6 +239,16 @@ export function createP2PTransport({
       }
       if (!peer.remoteStream.getTrackById(track.id))
         peer.remoteStream.addTrack(track);
+      const received = () => {
+        if (peers.get(id) !== peer || peer.remoteStream.getTrackById(track.id) !== track || track.muted || track.readyState !== "live") return;
+        // Mute controls stop tracks, so retain the first received-media proof
+        // for this connection even when both participants turn their media off.
+        peer.mediaReceived = true;
+        refreshPhase();
+      };
+      track.addEventListener("unmute", received);
+      peer.mediaCleanup.push(() => track.removeEventListener("unmute", received));
+      received();
       if (!peer.streamAnnounced) {
         peer.streamAnnounced = true;
         events?.onRemoteStream({
@@ -409,6 +413,7 @@ export function createP2PTransport({
     if (peer.watchdog) clearInterval(peer.watchdog);
     if (peer.politeOfferTimer) clearTimeout(peer.politeOfferTimer);
     const { pc } = peer;
+    for (const cleanup of peer.mediaCleanup) cleanup();
     pc.onicecandidate = null;
     pc.ontrack = null;
     pc.onnegotiationneeded = null;

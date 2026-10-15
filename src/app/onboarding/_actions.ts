@@ -82,6 +82,7 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
     // 2. Clerk's claim, read by the middleware.
     await client.users.updateUser(userId, {
       publicMetadata: {
+        ...userDetails.publicMetadata,
         onboardingComplete: true,
       },
     });
@@ -97,5 +98,23 @@ export async function saveUserOnboardingData(data: OnboardingFormData) {
   } catch (error) {
     console.error("Error saving onboarding data:", error);
     return { error: "Failed to save onboarding data" };
+  }
+}
+
+// Only a completed database profile may repair the middleware's Clerk claim.
+export async function refreshOnboardingMetadata() {
+  const { userId } = await auth();
+  if (!userId) return { success: false, error: "Not signed in" };
+  const record = await db.query.users.findFirst({ where: eq(users.clerkId, userId) });
+  if (!record?.onboardingComplete) return { success: false, error: "Profile is not complete" };
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    await client.users.updateUser(userId, {
+      publicMetadata: { ...user.publicMetadata, onboardingComplete: true },
+    });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Could not update sign-in" };
   }
 }
