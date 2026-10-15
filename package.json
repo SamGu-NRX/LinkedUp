@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
+    "test:onboarding": "node --experimental-vm-modules --test tests/unit/onboarding-redirects.test.mjs",
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
