@@ -37,6 +37,8 @@ import {
 
 const SEEDS = Number(process.env.J_SEEDS ?? 10);
 const ONLY = process.env.J_CASES?.split(",");
+// Screenshot-only: development overlays otherwise cover the phone's status text.
+const CAPTURE_STYLE = '#clerk-components:has(button[aria-label="Keyless prompt"]), nextjs-portal { visibility: hidden !important; }';
 
 /** Small deterministic PRNG so a seed replays the same order and waits. */
 function rng(seed: number) {
@@ -187,7 +189,8 @@ test("a finished user without the configured session claim settles on recovery w
       for (const [width, height] of [[1440, 900], [390, 844]]) {
         await page.setViewportSize({ width, height });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await page.screenshot({ path: `docs/lane-6/screenshots/${state}-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
+        if (state === "onboarding-refreshing") await expect(page.getByRole("status")).toContainText("Updating your sign-in");
+        await page.screenshot({ style: CAPTURE_STYLE, path: `docs/lane-6/screenshots/${state}-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
       }
     }
   };
@@ -201,13 +204,13 @@ test("a finished user without the configured session claim settles on recovery w
   const network = await context.newCDPSession(page);
   await network.send("Network.enable");
   // Hold the real response long enough to capture both viewport sizes.
-  await network.send("Network.emulateNetworkConditions", { offline: false, latency: 20_000, downloadThroughput: -1, uploadThroughput: -1 });
+  await network.send("Network.emulateNetworkConditions", { offline: false, latency: 5_000, downloadThroughput: -1, uploadThroughput: -1 });
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("status")).toContainText("Updating your sign-in");
   await captureRecovery("onboarding-refreshing");
   await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
-  await network.detach();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible({ timeout: 30_000 });
+  await network.detach();
 });
 
 const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> = {
@@ -352,6 +355,7 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     await expect(a.page.getByRole("radio", { name: "4 stars", exact: true })).toBeChecked();
     const keylessPrompt = a.page.getByRole("button", { name: "Keyless prompt", exact: true });
     if (await keylessPrompt.getAttribute("aria-expanded") === "true") await keylessPrompt.click();
+    await a.page.getByRole("radio", { name: "4 stars", exact: true }).focus();
 
     const capture = async (state: string) => {
       if (seed !== 0) return;
@@ -361,7 +365,7 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
           await a.page.setViewportSize({ width, height });
           expect(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
           if (state === "rating-saving") await expect(a.page.getByTestId("call-done")).toBeDisabled();
-          await a.page.screenshot({ path: `docs/lane-6/screenshots/${state}-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
+          await a.page.screenshot({ style: CAPTURE_STYLE, path: `docs/lane-6/screenshots/${state}-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
         }
       }
     };
@@ -378,13 +382,13 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     // Slow the real link to inspect pending feedback without intercepting requests.
     const network = await a.context.newCDPSession(a.page);
     await network.send("Network.enable");
-    await network.send("Network.emulateNetworkConditions", { offline: false, latency: 20_000, downloadThroughput: -1, uploadThroughput: -1 });
+    await network.send("Network.emulateNetworkConditions", { offline: false, latency: 5_000, downloadThroughput: -1, uploadThroughput: -1 });
     await a.page.getByTestId("call-done").click();
     await expect(a.page.getByTestId("call-done")).toBeDisabled();
     await capture("rating-saving");
     await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
-    await network.detach();
     await expect(a.page.locator('[data-journey-proof="queue"]')).toBeVisible({ timeout: 60_000 });
+    await network.detach();
     expect(await one('SELECT user_id, rating FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ user_id: a.userId, rating: 4 });
     expect((await roomRow(roomId))?.status).toBe("ended");
     await b.page.getByTestId("leave-call").click();
