@@ -11,6 +11,6 @@ For Sam or the release operator, after reviewing this PR and before promoting al
 
 The local migration fixture is reconstructed from main source, not a production dump. Production data volume and migration lock duration have not been measured. The cleanup retires active rooms missing either matched participant and releases their remaining entries, so pausing writes prevents new matches from changing during cleanup.
 
-A room with either person absent for more than two minutes expires when a participant next polls their queue, rejoins it, or opens the room. Queue-offer polls and call heartbeats both count as presence. The two-minute reload allowance is a product choice without measured reload-gap data.
+A room with either person absent for more than two minutes expires when a participant next polls their queue, rejoins it, opens the room, or resumes signaling with a join or poll. Queue-offer polls and call heartbeats both count as presence. The two-minute reload allowance is a product choice without measured reload-gap data.
 
 ICE configuration remains lane 2's promotion dependency. These changes do not establish connectivity across different networks.

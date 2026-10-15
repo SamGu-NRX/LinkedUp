@@ -83,19 +83,10 @@ export async function signUpPersona(
   const code = page.locator('input[autocomplete="one-time-code"]').first();
   await code.waitFor({ state: "visible", timeout: 60_000 });
   await code.pressSequentially(CLERK_TEST_CODE, { delay: 50 });
-  // Signed up means Clerk has an active session. Clerk's own redirect after
-  // sign-up does not finish on this stack: its server action posts to
-  // /sign-up/verify-email-address, which the reserved middleware redirects
-  // to /onboarding (signed in, no onboarding claim), and the page stays put.
-  // Signed up = Clerk's client holds a session for this browser. The next
-  // page load turns it into the app's session cookie.
-  await page.waitForFunction(
-    () =>
-      ((window as unknown as { Clerk?: { client?: { sessions?: unknown[] } } }).Clerk?.client?.sessions
-        ?.length ?? 0) > 0,
-    undefined,
-    { timeout: 60_000 },
-  );
+  // Clerk's session list can update before its post-sign-up navigation.
+  // Wait for that navigation before starting the wizard, or its late redirect
+  // can remount onboarding and reset the step while a selector is in flight.
+  await page.waitForURL(/\/onboarding(?:[?#]|$)/, { timeout: 60_000 });
 }
 
 const GENDER_LABEL: Record<Gender, string> = {
@@ -108,8 +99,8 @@ const GENDER_LABEL: Record<Gender, string> = {
 /**
  * Walks the real five-step onboarding wizard for a signed-up persona and
  * returns once Postgres records them onboarded. What the browser does next
- * is the middleware loop (witnessed in journeys.spec.ts), so journeys
- * continue through the journey-proof path.
+ * is stable token recovery when session customization is missing, so journeys
+ * use normal routes only when a completed claim is present.
  * The Clerk keyless-mode prompt overlay re-renders the tree, so portal
  * options are force-clicked after a settle beat.
  */
@@ -159,20 +150,22 @@ export async function completeOnboarding(
   await page.locator('[role="combobox"]').first().click();
   await page
     .getByRole("option", { name: GENDER_LABEL[persona.gender] })
-    .click({ force: true });
-  await page.waitForTimeout(600);
+    .click();
+  await expect(page.getByRole("listbox")).toHaveCount(0);
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
   // Step 2 — Professional Info: field combobox + title/company/linkedin.
   await page
     .getByRole("heading", { name: "Professional Information" })
     .waitFor({ timeout: 20_000 });
-  await page.locator('[role="combobox"]').first().click();
+  // The step transition can leave the previous combobox mounted briefly.
+  // Select the field trigger by its name instead of clicking the gender field.
+  await page.getByRole("combobox").filter({ hasText: "Select field..." }).click();
   await page.waitForTimeout(600);
   await page
     .getByRole("option", { name: persona.field, exact: true })
-    .click({ force: true });
-  await page.waitForTimeout(400);
+    .click();
+  await expect(page.getByRole("listbox")).toHaveCount(0);
   await page.locator('input[name="jobTitle"]').fill(persona.jobTitle);
   await page.locator('input[name="company"]').fill(persona.company);
   await page.locator('input[name="linkedinUrl"]').fill(persona.linkedinUrl);
@@ -194,15 +187,12 @@ export async function completeOnboarding(
   }
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
-  // Step 5 — Summary: submit and pass the congrats screen.
+  // Step 5: submit the profile and verify its persisted completion flag.
   await page
     .getByRole("button", { name: "Complete Profile" })
     .waitFor({ timeout: 20_000 });
   await page.getByRole("button", { name: "Complete Profile" }).click();
-  // Done = the action marked the person onboarded in Postgres. The
-  // "Welcome to the Club!" screen does not reliably appear: the action's
-  // revalidation re-runs the /onboarding layout, which redirects a finished
-  // user to /app, which the reserved middleware sends back to /onboarding.
+  // The layout may replace the wizard with token recovery while revalidating.
   await expect
     .poll(async () => (await userRowByEmail(persona.email))?.onboarding_complete ?? false, {
       timeout: 60_000,
@@ -218,15 +208,27 @@ export async function completeOnboarding(
  */
 export const PROOF_QUEUE = "/onboarding?journey-proof=queue";
 export const PROOF_CALL = "/onboarding?journey-proof=call&room=";
-const PROOF_CALL_URL = /\/onboarding\?journey-proof=call&room=([0-9a-f-]{36})/;
+const CALL_URL = /(?:\/onboarding\?journey-proof=call&room=|\/app\/call\/)([0-9a-f-]{36})/;
+
+async function hasCompletionClaim(page: Page): Promise<boolean> {
+  return page.evaluate(async () => {
+    const clerk = (window as unknown as { Clerk?: { session?: { getToken: () => Promise<string | null> } } }).Clerk;
+    const token = await clerk?.session?.getToken();
+    if (!token) return false;
+    const payload = token.split(".")[1];
+    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return claims.metadata?.onboardingComplete === true;
+  });
+}
 
 /** Opens the queue for a type; the engine joins on mount. */
 export async function gotoQueue(
   page: Page,
   queueType: "casual" | "professional",
 ): Promise<void> {
-  await page.goto(`${PROOF_QUEUE}&type=${queueType}`);
-  await page.locator('[data-journey-proof="queue"]').waitFor({ timeout: 60_000 });
+  const normalRoutes = await hasCompletionClaim(page);
+  await page.goto(normalRoutes ? `/app/smart-connection?type=${queueType}` : `${PROOF_QUEUE}&type=${queueType}`);
+  if (!normalRoutes) await page.locator('[data-journey-proof="queue"]').waitFor({ timeout: 60_000 });
   await page
     .locator('[data-queue-phase="waiting"], [data-queue-phase="matched"]')
     .waitFor({ state: "visible", timeout: 60_000 });
@@ -249,9 +251,9 @@ export async function waitForQueuePhase(
 /** Accepts the match and lands in the call room; returns the room id. */
 export async function acceptMatch(page: Page): Promise<string> {
   await page.locator("[data-call-accept]").click();
-  await page.waitForURL(PROOF_CALL_URL, { timeout: 30_000 });
+  await page.waitForURL(CALL_URL, { timeout: 30_000 });
   await page.locator("[data-call-root]").waitFor({ state: "visible", timeout: 60_000 });
-  return page.url().match(PROOF_CALL_URL)![1];
+  return page.url().match(CALL_URL)![1];
 }
 
 /** Best-effort: expect() wrapper so failures carry readable context. */
