@@ -54,6 +54,15 @@ export function makePersona(
 /** Clerk's fixed verification code for +clerk_test addresses on development instances. */
 export const CLERK_TEST_CODE = "424242";
 
+async function collapseKeylessPrompt(page: Page): Promise<void> {
+  const prompt = page.getByRole("button", {
+    name: "Keyless prompt",
+    exact: true,
+    expanded: true,
+  });
+  if (await prompt.count()) await prompt.click();
+}
+
 /**
  * Signs up a persona through the real Clerk sign-up form: details, then the
  * email verification step, where it types Clerk's test code. The testing
@@ -78,8 +87,7 @@ export async function signUpPersona(
   await fillIfPresent('input[name="password"]', persona.password);
   // At 390px the expanded development prompt covers Continue. Collapse the
   // actual expanded control rather than clicking through its overlay.
-  const prompt = page.getByRole("button", { name: "Keyless prompt", exact: true, expanded: true });
-  if (await prompt.count()) await prompt.click();
+  await collapseKeylessPrompt(page);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   // Clerk renders the code as one autocomplete=one-time-code input; typing
@@ -168,6 +176,7 @@ export async function completeOnboarding(
     await page.getByRole("option", { name: GENDER_LABEL[persona.gender], exact: true }).click({ timeout: 15_000 });
   }
   await expect(gender).toHaveText(GENDER_LABEL[persona.gender]);
+  await collapseKeylessPrompt(page);
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
   // Step 2 — Professional Info: field combobox + title/company/linkedin.
@@ -183,11 +192,13 @@ export async function completeOnboarding(
   await page.locator('input[name="jobTitle"]').fill(persona.jobTitle);
   await page.locator('input[name="company"]').fill(persona.company);
   await page.locator('input[name="linkedinUrl"]').fill(persona.linkedinUrl);
+  await collapseKeylessPrompt(page);
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
   // Step 3 — Bio.
   await page.getByRole("heading", { name: "About You" }).waitFor({ timeout: 20_000 });
   await page.locator("textarea").first().fill(persona.bio);
+  await collapseKeylessPrompt(page);
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
   // Step 4 — Interests: toggle the persona's picks.
@@ -199,12 +210,16 @@ export async function completeOnboarding(
       .getByRole("button", { name: interest, exact: true })
       .click({ force: true });
   }
+  // Clerk can mount the prompt after the wizard starts. At 390px it covers
+  // the Interests Continue button, so check at the action rather than once.
+  await collapseKeylessPrompt(page);
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
   // Step 5 — Summary: submit and pass the congrats screen.
   await page
     .getByRole("button", { name: "Complete Profile" })
     .waitFor({ timeout: 20_000 });
+  await collapseKeylessPrompt(page);
   await page.getByRole("button", { name: "Complete Profile" }).click();
   // Done = the action marked the person onboarded in Postgres. The
   // "Welcome to the Club!" screen does not reliably appear: the action's

@@ -241,8 +241,11 @@ for (const viewport of viewports) {
       await expect(
         longIntro.getByText(longQuestion, { exact: true }),
       ).toBeVisible();
+      await a.page.bringToFront();
+      await expect.poll(() => a.page.evaluate(() => document.hasFocus())).toBe(true);
       await longIntro.focus();
       await expect(longIntro).toBeFocused();
+      expect(await longIntro.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
       await longIntro.press("PageDown");
       await expect
         .poll(() => longIntro.evaluate((element) => element.scrollTop))
