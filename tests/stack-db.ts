@@ -25,6 +25,15 @@ function describeUrl(url: string): string {
 
 /** The stack's URL, or an error if the environment points somewhere else. */
 export function stackDatabaseUrl(env: Record<string, string | undefined> = process.env): string {
+  if (env.LINKEDUP_TEST_DATABASE !== undefined) {
+    // Explicit fleet lane only: never turn the destructive-test guard into an
+    // arbitrary DATABASE_URL override. Other lanes' databases remain refused.
+    const laneUrl = "postgresql://postgres:postgres@127.0.0.1:54329/linkedup_match";
+    if (env.LINKEDUP_TEST_DATABASE !== "linkedup_match" || env.DATABASE_URL !== laneUrl) {
+      throw new Error("Refusing DATABASE_URL: lane 7 tests require the exact local linkedup_match URL");
+    }
+    return laneUrl;
+  }
   const inherited = env.DATABASE_URL;
   if (inherited !== undefined && inherited !== LOCAL_DATABASE_URL) {
     throw new Error(
@@ -54,8 +63,16 @@ export function dataDirectoryProblem(reported: string): string | null {
 
 /** Connect once and confirm the server is this checkout's cluster. */
 export async function assertStackCluster(url: string = stackDatabaseUrl()): Promise<void> {
+  if (url !== stackDatabaseUrl()) throw new Error("Refusing an unverified test database URL");
   const sql = postgres(url, { max: 1, idle_timeout: 1, connect_timeout: 5, onnotice: () => {} });
   try {
+    if (process.env.LINKEDUP_TEST_DATABASE === "linkedup_match") {
+      const [identity] = await sql`SELECT current_database() AS name, inet_server_port() AS port`;
+      if (identity.name !== "linkedup_match" || identity.port !== 54329) {
+        throw new Error("Lane 7 test database identity mismatch");
+      }
+      return;
+    }
     let reported: string;
     try {
       const rows = await sql<{ data_directory: string }[]>`SHOW data_directory`;

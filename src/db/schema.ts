@@ -202,3 +202,11 @@ export const callUserBudgets = pgTable("call_user_budgets", {
   windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
   used: integer("used").notNull(),
 });
+
+// Stored once with the room so both people and reloads see the same introduction.
+export const roomMatchIntros = pgTable("room_match_intros", {
+  roomId: uuid("room_id").primaryKey().references(() => rooms.id, { onDelete: "cascade" }),
+  reason: text("reason").notNull(),
+  question: text("question").notNull(),
+  sharedInterests: jsonb("shared_interests").$type<string[]>().notNull(),
+});
