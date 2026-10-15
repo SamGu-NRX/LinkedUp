@@ -1,3 +1,5 @@
+import type { MatchIntro } from "@/lib/interest-matching/types"
+
 export type CallType = "casual" | "professional"
 
 export interface Participant {
@@ -14,6 +16,7 @@ export interface CallState {
 }
 
 export interface VoiceCallProps {
+  matchIntro?: MatchIntro | null
   callType: CallType
   participants: [Participant, Participant]
   initialDuration: number

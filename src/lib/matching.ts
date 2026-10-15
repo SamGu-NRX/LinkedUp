@@ -8,8 +8,10 @@
 // is the production pairing with its transaction removed.
 import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { queueEntries, rooms, users } from "@/db/schema";
+import { queueEntries, rooms, users, roomMatchIntros } from "@/db/schema";
 import { closeRoomSessions } from "@/lib/call/mesh";
+import { getMatchIntro, preparePair } from "@/lib/interest-matching/postgres";
+import type { MatchIntro, PairProposal } from "@/lib/interest-matching/types";
 
 export type QueueType = "casual" | "professional";
 
@@ -22,7 +24,7 @@ export type PartnerInfo = {
 export type QueueStateForUser =
   | { status: "idle" }
   | { status: "waiting"; queueType: QueueType; joinedAt: string }
-  | { status: "matched"; queueType: QueueType; roomId: string; partner: PartnerInfo };
+  | { status: "matched"; queueType: QueueType; roomId: string; partner: PartnerInfo; intro: MatchIntro | null };
 
 /**
  * A waiting entry nobody has polled for this long is stale and expires
@@ -127,7 +129,7 @@ export async function queueJoin(options: {
   if (inserted.length === 0) return (await liveState()) ?? { status: "waiting" };
 
   // Try to pair immediately (our own entry can be the second member).
-  const paired = await pairIfPartnerWaiting(queueType, now);
+  const paired = await pairIfPartnerWaiting(queueType, now, userId);
   if (paired && (paired.winnerId === userId || paired.loserId === userId)) {
     return { status: "matched", roomId: paired.roomId };
   }
@@ -210,7 +212,7 @@ export async function queueStateForUser(userId: number): Promise<QueueStateForUs
   // other (lock races leave both briefly waiting). The next poll finishes
   // the pair, so a queue that is ready never stalls behind a lost race.
   if (entry?.status === "waiting") {
-    const paired = await pairIfPartnerWaiting(entry.queueType as QueueType, new Date());
+    const paired = await pairIfPartnerWaiting(entry.queueType as QueueType, new Date(), userId);
     if (paired) {
       entry =
         (await db.query.queueEntries.findFirst({
@@ -241,6 +243,7 @@ export async function queueStateForUser(userId: number): Promise<QueueStateForUs
         status: "matched",
         queueType: room.queueType as QueueType,
         roomId: room.id,
+        intro: await getMatchIntro(room.id),
         partner: {
           id: partnerId,
           name: partnerName(partner?.firstName, partner?.lastName, partner?.email),
@@ -260,6 +263,7 @@ export type RoomAccess =
       queueType: QueueType;
       me: PartnerInfo;
       partner: PartnerInfo;
+      intro: MatchIntro | null;
     }
   | { allowed: false; reason: "room_not_found" | "room_ended" | "not_a_participant" };
 
@@ -290,6 +294,7 @@ export async function getRoomForUser(clerkUserId: string, roomId: string): Promi
     roomId: room.id,
     queueType: room.queueType as QueueType,
     me: toInfo(me),
+    intro: await getMatchIntro(room.id),
     partner: partner ? toInfo(partner) : { id: partnerId, name: "Your match", avatarUrl: "" },
   };
 }
@@ -329,28 +334,31 @@ export async function endRoom(roomId: string, now: Date = new Date()): Promise<b
 type Executor = Pick<typeof db, "execute" | "insert" | "update">;
 
 /**
- * The pairing body: claim the two longest-waiting entries of a type with
- * FOR UPDATE SKIP LOCKED in one statement, insert their room, and mark both
- * matched. Inside a transaction (pairWaitingUsersTransactional) the claim
- * holds until commit, so concurrent pairings never take the same entry.
+ * Revalidate the proposed pair and claim both rows in id order. The proposal
+ * was scored before this transaction. If either row was cancelled, expired,
+ * or claimed meanwhile, do nothing; the next attempt takes a fresh snapshot.
+ * FOR UPDATE SKIP LOCKED holds both claims until the room and intro commit.
  * Exported for the concurrency witness, which runs it on the bare
  * connection; the app never does.
  */
 export async function pairWaitingUsersWith(
   exec: Executor,
   queueType: QueueType,
-  now: Date = new Date(),
+  now: Date,
+  proposal: PairProposal,
 ): Promise<{ roomId: string; winnerId: number; loserId: number } | null> {
   const pairRows = await exec.execute<{ id: number; userId: number }>(sql`
     SELECT id, user_id AS "userId" FROM queue_entries
     WHERE queue_type = ${queueType} AND status = 'waiting'
-    ORDER BY joined_at ASC, id ASC
-    LIMIT 2
+      AND id IN (${proposal.anchor.entryId}, ${proposal.partner.entryId})
+      AND last_seen_at >= ${new Date(now.getTime() - STALE_ENTRY_MS).toISOString()}::timestamptz
+    ORDER BY id ASC
     FOR UPDATE SKIP LOCKED
   `);
   const winner = pairRows[0];
   const loser = pairRows[1];
   if (!winner || !loser) return null;
+  if (winner.userId === loser.userId) return null;
 
   const [room] = await exec
     .insert(rooms)
@@ -362,6 +370,8 @@ export async function pairWaitingUsersWith(
       createdAt: now,
     })
     .returning({ id: rooms.id });
+
+  await exec.insert(roomMatchIntros).values({ roomId: room.id, ...proposal.intro });
 
   await exec
     .update(queueEntries)
@@ -375,8 +385,11 @@ export async function pairWaitingUsersWith(
 export async function pairWaitingUsersTransactional(
   queueType: QueueType,
   now: Date = new Date(),
+  joiningUserId?: number,
 ): Promise<{ roomId: string; winnerId: number; loserId: number } | null> {
-  return db.transaction((tx) => pairWaitingUsersWith(tx, queueType, now));
+  const proposal = await preparePair(queueType, now, STALE_ENTRY_MS, joiningUserId);
+  if (!proposal) return null;
+  return db.transaction((tx) => pairWaitingUsersWith(tx, queueType, now, proposal));
 }
 
 async function countWaitingEntries(queueType: QueueType): Promise<number> {
@@ -394,10 +407,11 @@ async function countWaitingEntries(queueType: QueueType): Promise<number> {
 async function pairIfPartnerWaiting(
   queueType: QueueType,
   now: Date,
+  joiningUserId?: number,
 ): Promise<{ roomId: string; winnerId: number; loserId: number } | null> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if ((await countWaitingEntries(queueType)) < 2) return null;
-    const paired = await pairWaitingUsersTransactional(queueType, now);
+    const paired = await pairWaitingUsersTransactional(queueType, now, joiningUserId);
     if (paired) return paired;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }

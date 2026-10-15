@@ -13,7 +13,7 @@ import "./support/use-stack-db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, desc, eq, inArray, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { queueEntries, rooms, users } from "@/db/schema";
+import { queueEntries, rooms, users, interests } from "@/db/schema";
 import {
   STALE_ENTRY_MS,
   endRoom,
@@ -26,6 +26,8 @@ import {
   queueStateForUser,
   type QueueStateForUser,
 } from "@/lib/matching";
+
+import { preparePair } from "@/lib/interest-matching/postgres";
 
 const WITNESS_PREFIX = "witness_pair_%";
 
@@ -40,6 +42,8 @@ async function makeUser(tag: string): Promise<{ id: number; clerkId: string }> {
     .insert(users)
     .values({ clerkId, email: `${clerkId}@witness.local`, firstName: "Witness", lastName: tag })
     .returning({ id: users.id });
+  // These witnesses exercise locking, so give everyone a compatible interest.
+  await db.insert(interests).values({ userId: row.id, name: "climbing", category: "sports" });
   return { id: row.id, clerkId };
 }
 
@@ -241,9 +245,12 @@ describe("J-case: both queue at once (concurrency)", () => {
     for (let round = 0; round < 10; round += 1) {
       const [a, b] = await twoWaiting(`tx${round}`);
       const seq = claimSequence();
+    const now = new Date();
+    const proposal = await preparePair("casual", now, STALE_ENTRY_MS);
+    if (!proposal) throw new Error("compatible witnesses did not produce a pair proposal");
       const results = await Promise.all([
-        db.transaction((tx) => pairWaitingUsersWith(seq.first(tx), "casual")),
-        db.transaction((tx) => pairWaitingUsersWith(seq.second(tx), "casual")),
+        db.transaction((tx) => pairWaitingUsersWith(seq.first(tx), "casual", now, proposal)),
+        db.transaction((tx) => pairWaitingUsersWith(seq.second(tx), "casual", now, proposal)),
       ]);
       expect(results.filter(Boolean), `round ${round}: one pairing claimed the pair`).toHaveLength(1);
       expect(await roomsFor([a.id, b.id]), `round ${round}: one room`).toHaveLength(1);
@@ -257,9 +264,12 @@ describe("J-case: both queue at once (concurrency)", () => {
     // from FOR UPDATE end with the first SELECT and the second claim sees
     // both entries too.
     const seq = claimSequence();
+    const now = new Date();
+    const proposal = await preparePair("casual", now, STALE_ENTRY_MS);
+    if (!proposal) throw new Error("compatible witnesses did not produce a pair proposal");
     const results = await Promise.all([
-      pairWaitingUsersWith(seq.first(db), "casual"),
-      pairWaitingUsersWith(seq.second(db), "casual"),
+      pairWaitingUsersWith(seq.first(db), "casual", now, proposal),
+      pairWaitingUsersWith(seq.second(db), "casual", now, proposal),
     ]);
     expect(results.filter(Boolean)).toHaveLength(2);
     expect((await roomsFor([a.id, b.id])).length, "double-pairing without the transaction").toBe(2);

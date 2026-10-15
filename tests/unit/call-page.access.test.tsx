@@ -56,6 +56,7 @@ async function renderCallPage(id = "room-1") {
 function allowedAccess(): Extract<RoomAccess, { allowed: true }> {
   return {
     allowed: true,
+      intro: null,
     roomId: "room-1",
     queueType: "casual",
     me: { id: 1, name: "Me", avatarUrl: "" },

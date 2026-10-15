@@ -5,6 +5,14 @@ import { dataDirectoryProblem, stackDatabaseUrl } from "../stack-db";
 import { LOCAL_DATABASE_URL, PG_DATA_DIR } from "../../scripts/stack-paths.cjs";
 
 describe("stackDatabaseUrl", () => {
+  it("allows only the explicitly selected lane database on the shared cluster", () => {
+    const url = "postgresql://postgres:postgres@127.0.0.1:54329/linkedup_match";
+    expect(stackDatabaseUrl({ LINKEDUP_TEST_DATABASE: "linkedup_match", DATABASE_URL: url })).toBe(url);
+    for (const invalid of [url.replace("linkedup_match", "linkedup"), url.replace("54329", "5432"), url.replace("127.0.0.1", "example.com")]) {
+      expect(() => stackDatabaseUrl({ LINKEDUP_TEST_DATABASE: "linkedup_match", DATABASE_URL: invalid })).toThrow("Refusing DATABASE_URL");
+    }
+    expect(() => stackDatabaseUrl({ LINKEDUP_TEST_DATABASE: "linkedup", DATABASE_URL: LOCAL_DATABASE_URL })).toThrow("Refusing DATABASE_URL");
+  });
   it("uses the stack's URL when nothing is inherited", () => {
     expect(stackDatabaseUrl({})).toBe(LOCAL_DATABASE_URL);
   });

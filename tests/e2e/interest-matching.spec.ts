@@ -1,0 +1,357 @@
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { deleteClerkUserByEmail } from "./helpers/clerk-keyless";
+import {
+  deleteJourneyRows,
+  interestNamesForUser,
+  liveQueueRows,
+  one,
+  roomRow,
+  userRowByEmail,
+} from "./helpers/db";
+import {
+  PROOF_CALL,
+  acceptMatch,
+  collapseKeylessPrompt,
+  completeOnboarding,
+  gotoQueue,
+  makePersona,
+  signUpPersona,
+  waitForQueuePhase,
+} from "./helpers/persona";
+
+const screenshots = path.resolve("docs/lane7/screenshots");
+const viewports = [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+];
+
+type PersistedIntro = {
+  reason: string;
+  question: string;
+  shared_interests: string[];
+};
+
+async function expectIntro(
+  page: Page,
+  variant: "card" | "compact",
+  intro: PersistedIntro,
+): Promise<void> {
+  const region = page.locator(`[data-match-intro="${variant}"]`);
+  await expect(region).toBeVisible();
+  await expect(
+    region.getByRole("heading", { name: "Start with a question" }),
+  ).toBeVisible();
+  await expect(region.getByText(intro.question, { exact: true })).toBeVisible();
+  await expect(region.getByText(intro.reason, { exact: true })).toBeVisible();
+  await expect(
+    region
+      .getByRole("list", { name: "Shared interests" })
+      .getByRole("listitem"),
+  ).toHaveText(intro.shared_interests);
+}
+
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: Math.max(
+      document.documentElement.scrollWidth,
+      document.body.scrollWidth,
+    ),
+  }));
+  expect(
+    dimensions.content,
+    "page content fits the viewport horizontally",
+  ).toBeLessThanOrEqual(dimensions.viewport);
+}
+
+async function capture(page: Page, name: string): Promise<void> {
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({
+    path: path.join(screenshots, `${name}.png`),
+    fullPage: false,
+  });
+}
+
+async function expectReducedMotion(
+  page: Page,
+  selector: string,
+): Promise<void> {
+  expect(
+    await page.evaluate(
+      () => matchMedia("(prefers-reduced-motion: reduce)").matches,
+    ),
+  ).toBe(true);
+  await expect
+    .poll(
+      () =>
+        page
+          .locator(selector)
+          .evaluate(
+            (element) =>
+              element
+                .getAnimations({ subtree: true })
+                .filter(
+                  (animation) =>
+                    animation.playState === "running" &&
+                    Number(animation.effect?.getComputedTiming().duration) > 0,
+                ).length,
+          ),
+      { message: "reduced-motion screen has no running animation" },
+    )
+    .toBe(0);
+}
+
+for (const viewport of viewports) {
+  test(`interest matching persists one intro through queue and call at ${viewport.width}x${viewport.height}`, async ({
+    browser,
+  }, testInfo) => {
+    test.setTimeout(420_000);
+    testInfo.annotations.push({
+      type: "route limitation",
+      description:
+        "Real synthetic signup and onboarding, then the approved journey-proof queue/call routes. Normal /app middleware acceptance is outside this test.",
+    });
+    const created: { context: BrowserContext; email: string }[] = [];
+    const size = `${viewport.width}x${viewport.height}`;
+    await mkdir(screenshots, { recursive: true });
+
+    try {
+      const newActor = async (letter: string) => {
+        const persona = makePersona(`Interest${letter}`);
+        const context = await browser.newContext({
+          baseURL: testInfo.project.use.baseURL,
+          viewport,
+          permissions: ["microphone", "camera"],
+          reducedMotion: "no-preference",
+        });
+        created.push({ context, email: persona.email });
+        const page = await context.newPage();
+        await signUpPersona(page, persona);
+        await completeOnboarding(page, persona);
+        const user = await userRowByEmail(persona.email);
+        if (!user)
+          throw new Error(`No persisted user after onboarding ${letter}`);
+        expect(user.onboarding_complete).toBe(true);
+        expect(await interestNamesForUser(user.id)).toEqual(
+          [...persona.interests].sort(),
+        );
+        return { page, userId: user.id };
+      };
+      const a = await newActor("A");
+      const b = await newActor("B");
+
+      // Hold the real join request only while photographing loading. No
+      // response is replaced; the same request continues into the pairing.
+      let releaseJoin!: () => void;
+      const joinGate = new Promise<void>((resolve) => {
+        releaseJoin = resolve;
+      });
+      const queueUrl = "**/onboarding?journey-proof=queue*";
+      await a.page.route(queueUrl, async (route) => {
+        if (route.request().method() === "POST") await joinGate;
+        await route.continue();
+      });
+      const joining = gotoQueue(a.page, "casual");
+      try {
+        await waitForQueuePhase(a.page, "loading");
+        await capture(a.page, `queue-loading-${size}`);
+        await a.page.emulateMedia({ reducedMotion: "reduce" });
+        await expectReducedMotion(a.page, '[data-queue-phase="loading"]');
+        await capture(a.page, `queue-loading-reduced-motion-${size}`);
+      } finally {
+        releaseJoin();
+        await joining;
+        await a.page.unroute(queueUrl);
+        await a.page.emulateMedia({ reducedMotion: "no-preference" });
+      }
+      await waitForQueuePhase(a.page, "waiting");
+      await capture(a.page, `waiting-${size}`);
+      await a.page.emulateMedia({ reducedMotion: "reduce" });
+      await expectReducedMotion(a.page, '[data-queue-phase="waiting"]');
+      await capture(a.page, `waiting-reduced-motion-${size}`);
+      await a.page.emulateMedia({ reducedMotion: "no-preference" });
+
+      await gotoQueue(b.page, "casual");
+      await Promise.all(
+        [a, b].map(({ page }) => waitForQueuePhase(page, "matched", 30_000)),
+      );
+      const [aEntries, bEntries] = await Promise.all([
+        liveQueueRows(a.userId),
+        liveQueueRows(b.userId),
+      ]);
+      expect(aEntries).toHaveLength(1);
+      expect(bEntries).toHaveLength(1);
+      const aEntry = aEntries[0];
+      const bEntry = bEntries[0];
+      if (!aEntry?.room_id || !bEntry?.room_id)
+        throw new Error("Matched users have no persisted room");
+      expect(aEntry.status).toBe("matched");
+      expect(bEntry.status).toBe("matched");
+      expect(bEntry.room_id).toBe(aEntry.room_id);
+      const roomId = aEntry.room_id;
+      const room = await roomRow(roomId);
+      expect(room?.status).toBe("active");
+      expect(new Set([room?.user1_id, room?.user2_id])).toEqual(
+        new Set([a.userId, b.userId]),
+      );
+      const intro = await one<PersistedIntro>(
+        "SELECT reason, question, shared_interests FROM room_match_intros WHERE room_id = $1",
+        [roomId],
+      );
+      if (!intro) throw new Error("Matched room has no persisted introduction");
+      expect(intro.reason.trim().length).toBeGreaterThan(0);
+      expect(intro.question.trim().length).toBeGreaterThan(0);
+      expect(intro.shared_interests).toEqual(["gaming", "programming"]);
+      for (const actor of [a, b]) await expectIntro(actor.page, "card", intro);
+      await capture(a.page, `matched-card-${size}`);
+
+      // Reload coverage lives in journeys.spec.ts. Capture this offer before
+      // navigating so a routing failure does not erase the visual evidence.
+      await a.page.emulateMedia({ reducedMotion: "reduce" });
+      await expectReducedMotion(a.page, '[data-queue-phase="matched"]');
+      await capture(a.page, `matched-card-reduced-motion-${size}`);
+
+      const join = a.page.getByRole("button", {
+        name: "Join the call",
+        exact: true,
+      });
+      await collapseKeylessPrompt(a.page);
+      await a.page.locator("[data-call-decline]").focus();
+      await a.page.keyboard.press("Shift+Tab");
+      await expect(join).toBeFocused();
+      expect(
+        await join.evaluate((button) => {
+          const style = getComputedStyle(button);
+          return (
+            button.matches(":focus-visible") &&
+            ((style.outlineStyle !== "none" &&
+              parseFloat(style.outlineWidth) > 0) ||
+              style.boxShadow !== "none")
+          );
+        }),
+        "Join the call has a visible keyboard focus indicator",
+      ).toBe(true);
+      await capture(a.page, `matched-card-keyboard-focus-${size}`);
+      const enteredCall = a.page.waitForURL(`${PROOF_CALL}${roomId}`);
+      await a.page.keyboard.press("Enter");
+      await enteredCall;
+      expect(await acceptMatch(b.page)).toBe(roomId);
+      for (const actor of [a, b]) {
+        await expect(actor.page.locator("[data-call-root]")).toBeVisible();
+        await expectIntro(actor.page, "compact", intro);
+        await expectNoHorizontalOverflow(actor.page);
+      }
+      await expectReducedMotion(a.page, "[data-call-root]");
+      await capture(a.page, `in-call-question-reduced-motion-${size}`);
+      await a.page.emulateMedia({ reducedMotion: "no-preference" });
+      await capture(a.page, `in-call-question-${size}`);
+      expect(
+        await one<PersistedIntro>(
+          "SELECT reason, question, shared_interests FROM room_match_intros WHERE room_id = $1",
+          [roomId],
+        ),
+      ).toEqual(intro);
+
+      // Exercise the same stored intro with unbounded custom-interest text.
+      // This is a synthetic layout case, separate from the pairing captures.
+      const longQuestion = `What got you into ${"mountain photography ".repeat(60)}?`;
+      await one(
+        "UPDATE room_match_intros SET question = $1 WHERE room_id = $2 RETURNING room_id",
+        [longQuestion, roomId],
+      );
+      await a.page.reload();
+      const longIntro = a.page.locator('[data-match-intro="compact"]');
+      await expect(
+        longIntro.getByText(longQuestion, { exact: true }),
+      ).toBeVisible();
+      await a.page.bringToFront();
+      await collapseKeylessPrompt(a.page);
+      await expect
+        .poll(() => a.page.evaluate(() => document.hasFocus()))
+        .toBe(true);
+      await longIntro.focus();
+      // Traverse out and back with Tab, so the check proves keyboard reachability
+      // as well as programmatic focus. No screenshot helper may click afterward.
+      await a.page.keyboard.press("Tab");
+      await expect(longIntro).not.toBeFocused();
+      await a.page.keyboard.press("Shift+Tab");
+      await expect(longIntro).toBeFocused();
+      expect(
+        await longIntro.evaluate(
+          (element) => element.scrollHeight - element.clientHeight,
+        ),
+      ).toBeGreaterThan(0);
+      await a.page.keyboard.press("PageDown");
+      await expect
+        .poll(() => longIntro.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
+      const leave = a.page.getByTestId("leave-call");
+      const bounds = await leave.boundingBox();
+      if (!bounds) throw new Error("Call controls have no visible bounds");
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+      await capture(a.page, `in-call-long-question-${size}`);
+      // A third user exercises polling failure and recovery while the pair calls.
+      const c = await newActor("C");
+      await gotoQueue(c.page, "professional");
+      // Fail only the app's polling actions. Browser-wide offline mode also
+      // breaks lazy Clerk chunks and can prevent unrelated recovery UI loading.
+      const pollUrl = "**/onboarding?journey-proof=queue*";
+      await c.page.route(pollUrl, async (route) => {
+        if (route.request().method() === "POST")
+          await route.abort("internetdisconnected");
+        else await route.continue();
+      });
+      await waitForQueuePhase(c.page, "error");
+      await expect(
+        c.page.getByText("Could not check the queue. Try again.", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await capture(c.page, `queue-error-${size}`);
+      await c.page.unroute(pollUrl);
+      await c.page
+        .getByRole("button", { name: "Try again", exact: true })
+        .click();
+      await waitForQueuePhase(c.page, "waiting");
+      await capture(c.page, `queue-recovered-${size}`);
+
+      const otherTab = await c.page.context().newPage();
+      try {
+        await gotoQueue(otherTab, "professional");
+        await otherTab.locator("[data-queue-leave]").click();
+        await expect(
+          otherTab.locator('[data-journey-proof="left"]'),
+        ).toBeVisible();
+        await c.page
+          .locator('[data-queue-phase="idle"]')
+          .waitFor({ state: "visible" });
+        await expect(
+          c.page.getByRole("heading", { name: "You are not in the queue" }),
+        ).toBeVisible();
+        expect(await liveQueueRows(c.userId)).toEqual([]);
+        await capture(c.page, `queue-idle-${size}`);
+      } finally {
+        await otherTab.close();
+      }
+    } finally {
+      const closed = await Promise.allSettled(
+        created.map(({ context }) => context.close()),
+      );
+      const emails = created.map(({ email }) => email);
+      const deleted = await Promise.allSettled([
+        deleteJourneyRows(emails),
+        ...emails.map((email) => deleteClerkUserByEmail(email)),
+      ]);
+      const failures = [...closed, ...deleted].filter(
+        (result) => result.status === "rejected",
+      );
+      if (failures.length)
+        throw new AggregateError(
+          failures.map((result) => result.reason),
+          "Interest journey cleanup failed",
+        );
+    }
+  });
+}

@@ -31,6 +31,7 @@ export default function CallScreenClient({
     <VoiceCallScreen
       callType={access.queueType as CallType}
       participants={participants}
+      matchIntro={access.intro}
       initialDuration={300}
       call={{ roomId: access.roomId, selfId: String(access.me.id), signalingEndpoint, iceEndpoint }}
       // Leaving is leaving the call, not ending the room: the screen offers

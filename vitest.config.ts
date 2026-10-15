@@ -11,6 +11,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Next enforces server-only at build time; Node unit tests run that code.
+      "server-only": path.resolve(__dirname, "./node_modules/server-only/empty.js"),
     },
   },
   test: {
