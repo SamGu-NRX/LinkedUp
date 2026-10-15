@@ -67,6 +67,19 @@ const nextConfig = {
         },
         {
           source: "/onboarding",
+          has: [
+            { type: "query", key: "journey-proof", value: "summary" },
+            { type: "query", key: "room", value: "(?<room>[0-9a-f-]{36})" },
+          ],
+          destination: "/journey-proof/summary/:room",
+        },
+        {
+          source: "/onboarding",
+          has: [{ type: "query", key: "journey-proof", value: "history" }],
+          destination: "/journey-proof/history",
+        },
+        {
+          source: "/onboarding",
           has: [{ type: "query", key: "journey-proof", value: "ice" }],
           destination: "/api/call/ice",
         },

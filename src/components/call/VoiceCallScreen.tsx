@@ -95,7 +95,7 @@ export default function VoiceCallScreen({
   onRateCall,
   call = null,
   onDone,
-}: VoiceCallProps & { call?: CallConnection | null; onDone?: () => void }) {
+}: VoiceCallProps & { call?: CallConnection | null; onDone?: (rating: number | null) => void }) {
   const [screenPhase, setScreenPhase] = useState<ScreenPhase>("joining");
   // This device's capture: live tracks owned by the screen. Not the call.
   const [localReady, setLocalReady] = useState(false);
@@ -730,7 +730,7 @@ function ProblemPanel({
   message: string;
   onRetryMedia?: () => void;
   onRetryCall?: () => void;
-  onDone?: () => void;
+  onDone?: (rating: number | null) => void;
 }) {
   return (
     <div
@@ -768,7 +768,7 @@ function ProblemPanel({
             <button
               type="button"
               data-testid="call-done"
-              onClick={onDone}
+              onClick={() => onDone(null)}
               className={cn(focusRing, "h-11 rounded-full bg-white/10 px-5 text-sm font-medium hover:bg-white/15")}
             >
               Back to the queue
@@ -789,7 +789,7 @@ function LeftScreen({
   rating: number | null;
   onRate: (value: number) => void;
   onRejoin: () => void;
-  onDone?: () => void;
+  onDone?: (rating: number | null) => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   // Focus moves to the heading once, when the screen appears; rating a call
@@ -844,7 +844,7 @@ function LeftScreen({
           <button
             type="button"
             data-testid="call-done"
-            onClick={onDone}
+            onClick={() => onDone(rating)}
             className={cn(focusRing, "h-11 rounded-full bg-emerald-400 px-5 text-sm font-semibold text-emerald-950 hover:bg-emerald-300")}
           >
             Done

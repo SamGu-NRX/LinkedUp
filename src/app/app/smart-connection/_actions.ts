@@ -14,6 +14,7 @@ import {
   type QueueStateForUser,
   type QueueType,
 } from "@/lib/matching";
+import { persistCallSummaries } from "@/lib/call/summary";
 
 export type ActionError = { success: false; error: string };
 
@@ -49,11 +50,22 @@ export async function queueStateAction(): Promise<{ success: true; state: QueueS
   return { success: true, state };
 }
 
-export async function endRoomAction(roomId: string): Promise<{ success: true; ended: boolean } | ActionError> {
+export async function endRoomAction(
+  roomId: string,
+  options: { rating?: number } = {},
+): Promise<{ success: true; ended: boolean } | ActionError> {
   const { userId } = await auth();
   if (!userId) return { success: false, error: "Not signed in" };
   const access = await getRoomForUser(userId, roomId);
   if (!access.allowed) return { success: false, error: access.reason };
+  const dbId = await currentUserDbId();
+  if (!dbId) return { success: false, error: "Not signed in or profile missing" };
   const ended = await endRoom(roomId);
+  // The recap: both participants' summary rows from the real room, once each.
+  // The caller's star rating (the call screen's rating control) rides along;
+  // 1..5 is enforced at the control, and out-of-range values store as no
+  // rating rather than a made-up one.
+  const rating = options.rating && options.rating >= 1 && options.rating <= 5 ? options.rating : undefined;
+  await persistCallSummaries(roomId, { ratingFor: dbId, rating });
   return { success: true, ended };
 }

@@ -34,11 +34,14 @@ export default async function CallRoom({
   signalingEndpoint = "/api/call/signal",
   iceEndpoint = "/api/call/ice",
   exitHref = "/app",
+  summaryHref,
 }: {
   id: string;
   signalingEndpoint?: string;
   iceEndpoint?: string;
   exitHref?: string;
+  /** Where Done lands after ending the room: the room's summary route. */
+  summaryHref?: string;
 }) {
   const { userId } = await auth();
   const access = userId
@@ -70,5 +73,13 @@ export default async function CallRoom({
     );
   }
 
-  return <CallScreenClient access={access} signalingEndpoint={signalingEndpoint} iceEndpoint={iceEndpoint} exitHref={exitHref} />;
+  return (
+    <CallScreenClient
+      access={access}
+      signalingEndpoint={signalingEndpoint}
+      iceEndpoint={iceEndpoint}
+      exitHref={exitHref}
+      summaryHref={summaryHref}
+    />
+  );
 }
