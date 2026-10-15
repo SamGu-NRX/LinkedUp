@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import MatchIntro from "@/components/matching/MatchIntro";
 import type { CallPhase } from "@/lib/call/transport";
 import type { VoiceCallProps } from "@/types/call";
 import { useCallTransport, type CallConnection, type RemoteState } from "./useCallTransport";
@@ -89,6 +90,7 @@ export default function VoiceCallScreen({
   callType,
   participants,
   initialDuration,
+  matchIntro = null,
   onEndCall,
   onExtendCall,
   onToggleMute,
@@ -423,6 +425,8 @@ export default function VoiceCallScreen({
           )}
         </div>
       </header>
+
+      {!left && <MatchIntro intro={matchIntro} compact />}
 
       {left ? (
         <LeftScreen
