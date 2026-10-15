@@ -22,7 +22,8 @@ vi.mock("@/app/app/call/[id]/_actions", () => ({
 vi.mock("@/app/app/smart-connection/_actions", () => ({
   endRoomAction: actions.end,
 }));
-vi.mock("@/components/call/VoiceCallScreen", () => ({
+vi.mock("@/components/call/VoiceCallScreen", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/components/call/VoiceCallScreen")>(),
   default: ({
     onRateCall,
     onDone,
@@ -38,7 +39,7 @@ vi.mock("@/components/call/VoiceCallScreen", () => ({
     </div>
   ),
 }));
-import CallScreenClient from "@/app/app/call/[id]/CallScreenClient";
+import CallScreenClient, { CompletedCallRating } from "@/app/app/call/[id]/CallScreenClient";
 
 const access = {
   allowed: true as const,
@@ -65,6 +66,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("finishing a call", () => {
+  it("rates an ended room without mounting media or offering Rejoin", async () => {
+    const view = render(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
+    expect(view.getByRole("heading", { name: "This call has ended" })).toHaveFocus();
+    expect(view.queryByTestId("call-network")).toBeNull();
+    expect(view.queryByRole("button", { name: "Rejoin" })).toBeNull();
+    fireEvent.click(view.getByRole("radio", { name: /^5 stars$/ }));
+    fireEvent.click(view.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(actions.push).toHaveBeenCalledWith("/app"));
+    expect(actions.save).toHaveBeenCalledWith({ roomId: access.roomId, rating: 5 });
+  });
   it("saves the selected rating before ending the room or navigating", async () => {
     let saved!: (value: { success: true }) => void;
     actions.save.mockReturnValue(

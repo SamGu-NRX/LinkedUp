@@ -2,26 +2,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import VoiceCallScreen from "@/components/call/VoiceCallScreen";
+import { useRef, useState, type ReactNode } from "react";
+import VoiceCallScreen, { LeftScreen } from "@/components/call/VoiceCallScreen";
 import type { CallType, Participant } from "@/types/call";
 import type { RoomAccess } from "@/lib/matching";
 import { endRoomAction } from "@/app/app/smart-connection/_actions";
 import { saveCallRatingAction } from "./_actions";
 
-export default function CallScreenClient({
-  access,
-  signalingEndpoint,
-  iceEndpoint,
-  exitHref,
-}: {
-  access: Extract<RoomAccess, { allowed: true }>;
-  /** Where the call signals: /api/call/signal, or the journey-proof path's own. */
-  signalingEndpoint: string;
-  iceEndpoint: string;
-  /** Where Done goes after ending the room. */
-  exitHref: string;
-}) {
+function useCallFinish(roomId: string, exitHref: string) {
   const router = useRouter();
   const rating = useRef<number | null>(null);
   const finishing = useRef(false);
@@ -44,7 +32,7 @@ export default function CallScreenClient({
     try {
       if (rating.current !== null) {
         const saved = await saveCallRatingAction({
-          roomId: access.roomId,
+          roomId,
           rating: rating.current,
         });
         if (!saved.success) {
@@ -53,7 +41,7 @@ export default function CallScreenClient({
         }
       }
       setStatus({ state: "saving", message: "Finishing your call…" });
-      const ended = await endRoomAction(access.roomId);
+      const ended = await endRoomAction(roomId);
       if (!ended.success) {
         setStatus({
           state: "error",
@@ -73,6 +61,30 @@ export default function CallScreenClient({
     }
   }
 
+  return {
+    status,
+    finishCall,
+    rate: (value: number) => {
+      rating.current = value;
+      setStatus({ state: "idle" });
+    },
+  };
+}
+
+export default function CallScreenClient({
+  access,
+  signalingEndpoint,
+  iceEndpoint,
+  exitHref,
+}: {
+  access: Extract<RoomAccess, { allowed: true }>;
+  /** Where the call signals: /api/call/signal, or the journey-proof path's own. */
+  signalingEndpoint: string;
+  iceEndpoint: string;
+  /** Where Done goes after ending the room. */
+  exitHref: string;
+}) {
+  const { status, finishCall, rate } = useCallFinish(access.roomId, exitHref);
   const participants: [Participant, Participant] = [
     {
       id: String(access.me.id),
@@ -87,40 +99,78 @@ export default function CallScreenClient({
   ];
 
   return (
-    <div className="flex h-dvh flex-col bg-zinc-950">
+    <CallFinishLayout status={status}>
+      <VoiceCallScreen
+        callType={access.queueType as CallType}
+        participants={participants}
+        initialDuration={300}
+        call={{
+          roomId: access.roomId,
+          selfId: String(access.me.id),
+          signalingEndpoint,
+          iceEndpoint,
+        }}
+        // Leaving is leaving the call, not ending the room: the screen offers
+        // Rejoin, and the other person stays connected.
+        onEndCall={() => {}}
+        onDone={() => {
+          void finishCall();
+        }}
+        onExtendCall={() => {
+          // Extension needs session semantics a later step owns; the control
+          // is part of the DOM contract and stays inert until then.
+        }}
+        onToggleMute={() => {
+          /* local capture state lives in VoiceCallScreen */
+        }}
+        onRateCall={rate}
+      />
+    </CallFinishLayout>
+  );
+}
+
+/** Ended-room membership was checked by CallRoom; no capture or transport mounts. */
+export function CompletedCallRating({
+  roomId,
+  exitHref,
+}: {
+  roomId: string;
+  exitHref: string;
+}) {
+  const { status, finishCall, rate } = useCallFinish(roomId, exitHref);
+  const [rating, setRating] = useState<number | null>(null);
+  return (
+    <CallFinishLayout status={status}>
+      <LeftScreen
+        title="This call has ended"
+        rating={rating}
+        onRate={(value) => {
+          setRating(value);
+          rate(value);
+        }}
+        onDone={() => {
+          void finishCall();
+        }}
+      />
+    </CallFinishLayout>
+  );
+}
+
+function CallFinishLayout({
+  status,
+  children,
+}: {
+  status: ReturnType<typeof useCallFinish>["status"];
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-100">
       <fieldset
         disabled={status.state === "saving"}
-        className="m-0 min-h-0 min-w-0 flex-1 border-0 p-0 [&_[data-call-root]]:h-full"
+        className="m-0 flex min-h-0 min-w-0 flex-1 flex-col border-0 p-0 [&_[data-call-root]]:h-full"
         aria-label="Call controls"
       >
-        <VoiceCallScreen
-          callType={access.queueType as CallType}
-          participants={participants}
-          initialDuration={300}
-          call={{
-            roomId: access.roomId,
-            selfId: String(access.me.id),
-            signalingEndpoint,
-            iceEndpoint,
-          }}
-          // Leaving is leaving the call, not ending the room: the screen offers
-          // Rejoin, and the other person stays connected.
-          onEndCall={() => {}}
-          onDone={() => {
-            void finishCall();
-          }}
-          onExtendCall={() => {
-            // Extension needs session semantics a later step owns; the control
-            // is part of the DOM contract and stays inert until then.
-          }}
-          onToggleMute={() => {
-            /* local capture state lives in VoiceCallScreen */
-          }}
-          onRateCall={(value) => {
-            rating.current = value;
-            setStatus({ state: "idle" });
-          }}
-        />
+        {children}
       </fieldset>
       {status.state !== "idle" && (
         <p

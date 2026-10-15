@@ -391,12 +391,24 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     await network.detach();
     expect(await one('SELECT user_id, rating FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ user_id: a.userId, rating: 4 });
     expect((await roomRow(roomId))?.status).toBe("ended");
-    await b.page.getByTestId("leave-call").click();
-    await expect(b.page.getByRole("heading", { name: "You left the call", level: 2 })).toBeFocused();
+    // A server refresh after the partner's Done must preserve rating access.
+    await b.page.reload();
+    await expect(b.page.getByRole("heading", { name: "This call has ended" })).toBeFocused();
+    await expect(b.page.getByTestId("join-call")).toHaveCount(0);
     await b.page.keyboard.press("Tab");
     await b.page.keyboard.press("Space");
     for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
     await expect(b.page.getByRole("radio", { name: "5 stars", exact: true })).toBeChecked();
+    if (seed === 0) {
+      for (const reducedMotion of ["no-preference", "reduce"] as const) {
+        await b.page.emulateMedia({ reducedMotion });
+        for (const [width, height] of [[1440, 900], [390, 844]]) {
+          await b.page.setViewportSize({ width, height });
+          expect(await b.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          await b.page.screenshot({ style: CAPTURE_STYLE, path: `docs/lane-6/screenshots/rating-ended-room-${width}x${height}${reducedMotion === "reduce" ? "-reduced" : ""}.png` });
+        }
+      }
+    }
     await b.page.getByTestId("call-done").click();
     await expect(b.page.locator('[data-journey-proof="queue"]')).toBeVisible();
     expect(await one('SELECT count(*)::int AS count FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ count: 2 });

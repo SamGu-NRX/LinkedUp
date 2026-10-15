@@ -6,7 +6,7 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { getRoomForUser } from "@/lib/matching";
-import CallScreenClient from "./CallScreenClient";
+import CallScreenClient, { CompletedCallRating } from "./CallScreenClient";
 
 const refusalCopy: Record<string, { title: string; detail: string }> = {
   signed_out: {
@@ -46,6 +46,9 @@ export default async function CallRoom({
     : ({ allowed: false, reason: "signed_out" } as const);
 
   if (!access.allowed) {
+    // The gate checks membership before reporting room_ended. A server refresh
+    // after the partner's Done must preserve this person's chance to rate.
+    if (access.reason === "room_ended") return <CompletedCallRating roomId={id} exitHref={exitHref} />;
     const copy = refusalCopy[access.reason] ?? refusalCopy.not_a_participant;
     return (
       <main
