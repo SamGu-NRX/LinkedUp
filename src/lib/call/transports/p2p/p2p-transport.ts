@@ -25,6 +25,7 @@
  *   GIVE_UP_MS ends in "failed" with a retryable error, so the UI never
  *   shows a spinner forever.
  */
+import { connectionPath, IceAccessError } from "../../ice-config";
 import type {
   CallPhase,
   CallTransport,
@@ -77,6 +78,7 @@ interface Peer {
   senders: Partial<Record<Kind, RTCRtpSender>>;
   remoteStream: MediaStream;
   streamAnnounced: boolean;
+  everConnected: boolean;
   mediaReceived: boolean;
   mediaCleanup: Array<() => void>;
   /** Incoming signals for this peer are applied one at a time, in order. */
@@ -86,14 +88,19 @@ interface Peer {
   politeOfferTimer: ReturnType<typeof setTimeout> | null;
   /** When the last offer from the other side arrived (ms since epoch). */
   lastRemoteOfferAt: number;
+  initialIceDeadline: ReturnType<typeof setTimeout> | null;
 }
 
 export interface P2PTransportOptions {
   signaling: SignalingAdapter;
+  getRtcConfig?: () => Promise<RTCConfiguration>;
+  onConnectionPath?: (path: "relay" | "direct" | "unknown") => void;
 }
 
 export function createP2PTransport({
   signaling,
+  getRtcConfig,
+  onConnectionPath,
 }: P2PTransportOptions): CallTransport {
   let ctx: TransportContext | null = null;
   let events: TransportEvents | null = null;
@@ -121,9 +128,7 @@ export function createP2PTransport({
         if (phase === next) {
           fail(
             "network",
-            next === "joining"
-              ? "Could not connect to the other people in this call."
-              : "The connection did not come back.",
+            "Can't reach the other person. A network may be blocking calls. Try again or switch networks.",
             true,
           );
         }
@@ -153,6 +158,15 @@ export function createP2PTransport({
     );
     if (ready) setPhase("connected");
     else setPhase(phase === "joining" ? "joining" : "reconnecting");
+  }
+
+  function terminal(): boolean {
+    return phase === "failed" || phase === "left";
+  }
+
+  function failIceCredentials(error: unknown): void {
+    if (error instanceof IceAccessError) fail("auth", error.message, false);
+    else fail("network", "The call service could not prepare network access. Try again.", true);
   }
 
   function currentStream(): MediaStream | null {
@@ -186,6 +200,7 @@ export function createP2PTransport({
       senders: {},
       remoteStream: new MediaStream(),
       streamAnnounced: false,
+      everConnected: false,
       mediaReceived: false,
       mediaCleanup: [],
       chain: Promise.resolve(),
@@ -193,8 +208,13 @@ export function createP2PTransport({
       watchdog: null,
       politeOfferTimer: null,
       lastRemoteOfferAt: 0,
+      initialIceDeadline: null,
     };
     peers.set(id, peer);
+    // Signaling alone cannot prove a newly arrived peer is reachable.
+    peer.initialIceDeadline = setTimeout(() => {
+      if (peers.get(id) === peer && !peer.everConnected) fail("network", "Can't reach the other person. A network may be blocking calls. Try again or switch networks.", true);
+    }, GIVE_UP_MS.joining);
 
     // addTrack, not addTransceiver: a remote offer can reuse an addTrack
     // transceiver, so a glare rollback does not leave orphaned m-lines.
@@ -281,8 +301,25 @@ export function createP2PTransport({
         }
       }, POLITE_OFFER_DELAY_MS);
     };
+    let restarting = false;
     const restart = () => {
-      if (!peer.polite) pc.restartIce();
+      if (peer.polite || restarting || leaving || terminal()) return;
+      restarting = true;
+      void (async () => {
+        try {
+          const config = await getRtcConfig?.();
+          if (peers.get(id) !== peer || leaving || phase === "failed") return;
+          if (config) {
+            pc.setConfiguration({ ...pc.getConfiguration(), ...config });
+            if (ctx) ctx.rtcConfig = config;
+          }
+          pc.restartIce();
+        } catch (error) {
+          if (peers.get(id) === peer && !leaving) {
+            failIceCredentials(error);
+          }
+        } finally { restarting = false; }
+      })();
     };
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState;
@@ -296,6 +333,14 @@ export function createP2PTransport({
       }
     };
     pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") {
+        peer.everConnected = true;
+        if (peer.initialIceDeadline) clearTimeout(peer.initialIceDeadline);
+        peer.initialIceDeadline = null;
+        void connectionPath(pc).then((path) => {
+          if (peers.get(id) === peer && !leaving) onConnectionPath?.(path);
+        }).catch(() => {});
+      }
       refreshPhase();
     };
     peer.watchdog = setInterval(() => {
@@ -309,6 +354,20 @@ export function createP2PTransport({
     const { pc } = peer;
     if ("description" in signal) {
       const description = signal.description;
+      if (description.type === "offer" && getRtcConfig) {
+        let config: RTCConfiguration;
+        try {
+          config = await getRtcConfig();
+        } catch (error) {
+          if (peers.get(peer.id) === peer && !leaving) {
+            failIceCredentials(error);
+          }
+          return;
+        }
+        if (peers.get(peer.id) !== peer || leaving || phase === "failed") return;
+        pc.setConfiguration({ ...pc.getConfiguration(), ...config });
+        if (ctx) ctx.rtcConfig = config;
+      }
       if (description.type === "offer") peer.lastRemoteOfferAt = Date.now();
       const readyForOffer =
         !peer.makingOffer &&
@@ -349,6 +408,7 @@ export function createP2PTransport({
 
   /** Closes one peer connection. Never stops local tracks (D5). */
   function closePeer(peer: Peer): void {
+    if (peer.initialIceDeadline) clearTimeout(peer.initialIceDeadline);
     if (peer.disconnectedTimer) clearTimeout(peer.disconnectedTimer);
     if (peer.watchdog) clearInterval(peer.watchdog);
     if (peer.politeOfferTimer) clearTimeout(peer.politeOfferTimer);
@@ -485,12 +545,23 @@ export function createP2PTransport({
       trace(`connect as ${context.selfId}`);
       teardownAll(false);
       closeSignaling();
-      ctx = context;
+      const mine = generation;
       events = transportEvents;
       leaving = false;
-      reconnectAttempt = 0;
       phase = "idle";
       setPhase("joining");
+      let rtcConfig: RTCConfiguration | undefined;
+      try {
+        rtcConfig = getRtcConfig ? await getRtcConfig() : context.rtcConfig;
+      } catch (error) {
+        if (mine === generation && !leaving) {
+          failIceCredentials(error);
+        }
+        return;
+      }
+      if (mine !== generation || leaving) return;
+      ctx = { ...context, rtcConfig };
+      reconnectAttempt = 0;
       openSignaling();
     },
 

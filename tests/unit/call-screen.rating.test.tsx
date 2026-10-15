@@ -26,11 +26,13 @@ vi.mock("@/components/call/VoiceCallScreen", () => ({
   default: ({
     onRateCall,
     onDone,
+    call,
   }: {
     onRateCall: (value: number) => void;
     onDone: () => void;
+    call: { iceEndpoint: string };
   }) => (
-    <div>
+    <div data-testid="call-network" data-ice-endpoint={call.iceEndpoint}>
       <button onClick={() => onRateCall(4)}>4 stars</button>
       <button onClick={onDone}>Done</button>
     </div>
@@ -50,6 +52,7 @@ function screen() {
     <CallScreenClient
       access={access}
       signalingEndpoint="/api/call/signal"
+      iceEndpoint="/api/call/ice"
       exitHref="/app"
     />,
   );
@@ -70,6 +73,7 @@ describe("finishing a call", () => {
       }),
     );
     const view = screen();
+    expect(view.getByTestId("call-network")).toHaveAttribute("data-ice-endpoint", "/api/call/ice");
     fireEvent.click(view.getByText("4 stars"));
     fireEvent.click(view.getByText("Done"));
     expect(view.getByRole("status")).toHaveTextContent("Saving your rating");

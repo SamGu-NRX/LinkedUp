@@ -12,11 +12,13 @@ import { saveCallRatingAction } from "./_actions";
 export default function CallScreenClient({
   access,
   signalingEndpoint,
+  iceEndpoint,
   exitHref,
 }: {
   access: Extract<RoomAccess, { allowed: true }>;
   /** Where the call signals: /api/call/signal, or the journey-proof path's own. */
   signalingEndpoint: string;
+  iceEndpoint: string;
   /** Where Done goes after ending the room. */
   exitHref: string;
 }) {
@@ -99,6 +101,7 @@ export default function CallScreenClient({
             roomId: access.roomId,
             selfId: String(access.me.id),
             signalingEndpoint,
+            iceEndpoint,
           }}
           // Leaving is leaving the call, not ending the room: the screen offers
           // Rejoin, and the other person stays connected.

@@ -122,6 +122,14 @@ describe("CallPage access control (page-level witnesses)", () => {
     expect(callScreenClientMock).toHaveBeenCalledTimes(1);
     // Participants come from the access record (room row), verbatim.
     // The route signals through /api/call/signal and exits to /app.
-    expect(callScreenClientMock.mock.calls[0][0]).toEqual({ access, signalingEndpoint: "/api/call/signal", exitHref: "/app" });
+    expect(callScreenClientMock.mock.calls[0][0]).toEqual({ access, signalingEndpoint: "/api/call/signal", iceEndpoint: "/api/call/ice", exitHref: "/app" });
+  });
+  it("passes the proof ICE tunnel through the room", async () => {
+    authMock.mockResolvedValue({ userId: "clerk_me" });
+    const access = allowedAccess();
+    getRoomForUserMock.mockResolvedValue(access);
+    render(await CallRoom({ id: "room-1", iceEndpoint: "/onboarding?journey-proof=ice" }));
+    expect(callScreenClientMock.mock.calls[0][0]).toEqual({ access, signalingEndpoint: "/api/call/signal", iceEndpoint: "/onboarding?journey-proof=ice", exitHref: "/app" });
+    expect(getRoomForUserMock).toHaveBeenCalledWith("clerk_me", "room-1");
   });
 });
