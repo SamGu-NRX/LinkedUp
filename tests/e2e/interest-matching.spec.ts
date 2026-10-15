@@ -149,42 +149,6 @@ for (const viewport of viewports) {
       await capture(a.page, `waiting-reduced-motion-${size}`);
       await a.page.emulateMedia({ reducedMotion: "no-preference" });
 
-      await a.page.context().setOffline(true);
-      await waitForQueuePhase(a.page, "error");
-      await expect(
-        a.page.getByText("Could not check the queue. Try again.", {
-          exact: true,
-        }),
-      ).toBeVisible();
-      await capture(a.page, `queue-error-${size}`);
-      await a.page.context().setOffline(false);
-      await a.page
-        .getByRole("button", { name: "Try again", exact: true })
-        .click();
-      await waitForQueuePhase(a.page, "waiting");
-      await capture(a.page, `queue-recovered-${size}`);
-
-      const otherTab = await a.page.context().newPage();
-      try {
-        await gotoQueue(otherTab, "casual");
-        await otherTab.locator("[data-queue-leave]").click();
-        await expect(
-          otherTab.locator('[data-journey-proof="left"]'),
-        ).toBeVisible();
-        await a.page
-          .locator('[data-queue-phase="idle"]')
-          .waitFor({ state: "visible" });
-        await expect(
-          a.page.getByRole("heading", { name: "You are not in the queue" }),
-        ).toBeVisible();
-        expect(await liveQueueRows(a.userId)).toEqual([]);
-        await capture(a.page, `queue-idle-${size}`);
-      } finally {
-        await otherTab.close();
-      }
-      await a.page.reload();
-      await waitForQueuePhase(a.page, "waiting");
-
       await gotoQueue(b.page, "casual");
       await Promise.all(
         [a, b].map(({ page }) => waitForQueuePhase(page, "matched", 30_000)),
@@ -219,10 +183,8 @@ for (const viewport of viewports) {
       for (const actor of [a, b]) await expectIntro(actor.page, "card", intro);
       await capture(a.page, `matched-card-${size}`);
 
-      // Reload must reuse the room's introduction rather than generate another.
-      await a.page.reload();
-      await waitForQueuePhase(a.page, "matched");
-      await expectIntro(a.page, "card", intro);
+      // Reload coverage lives in journeys.spec.ts. Capture this offer before
+      // navigating so a routing failure does not erase the visual evidence.
       await a.page.emulateMedia({ reducedMotion: "reduce" });
       await expectReducedMotion(a.page, '[data-queue-phase="matched"]');
       await capture(a.page, `matched-card-reduced-motion-${size}`);
@@ -289,6 +251,43 @@ for (const viewport of viewports) {
       if (!bounds) throw new Error("Call controls have no visible bounds");
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
       await capture(a.page, `in-call-long-question-${size}`);
+      // Keep offline recovery in a fresh persona: a failed Clerk chunk while
+      // offline must not contaminate the queue-to-call acceptance above.
+      const c = await newActor("C");
+      await gotoQueue(c.page, "professional");
+      await c.page.context().setOffline(true);
+      await waitForQueuePhase(c.page, "error");
+      await expect(
+        c.page.getByText("Could not check the queue. Try again.", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await capture(c.page, `queue-error-${size}`);
+      await c.page.context().setOffline(false);
+      await c.page
+        .getByRole("button", { name: "Try again", exact: true })
+        .click();
+      await waitForQueuePhase(c.page, "waiting");
+      await capture(c.page, `queue-recovered-${size}`);
+
+      const otherTab = await c.page.context().newPage();
+      try {
+        await gotoQueue(otherTab, "professional");
+        await otherTab.locator("[data-queue-leave]").click();
+        await expect(
+          otherTab.locator('[data-journey-proof="left"]'),
+        ).toBeVisible();
+        await c.page
+          .locator('[data-queue-phase="idle"]')
+          .waitFor({ state: "visible" });
+        await expect(
+          c.page.getByRole("heading", { name: "You are not in the queue" }),
+        ).toBeVisible();
+        expect(await liveQueueRows(c.userId)).toEqual([]);
+        await capture(c.page, `queue-idle-${size}`);
+      } finally {
+        await otherTab.close();
+      }
     } finally {
       const closed = await Promise.allSettled(
         created.map(({ context }) => context.close()),
