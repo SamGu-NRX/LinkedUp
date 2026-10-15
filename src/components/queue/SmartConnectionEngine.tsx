@@ -152,7 +152,7 @@ export default function SmartConnectionEngine({
       return (
         <main
           data-queue-phase="loading"
-          className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 text-zinc-100"
+          className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-zinc-950 text-zinc-100"
         >
           <Loader2
             className="h-8 w-8 text-emerald-400 motion-safe:animate-spin"
@@ -167,7 +167,7 @@ export default function SmartConnectionEngine({
       return (
         <main
           data-queue-phase="error"
-          className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center text-zinc-100"
+          className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center text-zinc-100"
         >
           <h1 className="text-2xl font-semibold">Queue unavailable</h1>
           <p role="alert" className="max-w-md text-sm text-zinc-400">
@@ -212,7 +212,7 @@ export default function SmartConnectionEngine({
       return (
         <main
           data-queue-phase="matched"
-          className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-950 px-6 py-10 text-center text-zinc-100"
+          className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-zinc-950 px-6 py-10 text-center text-zinc-100"
         >
           <p className="text-sm tracking-wide text-emerald-400 uppercase">
             {queueLabel[state.queueType]} match found
@@ -257,7 +257,7 @@ export default function SmartConnectionEngine({
       return (
         <main
           data-queue-phase="idle"
-          className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center text-zinc-100"
+          className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center text-zinc-100"
         >
           <div>
             <h1 className="text-2xl font-semibold">You are not in the queue</h1>
@@ -279,7 +279,7 @@ export default function SmartConnectionEngine({
       <main
         data-queue-phase="waiting"
         data-queue-type={queueType}
-        className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-950 px-6 py-10 text-center text-zinc-100"
+        className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-zinc-950 px-6 py-10 text-center text-zinc-100"
       >
         <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-emerald-500/40">
           <Users className="h-10 w-10 text-emerald-400" aria-hidden />

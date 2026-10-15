@@ -14,10 +14,13 @@ export default function MatchIntro({
   return (
     <section
       aria-labelledby={headingId}
+      // Custom interests have no length limit. Keep the call controls on screen
+      // and let keyboard users scroll a long introduction independently.
+      tabIndex={compact ? 0 : undefined}
       data-match-intro={compact ? "compact" : "card"}
       className={
         compact
-          ? "mx-4 mt-4 shrink-0 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-left sm:mx-6"
+          ? "mx-4 mt-4 max-h-[30dvh] shrink-0 overflow-y-auto overscroll-contain rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:mx-6"
           : "w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-left sm:p-8"
       }
     >

@@ -230,6 +230,25 @@ for (const viewport of viewports) {
           [roomId],
         ),
       ).toEqual(intro);
+
+      // Exercise the same stored intro with unbounded custom-interest text.
+      // This is a synthetic layout case, separate from the pairing captures.
+      const longQuestion = `What got you into ${"mountain photography ".repeat(60)}?`;
+      await one(
+        "UPDATE room_match_intros SET question = $1 WHERE room_id = $2 RETURNING room_id",
+        [longQuestion, roomId],
+      );
+      await a.page.reload();
+      const longIntro = a.page.locator('[data-match-intro="compact"]');
+      await expect(longIntro.getByText(longQuestion, { exact: true })).toBeVisible();
+      await longIntro.focus();
+      await a.page.keyboard.press("End");
+      await expect.poll(() => longIntro.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      const leave = a.page.getByTestId("leave-call");
+      const bounds = await leave.boundingBox();
+      if (!bounds) throw new Error("Call controls have no visible bounds");
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+      await capture(a.page, `in-call-long-question-${size}`);
     } finally {
       const closed = await Promise.allSettled(
         created.map(({ context }) => context.close()),
