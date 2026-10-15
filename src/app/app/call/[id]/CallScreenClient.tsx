@@ -2,6 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import VoiceCallScreen, { LeftScreen } from "@/components/call/VoiceCallScreen";
 import type { CallType, Participant } from "@/types/call";
@@ -165,13 +166,15 @@ function CallFinishLayout({
   status: ReturnType<typeof useCallFinish>["status"];
   children: ReactNode;
 }) {
-  // Native radio changes before hydration cannot update the rating handler.
+  // Keyless Clerk initialization remounts its descendants when keys arrive.
+  // Accept input only after that reset and hydration have both finished.
+  const { isLoaded } = useAuth();
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   return (
     <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-100">
       <fieldset
-        disabled={!ready || status.state === "saving"}
+        disabled={!ready || !isLoaded || status.state === "saving"}
         className="m-0 flex min-h-0 min-w-0 flex-1 flex-col border-0 p-0 [&_[data-call-root]]:h-full"
         aria-label="Call controls"
       >

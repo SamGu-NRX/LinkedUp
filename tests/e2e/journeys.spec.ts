@@ -410,6 +410,7 @@ const cases: Record<string, (browser: Browser, seed: number) => Promise<void>> =
     await b.page.keyboard.press("Space");
     for (let i = 0; i < 4; i += 1) await b.page.keyboard.press("ArrowRight");
     await expect(b.page.getByRole("radio", { name: "5 stars", exact: true })).toBeChecked();
+    await expect(b.page.locator("[data-call-rating] svg.fill-amber-400")).toHaveCount(5);
     await b.page.getByTestId("call-done").click();
     await expect(b.page.locator('[data-journey-proof="queue"]')).toBeVisible();
     expect(await one('SELECT count(*)::int AS count FROM call_ratings WHERE room_id = $1', [roomId])).toEqual({ count: 2 });

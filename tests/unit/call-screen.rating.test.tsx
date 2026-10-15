@@ -14,6 +14,8 @@ const actions = vi.hoisted(() => ({
   end: vi.fn(),
   push: vi.fn(),
 }));
+const auth = vi.hoisted(() => ({ isLoaded: true }));
+vi.mock("@clerk/nextjs", () => ({ useAuth: () => auth }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: actions.push }),
 }));
@@ -60,6 +62,7 @@ function screen() {
   );
 }
 beforeEach(() => {
+  auth.isLoaded = true;
   vi.resetAllMocks();
   actions.save.mockResolvedValue({ success: true });
   actions.end.mockResolvedValue({ success: true, ended: true });
@@ -67,6 +70,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("finishing a call", () => {
+  it("waits for Clerk initialization before accepting a rating", () => {
+    auth.isLoaded = false;
+    const view = render(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
+    expect(view.getByRole("radio", { name: /^1 star$/ })).toBeDisabled();
+    expect(view.getByRole("button", { name: "Done" })).toBeDisabled();
+    auth.isLoaded = true;
+    view.rerender(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
+    expect(view.getByRole("radio", { name: /^1 star$/ })).toBeEnabled();
+    expect(view.getByRole("button", { name: "Done" })).toBeEnabled();
+  });
   it("keeps server-rendered rating controls disabled until their handlers mount", () => {
     const server = document.createElement("div");
     server.innerHTML = renderToString(<CompletedCallRating roomId={access.roomId} exitHref="/app" />);
