@@ -1,0 +1,370 @@
+{
+  "mode": "live",
+  "model": "gpt-6-luna",
+  "endpoint": "https://api.openai.com/v1/decisions",
+  "fixedNow": "2026-10-15T12:00:00.000Z",
+  "fixtureCount": 30,
+  "familyCount": 5,
+  "seeds": [
+    17,
+    41,
+    93
+  ],
+  "interpretation": "Synthetic topic-family agreement only; not evidence of real user satisfaction. Family labels are withheld from matching. All 30 people arrive before pairing; the queue relaxes at 20 seconds if it stalls.",
+  "fixtures": [
+    {
+      "id": 1,
+      "family": "outdoors",
+      "interests": [
+        "hiking",
+        "climbing"
+      ]
+    },
+    {
+      "id": 2,
+      "family": "outdoors",
+      "interests": [
+        "trekking",
+        "bouldering"
+      ]
+    },
+    {
+      "id": 3,
+      "family": "outdoors",
+      "interests": [
+        "trail hiking",
+        "rock climbing"
+      ]
+    },
+    {
+      "id": 4,
+      "family": "outdoors",
+      "interests": [
+        "backpacking",
+        "mountaineering"
+      ]
+    },
+    {
+      "id": 5,
+      "family": "outdoors",
+      "interests": [
+        "walking woodland trails",
+        "camping"
+      ]
+    },
+    {
+      "id": 6,
+      "family": "outdoors",
+      "interests": [
+        "summit expeditions",
+        "wilderness weekends"
+      ]
+    },
+    {
+      "id": 7,
+      "family": "software",
+      "interests": [
+        "coding",
+        "devtools"
+      ]
+    },
+    {
+      "id": 8,
+      "family": "software",
+      "interests": [
+        "programming",
+        "CLI tools"
+      ]
+    },
+    {
+      "id": 9,
+      "family": "software",
+      "interests": [
+        "software development",
+        "developer tools"
+      ]
+    },
+    {
+      "id": 10,
+      "family": "software",
+      "interests": [
+        "building compilers",
+        "language servers"
+      ]
+    },
+    {
+      "id": 11,
+      "family": "software",
+      "interests": [
+        "open source maintainership",
+        "debugging programs"
+      ]
+    },
+    {
+      "id": 12,
+      "family": "software",
+      "interests": [
+        "shipping web applications",
+        "code editors"
+      ]
+    },
+    {
+      "id": 13,
+      "family": "photography",
+      "interests": [
+        "photography",
+        "portraits"
+      ]
+    },
+    {
+      "id": 14,
+      "family": "photography",
+      "interests": [
+        "taking photos",
+        "portraits"
+      ]
+    },
+    {
+      "id": 15,
+      "family": "photography",
+      "interests": [
+        "digital photography",
+        "portraits"
+      ]
+    },
+    {
+      "id": 16,
+      "family": "photography",
+      "interests": [
+        "film cameras",
+        "darkroom printing"
+      ]
+    },
+    {
+      "id": 17,
+      "family": "photography",
+      "interests": [
+        "street portraits",
+        "camera lenses"
+      ]
+    },
+    {
+      "id": 18,
+      "family": "photography",
+      "interests": [
+        "long exposure landscapes",
+        "composing pictures"
+      ]
+    },
+    {
+      "id": 19,
+      "family": "food",
+      "interests": [
+        "cooking",
+        "baking"
+      ]
+    },
+    {
+      "id": 20,
+      "family": "food",
+      "interests": [
+        "cooking",
+        "sourdough"
+      ]
+    },
+    {
+      "id": 21,
+      "family": "food",
+      "interests": [
+        "baking",
+        "sourdough"
+      ]
+    },
+    {
+      "id": 22,
+      "family": "food",
+      "interests": [
+        "fermentation",
+        "bread making"
+      ]
+    },
+    {
+      "id": 23,
+      "family": "food",
+      "interests": [
+        "recipe experiments",
+        "home made pasta"
+      ]
+    },
+    {
+      "id": 24,
+      "family": "food",
+      "interests": [
+        "pastry making",
+        "kitchen experiments"
+      ]
+    },
+    {
+      "id": 25,
+      "family": "music",
+      "interests": [
+        "music",
+        "guitar"
+      ]
+    },
+    {
+      "id": 26,
+      "family": "music",
+      "interests": [
+        "music",
+        "songwriting"
+      ]
+    },
+    {
+      "id": 27,
+      "family": "music",
+      "interests": [
+        "guitar",
+        "songwriting"
+      ]
+    },
+    {
+      "id": 28,
+      "family": "music",
+      "interests": [
+        "jazz improvisation",
+        "playing piano"
+      ]
+    },
+    {
+      "id": 29,
+      "family": "music",
+      "interests": [
+        "composing melodies",
+        "recording songs"
+      ]
+    },
+    {
+      "id": 30,
+      "family": "music",
+      "interests": [
+        "playing in a band",
+        "live concerts"
+      ]
+    }
+  ],
+  "fifo": {
+    "matches": 45,
+    "waiters": 0,
+    "sameFamilyFraction": 0.2,
+    "meanOverlap": 0.044444444444444446,
+    "runs": [
+      {
+        "seed": 17,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 2,
+        "sameFamilyFraction": 0.13333333333333333,
+        "meanOverlap": 0,
+        "relaxedPairs": 0
+      },
+      {
+        "seed": 41,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 3,
+        "sameFamilyFraction": 0.2,
+        "meanOverlap": 0.06666666666666667,
+        "relaxedPairs": 0
+      },
+      {
+        "seed": 93,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 4,
+        "sameFamilyFraction": 0.26666666666666666,
+        "meanOverlap": 0.06666666666666667,
+        "relaxedPairs": 0
+      }
+    ]
+  },
+  "deterministic": {
+    "matches": 45,
+    "waiters": 0,
+    "sameFamilyFraction": 0.4666666666666667,
+    "meanOverlap": 0.23333333333333334,
+    "runs": [
+      {
+        "seed": 17,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 6,
+        "sameFamilyFraction": 0.4,
+        "meanOverlap": 0.2,
+        "relaxedPairs": 14
+      },
+      {
+        "seed": 41,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 7,
+        "sameFamilyFraction": 0.4666666666666667,
+        "meanOverlap": 0.26666666666666666,
+        "relaxedPairs": 15
+      },
+      {
+        "seed": 93,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 8,
+        "sameFamilyFraction": 0.5333333333333333,
+        "meanOverlap": 0.23333333333333334,
+        "relaxedPairs": 15
+      }
+    ]
+  },
+  "decisions": {
+    "matches": 45,
+    "waiters": 0,
+    "sameFamilyFraction": 0.7777777777777778,
+    "meanOverlap": 0.25555555555555554,
+    "runs": [
+      {
+        "seed": 17,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 13,
+        "sameFamilyFraction": 0.8666666666666667,
+        "meanOverlap": 0.26666666666666666,
+        "relaxedPairs": 14
+      },
+      {
+        "seed": 41,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 11,
+        "sameFamilyFraction": 0.7333333333333333,
+        "meanOverlap": 0.26666666666666666,
+        "relaxedPairs": 15
+      },
+      {
+        "seed": 93,
+        "matches": 15,
+        "waiters": 0,
+        "sameFamilyPairs": 11,
+        "sameFamilyFraction": 0.7333333333333333,
+        "meanOverlap": 0.23333333333333334,
+        "relaxedPairs": 15
+      }
+    ]
+  },
+  "liveRequests": {
+    "callsThisRun": 121,
+    "persistedTotal": 121,
+    "hardCap": 150,
+    "configuredCap": 150,
+    "httpFailures": 0,
+    "nullVerdicts": 0,
+    "budgetRejected": 0
+  }
+}

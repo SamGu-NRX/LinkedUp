@@ -149,6 +149,42 @@ for (const viewport of viewports) {
       await capture(a.page, `waiting-reduced-motion-${size}`);
       await a.page.emulateMedia({ reducedMotion: "no-preference" });
 
+      await a.page.context().setOffline(true);
+      await waitForQueuePhase(a.page, "error");
+      await expect(
+        a.page.getByText("Could not check the queue. Try again.", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await capture(a.page, `queue-error-${size}`);
+      await a.page.context().setOffline(false);
+      await a.page
+        .getByRole("button", { name: "Try again", exact: true })
+        .click();
+      await waitForQueuePhase(a.page, "waiting");
+      await capture(a.page, `queue-recovered-${size}`);
+
+      const otherTab = await a.page.context().newPage();
+      try {
+        await gotoQueue(otherTab, "casual");
+        await otherTab.locator("[data-queue-leave]").click();
+        await expect(
+          otherTab.locator('[data-journey-proof="left"]'),
+        ).toBeVisible();
+        await a.page
+          .locator('[data-queue-phase="idle"]')
+          .waitFor({ state: "visible" });
+        await expect(
+          a.page.getByRole("heading", { name: "You are not in the queue" }),
+        ).toBeVisible();
+        expect(await liveQueueRows(a.userId)).toEqual([]);
+        await capture(a.page, `queue-idle-${size}`);
+      } finally {
+        await otherTab.close();
+      }
+      await a.page.reload();
+      await waitForQueuePhase(a.page, "waiting");
+
       await gotoQueue(b.page, "casual");
       await Promise.all(
         [a, b].map(({ page }) => waitForQueuePhase(page, "matched", 30_000)),
@@ -240,10 +276,14 @@ for (const viewport of viewports) {
       );
       await a.page.reload();
       const longIntro = a.page.locator('[data-match-intro="compact"]');
-      await expect(longIntro.getByText(longQuestion, { exact: true })).toBeVisible();
+      await expect(
+        longIntro.getByText(longQuestion, { exact: true }),
+      ).toBeVisible();
       await longIntro.focus();
       await a.page.keyboard.press("End");
-      await expect.poll(() => longIntro.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      await expect
+        .poll(() => longIntro.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
       const leave = a.page.getByTestId("leave-call");
       const bounds = await leave.boundingBox();
       if (!bounds) throw new Error("Call controls have no visible bounds");
