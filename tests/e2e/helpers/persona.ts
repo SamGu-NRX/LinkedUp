@@ -54,7 +54,7 @@ export function makePersona(
 /** Clerk's fixed verification code for +clerk_test addresses on development instances. */
 export const CLERK_TEST_CODE = "424242";
 
-async function collapseKeylessPrompt(page: Page): Promise<void> {
+export async function collapseKeylessPrompt(page: Page): Promise<void> {
   const prompt = page.getByRole("button", {
     name: "Keyless prompt",
     exact: true,

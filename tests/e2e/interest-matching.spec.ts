@@ -13,6 +13,7 @@ import {
 import {
   PROOF_CALL,
   acceptMatch,
+  collapseKeylessPrompt,
   completeOnboarding,
   gotoQueue,
   makePersona,
@@ -66,6 +67,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 async function capture(page: Page, name: string): Promise<void> {
+  await collapseKeylessPrompt(page);
   await expectNoHorizontalOverflow(page);
   await page.screenshot({
     path: path.join(screenshots, `${name}.png`),
@@ -141,7 +143,30 @@ for (const viewport of viewports) {
       const a = await newActor("A");
       const b = await newActor("B");
 
-      await gotoQueue(a.page, "casual");
+      // Hold the real join request only while photographing loading. No
+      // response is replaced; the same request continues into the pairing.
+      let releaseJoin!: () => void;
+      const joinGate = new Promise<void>((resolve) => {
+        releaseJoin = resolve;
+      });
+      const queueUrl = "**/onboarding?journey-proof=queue*";
+      await a.page.route(queueUrl, async (route) => {
+        if (route.request().method() === "POST") await joinGate;
+        await route.continue();
+      });
+      const joining = gotoQueue(a.page, "casual");
+      try {
+        await waitForQueuePhase(a.page, "loading");
+        await capture(a.page, `queue-loading-${size}`);
+        await a.page.emulateMedia({ reducedMotion: "reduce" });
+        await expectReducedMotion(a.page, '[data-queue-phase="loading"]');
+        await capture(a.page, `queue-loading-reduced-motion-${size}`);
+      } finally {
+        releaseJoin();
+        await joining;
+        await a.page.unroute(queueUrl);
+        await a.page.emulateMedia({ reducedMotion: "no-preference" });
+      }
       await waitForQueuePhase(a.page, "waiting");
       await capture(a.page, `waiting-${size}`);
       await a.page.emulateMedia({ reducedMotion: "reduce" });
@@ -241,11 +266,22 @@ for (const viewport of viewports) {
       await expect(
         longIntro.getByText(longQuestion, { exact: true }),
       ).toBeVisible();
+      await expect(a.page.locator("[data-call-root]")).toHaveAttribute(
+        "data-call-local-media",
+        "ready",
+      );
+      await collapseKeylessPrompt(a.page);
       await a.page.bringToFront();
-      await expect.poll(() => a.page.evaluate(() => document.hasFocus())).toBe(true);
+      await expect
+        .poll(() => a.page.evaluate(() => document.hasFocus()))
+        .toBe(true);
       await longIntro.focus();
       await expect(longIntro).toBeFocused();
-      expect(await longIntro.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+      expect(
+        await longIntro.evaluate(
+          (element) => element.scrollHeight - element.clientHeight,
+        ),
+      ).toBeGreaterThan(0);
       await longIntro.press("PageDown");
       await expect
         .poll(() => longIntro.evaluate((element) => element.scrollTop))
