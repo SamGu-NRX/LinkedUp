@@ -95,12 +95,12 @@ describe("gate-proof route: DB-backed gate through the labelled /gate-proof fixt
     expect(findFirst).not.toHaveBeenCalled();
   });
 
-  it("the /onboarding layout exit gate — the other half of the loop — still sends DB-complete users back to /app", async () => {
+  it("the onboarding layout keeps DB-complete users on recovery until their session claim is ready", async () => {
     authState.userId = "user_db_complete";
     findFirst.mockResolvedValueOnce({ id: 1, onboardingComplete: true });
     const digest = await caughtRedirect(() =>
       OnboardingLayout({ children: null }),
     );
-    expect(digest).toContain("/app");
+    expect(digest).toBeNull();
   });
 });

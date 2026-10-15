@@ -2,11 +2,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import ProfessionalInfo from "@/components/onboarding/ProfessionalInfo";
@@ -14,7 +12,7 @@ import BioSection from "@/components/onboarding/BioSection";
 import InterestsSection from "@/components/onboarding/InterestsSection";
 import ProfileSummary from "@/components/onboarding/ProfileSummary";
 import BasicInfo from "@/components/onboarding/BasicInfo";
-import Congratulations from "@/components/onboarding/Congratulations";
+import FinishingSetup from "./FinishingSetup";
 import { saveUserOnboardingData } from "./_actions";
 import {
   onboardingSchema,
@@ -49,7 +47,6 @@ const defaultValues: Partial<OnboardingFormData> = {
 };
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [showCongrats, setShowCongrats] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,7 +106,7 @@ export default function OnboardingPage() {
     <div className="from-background to-secondary/20 min-h-screen bg-linear-to-b">
       <AnimatePresence mode="wait">
         {showCongrats ? (
-          <Congratulations key="congrats" onComplete={() => router.push("/app")} />
+          <FinishingSetup key="finishing" />
         ) : (
           <FormProvider {...methods}>
             <motion.div

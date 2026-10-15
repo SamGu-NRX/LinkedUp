@@ -385,6 +385,12 @@ export default function VoiceCallScreen({
     void startCapture();
   };
 
+  const handleDone = () => {
+    // Finishing can wait on the server; release devices before that request.
+    if (!leftRef.current) handleLeave();
+    onDone?.();
+  };
+
   const remaining = Math.max(initialDuration - elapsed, 0);
   const remotes = [...transport.remotes.entries()];
   const transportFailed = phase === "failed" && screenPhase !== "failed" && transport.error;
@@ -432,7 +438,7 @@ export default function VoiceCallScreen({
             onRateCall(value);
           }}
           onRejoin={handleRejoin}
-          onDone={onDone}
+          onDone={onDone ? handleDone : undefined}
         />
       ) : (
         <>
@@ -468,7 +474,7 @@ export default function VoiceCallScreen({
                 }
                 onRetryMedia={captureError && !localReady ? () => void startCapture() : undefined}
                 onRetryCall={localReady && transport.error?.retryable ? transport.retry : undefined}
-                onDone={onDone}
+                onDone={onDone ? handleDone : undefined}
               />
             ) : remotes.length === 0 ? (
               <WaitingTile name={partner?.name} phase={phase} />
