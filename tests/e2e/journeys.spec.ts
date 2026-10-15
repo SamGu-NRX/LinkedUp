@@ -67,9 +67,12 @@ async function newActor(browser: Browser, letter: string): Promise<Actor> {
   const context = await browser.newContext();
   created.push({ context, email: persona.email });
   const page = await context.newPage();
+  const runtimeErrors: string[] = [];
+  page.on("pageerror", error => runtimeErrors.push(error.name));
   await signUpPersona(page, persona);
   await completeOnboarding(page, persona);
 
+  expect(runtimeErrors, `${letter}: authentication and onboarding runtime errors`).toEqual([]);
   // The wizard's answers are in Postgres, and the person is marked done.
   const row = await userRowByEmail(persona.email);
   expect(row, `${letter}: users row`).not.toBeNull();

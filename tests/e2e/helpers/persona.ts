@@ -83,10 +83,19 @@ export async function signUpPersona(
   const code = page.locator('input[autocomplete="one-time-code"]').first();
   await code.waitFor({ state: "visible", timeout: 60_000 });
   await code.pressSequentially(CLERK_TEST_CODE, { delay: 50 });
-  // Clerk's session list can update before its post-sign-up navigation.
-  // Wait for that navigation before starting the wizard, or its late redirect
-  // can remount onboarding and reset the step while a selector is in flight.
-  await page.waitForURL(/\/onboarding(?:[?#]|$)/, { timeout: 60_000 });
+  // Signed up means Clerk has an active session. Clerk's own redirect after
+  // sign-up does not finish on this stack: its server action posts to
+  // /sign-up/verify-email-address, which the reserved middleware redirects
+  // to /onboarding (signed in, no onboarding claim), and the page stays put.
+  // Signed up = Clerk's client holds a session for this browser. The next
+  // page load turns it into the app's session cookie.
+  await page.waitForFunction(
+    () =>
+      ((window as unknown as { Clerk?: { client?: { sessions?: unknown[] } } }).Clerk?.client?.sessions
+        ?.length ?? 0) > 0,
+    undefined,
+    { timeout: 60_000 },
+  );
 }
 
 const GENDER_LABEL: Record<Gender, string> = {
@@ -159,7 +168,7 @@ export async function completeOnboarding(
     .getByRole("heading", { name: "Professional Information" })
     .waitFor({ timeout: 20_000 });
   // The step transition can leave the previous combobox mounted briefly.
-  // Select the field trigger by its name instead of clicking the gender field.
+  // Select the field trigger by its visible text instead of the gender field.
   await page.getByRole("combobox").filter({ hasText: "Select field..." }).click();
   await page.waitForTimeout(600);
   await page
