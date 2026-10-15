@@ -1,5 +1,6 @@
 // src/app/onboarding/layout.tsx
 import { auth } from "@clerk/nextjs/server";
+import { hasCompletedOnboarding } from "@/lib/onboarding";
 import { redirect } from "next/navigation";
 
 export default async function RootLayout({
@@ -7,7 +8,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  if ((await auth()).sessionClaims?.metadata.onboardingComplete === true) {
+  const { userId } = await auth();
+  if (userId && (await hasCompletedOnboarding(userId))) {
     redirect("/app");
   }
 
