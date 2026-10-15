@@ -122,7 +122,7 @@ export async function completeOnboarding(
     .getByRole("heading", { name: "Create Your Profile" })
     .waitFor({ timeout: 60_000 });
 
-  const keyless = page.getByRole("button", { name: /keyless prompt/i });
+  const keyless = page.getByRole("button", { name: /keyless prompt/i, expanded: true });
   if (await keyless.count()) {
     await keyless.click({ force: true }).catch(() => {});
     await page.waitForTimeout(400);
@@ -156,11 +156,14 @@ export async function completeOnboarding(
     );
   }
 
-  await page.locator('[role="combobox"]').first().click();
-  await page
-    .getByRole("option", { name: GENDER_LABEL[persona.gender] })
-    .click({ force: true });
-  await page.waitForTimeout(600);
+  const gender = page.getByRole("combobox").first();
+  // The default is already selected for most personas. Opening that portal
+  // needlessly let Clerk's keyless prompt steal focus and close the list.
+  if (await gender.textContent() !== GENDER_LABEL[persona.gender]) {
+    await gender.press("Space");
+    await page.getByRole("option", { name: GENDER_LABEL[persona.gender], exact: true }).click({ timeout: 15_000 });
+  }
+  await expect(gender).toHaveText(GENDER_LABEL[persona.gender]);
   await page.getByRole("button", { name: "Continue", exact: true }).first().click();
 
   // Step 2 — Professional Info: field combobox + title/company/linkedin.
