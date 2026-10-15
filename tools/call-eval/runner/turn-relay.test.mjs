@@ -73,6 +73,20 @@ function integrityValid(/** @type {Buffer} */ raw) {
 const allocate = () => buildStun(ALLOCATE, 0, txid(), [[0x0019, Buffer.from([17, 0, 0, 0])], ...signed()], KEY);
 
 describe("turn relay", () => {
+  it("drops requests during an outage and resumes on the same socket", async () => {
+    const relay = await startTurnRelay();
+    cleanups.push(() => relay.stop());
+    const socket = await client();
+    relay.setAvailable(false);
+    const pending = next(socket, 100);
+    socket.send(allocate(), relay.port, "127.0.0.1");
+    await expect(pending).rejects.toThrow("timeout");
+    expect(relay.stats()).toMatchObject({ allocations: 0, droppedRequests: 1 });
+    relay.setAvailable(true);
+    const accepted = await request(socket, relay.port, allocate());
+    expect(accepted.cls).toBe(0b10);
+    expect(relay.stats()).toMatchObject({ allocations: 1, droppedRequests: 1 });
+  });
   it("accepts TURN REST credentials and refuses expired or incorrectly signed credentials", async () => {
     const relay = await startTurnRelay({ sharedSecret: "test-secret" });
     cleanups.push(() => relay.stop());

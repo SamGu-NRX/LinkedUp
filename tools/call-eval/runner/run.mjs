@@ -17,7 +17,7 @@ const CONTRACTS = loadContracts();
 const RUNNER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(RUNNER_DIR, "..", "out");
 
-export const H_IDS = Array.from({ length: 17 }, (_, i) => `H-${String(i + 1).padStart(2, "0")}`);
+export const H_IDS = Array.from({ length: 18 }, (_, i) => `H-${String(i + 1).padStart(2, "0")}`);
 export const P_IDS = Array.from({ length: 5 }, (_, i) => `P-0${i + 1}`);
 export const ALL_SCENARIOS = [...H_IDS, ...P_IDS];
 

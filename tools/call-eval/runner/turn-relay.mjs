@@ -143,6 +143,7 @@ function errorCode(code, reason) {
  * @param {{ port?: number, host?: string, realm?: string, password?: string, sharedSecret?: string | null }} [opts] port 0 picks a free port
  */
 export async function startTurnRelay({ port = 0, host = "127.0.0.1", realm = "connvo-eval", password = "eval-pass", sharedSecret = null } = {}) {
+  let available = true;
   const nonce = Buffer.from(`connvo-${Date.now().toString(36)}`);
   const server = dgram.createSocket("udp4");
   /**
@@ -150,7 +151,7 @@ export async function startTurnRelay({ port = 0, host = "127.0.0.1", realm = "co
    * @type {Map<string, { client: { address: string, port: number }, relay: import('node:dgram').Socket, relayed: { address: string, port: number }, expires: number, channels: Map<number, string>, byPeer: Map<string, number> }>}
    */
   const allocations = new Map();
-  const counters = { allocations: 0, relayedToPeer: 0, relayedToClient: 0 };
+  const counters = { allocations: 0, relayedToPeer: 0, relayedToClient: 0, droppedRequests: 0 };
 
   /** @param {{ address: string, port: number }} a */
   const key = (a) => `${a.address}:${a.port}`;
@@ -215,6 +216,7 @@ export async function startTurnRelay({ port = 0, host = "127.0.0.1", realm = "co
   }
 
   server.on("message", async (msg, rinfo) => {
+    if (!available) { counters.droppedRequests++; return; }
     const client = { address: rinfo.address, port: rinfo.port };
     // ChannelData: first two bits 01.
     if (msg.length >= 4 && (msg[0] & 0xc0) === 0x40) {
@@ -346,6 +348,10 @@ export async function startTurnRelay({ port = 0, host = "127.0.0.1", realm = "co
     port: server.address().port,
     host,
     stats: () => ({ ...counters, live: allocations.size }),
+    setAvailable(value) {
+      available = value;
+      if (!value) for (const k of [...allocations.keys()]) release(k);
+    },
     stop() {
       clearInterval(sweep);
       for (const k of [...allocations.keys()]) release(k);

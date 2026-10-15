@@ -21,6 +21,7 @@ import {
 } from "./scenario-kit.mjs";
 import { killPeerTab } from "./peers.mjs";
 import fs from "node:fs";
+import { captureCallStates, keyboardCallPass, scenarioIceExhaustion } from "./ice-states.mjs";
 import { loadContracts } from "./contracts.mjs";
 import {
   classifyRemoteColor,
@@ -722,18 +723,34 @@ export async function scenario_H_17(ctx, { seed }) {
   const frameA = await decodeRemoteFrame(peerA, "B");
   const frameB = await decodeRemoteFrame(peerB, "A");
   if (matchPeerColor(frameA.color)?.label !== "B" || matchPeerColor(frameB.color)?.label !== "A") throw new ScenarioError("H-17 remote video does not match the other participant.");
-  const toneA = await sampleRemoteTone(peerA, "B", 1000);
-  const toneB = await sampleRemoteTone(peerB, "A", 1000);
-  if (!toneMatches(toneA, 660) || !toneMatches(toneB, 440)) throw new ScenarioError("H-17 remote audio does not match the other participant.");
+  // Match H-02's three-second tone check; a newly attached analyser can
+  // start with silence before the jitter buffer delivers its first sample.
+  async function remoteTone(peer, from, expected) {
+    const deadline = Date.now() + 3000;
+    let tone;
+    do {
+      tone = await sampleRemoteTone(peer, from, 400);
+      if (toneMatches(tone, expected)) return tone;
+    } while (Date.now() < deadline);
+    throw new ScenarioError(`H-17 ${peer.peerId} expected ${expected} Hz, received ${JSON.stringify(tone)}`);
+  }
+  const [toneA, toneB] = await Promise.all([remoteTone(peerA, "B", 660), remoteTone(peerB, "A", 440)]);
   const paths = [await selectedCandidateTypes(peerA), await selectedCandidateTypes(peerB)];
-  if (!paths.every((path) => path.length && path.every((pair) => pair?.local === "relay"))) throw new ScenarioError("H-17 selected media path is not relayed", { paths });
+  if (!paths.every((path) => path.length && path.every((pair) => pair?.local === "relay" && pair?.remote === "relay"))) throw new ScenarioError("H-17 selected media path is not relayed", { paths });
   if (![peerA, peerB].every((peer) => peer.iceResponses.some((response) => response.status === 200 && response.turn))) throw new ScenarioError("H-17 did not observe the authorized ICE endpoint.");
   const relayStats = ctx.turn.stats();
   if (relayStats.allocations < 2 || !relayStats.relayedToPeer || !relayStats.relayedToClient) throw new ScenarioError("H-17 TURN did not carry media.");
-  fs.mkdirSync("docs/lane2/screenshots", { recursive: true });
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
-    await peerA.page.setViewportSize(viewport);
-    await peerA.page.screenshot({ path: `docs/lane2/screenshots/relay-connected-${viewport.width}x${viewport.height}.png` });
+  const captures = seed === 1 ? await captureCallStates(peerA, "relay-connected") : [];
+  const keyboard = [];
+  if (seed === 1) {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      await peerA.page.setViewportSize(viewport);
+      keyboard.push({ ...viewport, ...await keyboardCallPass(peerA) });
+    }
   }
-  return { seed, endpointCredentialsUsed: true, relayStats, paths, audioHz: [toneA.peakHz, toneB.peakHz], colours: ["B", "A"] };
+  return { seed, endpointCredentialsUsed: true, relayStats, paths, audioHz: [toneA.peakHz, toneB.peakHz], colours: ["B", "A"], captures, keyboard };
+}
+
+export async function scenario_H_18(ctx, options) {
+  return scenarioIceExhaustion(ctx, { ...options, installColorHook });
 }

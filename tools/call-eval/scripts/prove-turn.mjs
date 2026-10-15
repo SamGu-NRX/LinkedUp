@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Owns a disposable TURN relay and the :3202 app process for H-17. */
+/** Owns a disposable TURN relay and the :3202 app process for the call-network proof. */
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
@@ -8,6 +8,10 @@ import { createTurn } from "../runner/turn.mjs";
 import { runScenarios, writeOutputs } from "../runner/run.mjs";
 
 const root = process.cwd();
+const scenarios = (process.argv.find((arg) => arg.startsWith("--scenarios="))?.split("=")[1] ?? "H-17,H-01").split(",");
+const seeds = (process.argv.find((arg) => arg.startsWith("--seeds="))?.split("=")[1] ?? "1,2,3").split(",").map(Number);
+if (!seeds.every((seed) => Number.isSafeInteger(seed) && seed > 0)) throw new Error("Seeds must be positive integers.");
+const outDir = path.resolve(root, process.argv.find((arg) => arg.startsWith("--out="))?.slice(6) ?? "docs/lane2/verification");
 const baseUrl = "http://localhost:3202";
 const databaseUrl = "postgresql://postgres@127.0.0.1:54329/linkedup_turn";
 // Neither a server already on the port nor an inherited tenant may enter this proof.
@@ -32,9 +36,9 @@ try {
     if (Date.now() > deadline) throw new Error("Next readiness timed out; inspect .local/turn-proof-next.log locally.");
     await new Promise((r) => setTimeout(r, 500));
   }
-  const { results, wallMs } = await runScenarios({ scenarios: ["H-17"], seeds: [1], baseUrl, turn: relay, write: false });
-  await writeOutputs(results, wallMs, { outDir: path.join(root, "docs/lane2/verification") });
-  console.log(`H-17: ${results.filter((r) => r.pass).length}/${results.length} passed`);
+  const { results, wallMs } = await runScenarios({ scenarios, seeds, baseUrl, turn: relay, write: false });
+  await writeOutputs(results, wallMs, { outDir });
+  console.log(`Call proof: ${results.filter((r) => r.pass).length}/${results.length} passed`);
   if (results.some((r) => !r.pass)) process.exitCode = 1;
 } finally {
   server.kill("SIGTERM");

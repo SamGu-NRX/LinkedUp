@@ -186,7 +186,7 @@ export class RunContext {
     const peer = await launch({ fixtureVideo: video, fixtureAudio: audio, baseUrl: this.url, rtcConfig: config, participant, fullChromium });
     peer.iceResponses = [];
     peer.page.on("response", async (response) => {
-      if (!response.url().includes("/api/call/ice?")) return;
+      if (!response.url().includes("/api/call/ice?") && new URL(response.url()).searchParams.get("journey-proof") !== "ice") return;
       const body = await response.json().catch(() => null);
       peer.iceResponses.push({ status: response.status(), turn: body?.iceServers?.some((server) => [server.urls].flat().some((url) => /^turns?:/.test(url))) ?? false });
     });
